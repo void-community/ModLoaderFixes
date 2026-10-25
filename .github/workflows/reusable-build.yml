@@ -24,7 +24,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - name: Build and run unit tests
         run: |
           dotnet build ModLoaderFixes.slnx -c Release
@@ -49,7 +49,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - name: Prepare Linux native toolchain
         run: sudo apt-get update -qq && sudo apt-get install -y clang zlib1g-dev
       # Links the agent against the Ubuntu 18.04 sysroot of .NET's cross-build image, so that it loads on glibc 2.17 and later instead of needing the runner's
@@ -93,7 +93,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: jar-*
