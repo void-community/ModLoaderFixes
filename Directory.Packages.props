@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.10.26.2518" />
+    <GlobalPackageReference Include="NetAgents.Analyzers" Version="26.10.30.6264" />
     <PackageVersion Include="JvmBridge" Version="26.10.23.4023" />
     <PackageVersion Include="JvmBridge.Testing" Version="26.10.23.4023" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
