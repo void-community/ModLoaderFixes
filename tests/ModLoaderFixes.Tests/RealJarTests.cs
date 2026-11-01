@@ -11,6 +11,7 @@ public sealed class RealJarTests
 {
     private const string EventListenerHelper = "net/minecraftforge/eventbus/api/EventListenerHelper";
     private const string Forge = "https://maven.minecraftforge.net";
+    private const string ForgeClientHandler = "cpw/mods/fml/client/FMLClientHandler";
 
     private const string ForgeConfiguration = "net/minecraftforge/fml/loading/FMLConfig";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
@@ -24,6 +25,15 @@ public sealed class RealJarTests
     /// </summary>
     public static TheoryData<string, string, string, string[]> Jars { get; } = new()
     {
+        // FML 1.7's wait for the play client, with the getter of its latch, and the tweak sort that Forge for 1.7.2 runs into on Java 8u20 and later and 1.7.10 no longer has.
+        {
+            Forge, "net.minecraftforge:forge:1.7.2-10.12.2.1161-mc172:universal", "17628bcf403e312f8de275633528c171795fd0b5469ba9e496baf401a2cd1b7e",
+            ["cpw/mods/fml/relauncher/CoreModManager +0", ForgeClientHandler + " +1"]
+        },
+        {
+            Forge, "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10:universal", "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529",
+            [ForgeClientHandler + " +1"]
+        },
         // FML's registry rebuilds on the network thread, which Forge for 1.12.2 moved to the client thread itself.
         {
             Forge, "net.minecraftforge:forge:1.12.1-14.22.1.2478:universal", "80dffcf8b6330d4002589ae92463f51c7823ad24a4a1f3a2c331e9743f97d922",

@@ -28,6 +28,25 @@ java.util.ConcurrentModificationException
 [Netty IO #0/DEBUG] [net.minecraft.util.MessageDeserializer]:  IN: [LOGIN:0] net.minecraft.network.login.client.C00PacketLoginStart[]
 ```
 
+**Forge 1.7.2 and 1.7.10 clients sometimes drop their connection as they join, while the game is busy:**
+
+```text
+[Netty Client IO #0] [ERROR] java.lang.RuntimeException: Timeout waiting for client thread to catch up!
+at cpw.mods.fml.client.FMLClientHandler.waitForPlayClient(FMLClientHandler.java:843)
+at cpw.mods.fml.common.FMLCommonHandler.waitForPlayClient(FMLCommonHandler.java:584)
+at cpw.mods.fml.common.network.handshake.NetworkDispatcher.clientListenForServerHandshake(NetworkDispatcher.java:154)
+at cpw.mods.fml.common.network.handshake.FMLHandshakeClientState$1.accept(FMLHandshakeClientState.java:33)
+at cpw.mods.fml.common.network.handshake.FMLHandshakeClientState$1.accept(FMLHandshakeClientState.java:27)
+at cpw.mods.fml.common.network.handshake.HandshakeMessageHandler.userEventTriggered(HandshakeMessageHandler.java:40)
+...
+at cpw.mods.fml.common.network.handshake.NetworkDispatcher.handlerAdded(NetworkDispatcher.java:132)
+...
+at cpw.mods.fml.common.network.handshake.NetworkDispatcher.insertIntoChannel(NetworkDispatcher.java:119)
+at cpw.mods.fml.common.network.handshake.NetworkDispatcher.clientToServerHandshake(NetworkDispatcher.java:124)
+at cpw.mods.fml.common.network.internal.FMLNetworkHandler.fmlClientHandshake(FMLNetworkHandler.java:66)
+at net.minecraft.client.network.NetHandlerLoginClient.func_147390_a(NetHandlerLoginClient.java:97)
+```
+
 **Forge 1.12 servers drop players at login under load:**
 
 ```text

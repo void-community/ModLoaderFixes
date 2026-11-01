@@ -6,8 +6,8 @@ namespace ModLoaderFixes.Tests;
 
 /// <summary>
 /// The typed helpers against the real classes they call, as the agent's patches leave them: every class, field and method they name exists with the descriptor they
-/// were compiled against, which their stubs only claim. The helpers for Forge 1.7 and 1.12 and for Mojang's names call classes that no Maven repository holds by
-/// those names, so their fixtures and servers cover them instead.
+/// were compiled against, which their stubs only claim. The other helpers for Forge 1.7 and 1.12 and for Mojang's names call classes that no Maven repository holds
+/// by those names, so their fixtures and servers cover them instead.
 /// </summary>
 public sealed class HelperLinkTests
 {
@@ -20,6 +20,13 @@ public sealed class HelperLinkTests
         { "net.minecraftforge:eventbus:0.10.2", "e313a118c8b1042a2d8e931f5e627696f22b842f174e8fe4422f1bec5aa8f9b2" },
         { "net.minecraftforge:eventbus:0.10.3", "eee16845dafb8d3032b246b82b9a542860dc09c067182c02fcb31038a741d028" },
         { "net.minecraftforge:eventbus:0.10.4", "59f8a341f2016a0c607406028a306a25358dcd0928f5141bfe351b6dcd2e8391" },
+    };
+
+    /// <summary>Forge for Minecraft 1.7.2 and 1.7.10, whose FMLClientHandler the play client helper reaches through the getter the patch adds.</summary>
+    public static TheoryData<string, string> Forges { get; } = new()
+    {
+        { "net.minecraftforge:forge:1.7.2-10.12.2.1161-mc172:universal", "17628bcf403e312f8de275633528c171795fd0b5469ba9e496baf401a2cd1b7e" },
+        { "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10:universal", "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529" },
     };
 
     /// <summary>Forge's FML and NeoForge's, with configData of each type NeoForge's FML has given it.</summary>
@@ -62,5 +69,18 @@ public sealed class HelperLinkTests
         string eventBus = await new MavenArtifact(Forge, coordinates, sha256).GetPathAsync(cancellationToken);
 
         await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.EventListeners, [eventBus], PatcherAgent.Patches, cancellationToken);
+    }
+
+    /// <summary>The play client helper links against a real Forge 1.7 that the patches changed.</summary>
+    /// <param name="coordinates">The Forge artifact.</param>
+    /// <param name="sha256">Its pinned checksum.</param>
+    [Theory]
+    [MemberData(nameof(Forges))]
+    public async Task PlayClientHelperLinks(string coordinates, string sha256)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        string forge = await new MavenArtifact(Forge, coordinates, sha256).GetPathAsync(cancellationToken);
+
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.PlayClients, [forge], PatcherAgent.Patches, cancellationToken);
     }
 }

@@ -6,7 +6,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.IntegrationTests;
+namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Real legacy Forge servers, as itzg installs them, with the agent loaded.</summary>
 [Collection(ForgeServer.Collection)]

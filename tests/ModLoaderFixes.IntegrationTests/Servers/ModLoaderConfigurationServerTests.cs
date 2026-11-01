@@ -4,7 +4,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.IntegrationTests;
+namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Real Forge and NeoForge servers from Minecraft 1.19.4, as itzg installs them, which load FML's config through the agent's helper.</summary>
 [Collection(ForgeServer.Collection)]

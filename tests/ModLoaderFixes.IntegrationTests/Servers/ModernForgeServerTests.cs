@@ -4,7 +4,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.IntegrationTests;
+namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Real Forge and NeoForge servers for Minecraft 1.13 to 1.20.1, as itzg installs them, with the agent loaded and players logging in through FML's handshake.</summary>
 [Collection(ForgeServer.Collection)]

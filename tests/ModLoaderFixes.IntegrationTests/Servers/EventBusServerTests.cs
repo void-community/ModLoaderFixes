@@ -4,7 +4,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.IntegrationTests;
+namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Real Forge 1.14.2 and 1.14.3 servers, as itzg installs them, whose EventBus builds its listener lists through the agent.</summary>
 [Collection(ForgeServer.Collection)]

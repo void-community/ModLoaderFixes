@@ -7,7 +7,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.IntegrationTests;
+namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Starts Forge servers as itzg installs them, with the agent loaded, and logs players in to them.</summary>
 internal static class ForgeServer
