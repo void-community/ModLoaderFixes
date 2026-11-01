@@ -21,7 +21,7 @@ java.util.ConcurrentModificationException
 	at net.minecraft.launchwrapper.Launch.launch(Launch.java:117) [launchwrapper-1.9.jar:?]
 ```
 
-**Forge 1.7.2 and 1.7.10 servers now and then never answer a login**, and the client waits until it gives up:
+**Forge 1.7.2 and 1.7.10, PaperSpigot 1.7.10 and vanilla 1.7.2 to 1.7.10 servers now and then never answer a login**, and the client or proxy waits until it gives up:
 
 ```text
 [Netty IO #0/DEBUG] [net.minecraft.network.NetworkManager]: Set listener of net.minecraft.network.NetworkManager@1ab07dd4 to net.minecraft.server.network.NetHandlerLoginServer@2bcfb381

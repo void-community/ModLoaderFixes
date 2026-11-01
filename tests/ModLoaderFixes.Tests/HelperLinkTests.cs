@@ -6,8 +6,8 @@ namespace ModLoaderFixes.Tests;
 
 /// <summary>
 /// The typed helpers against the real classes they call, as the agent's patches leave them: every class, field and method they name exists with the descriptor they
-/// were compiled against, which their stubs only claim. The other helpers for Forge 1.7 and 1.12 and for Mojang's names call classes that no Maven repository holds
-/// by those names, so their fixtures and servers cover them instead.
+/// were compiled against, which their stubs only claim. The other helpers for Forge 1.7 and 1.12, for PaperSpigot and for Mojang's names call classes that no
+/// pinned jar holds by those names, so their fixtures and servers cover them instead.
 /// </summary>
 public sealed class HelperLinkTests
 {
@@ -69,6 +69,21 @@ public sealed class HelperLinkTests
         string eventBus = await new MavenArtifact(Forge, coordinates, sha256).GetPathAsync(cancellationToken);
 
         await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.EventListeners, [eventBus], PatcherAgent.Patches, cancellationToken);
+    }
+
+    /// <summary>The helper that adds vanilla's new connections links against the Netty that vanilla 1.7.2 and 1.7.10 servers bundle, the oldest and newest.</summary>
+    /// <param name="version">The Minecraft version.</param>
+    /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
+    /// <param name="sha256">Its pinned checksum.</param>
+    [Theory]
+    [InlineData("1.7.2", "3716cac82982e7c2eb09f83028b555e9ea606002", "b4139899700c1bdbf72880eec4bdb9e46c2cf22d1724a48a018ee0330035462e")]
+    [InlineData("1.7.10", "952438ac4e01b4d115c5fc38f891710c4941df29", "c70870f00c4024d829e154f7e5f4e885b02dd87991726a3308d81f513972f3fc")]
+    public async Task NewConnectionHelperLinks(string version, string sha1, string sha256)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        string server = await RealJarTests.VanillaServer(version, sha1, sha256).GetPathAsync(cancellationToken);
+
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.NewConnections, [server], PatcherAgent.Patches, cancellationToken);
     }
 
     /// <summary>The play client helper links against a real Forge 1.7 that the patches changed.</summary>
