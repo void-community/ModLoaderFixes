@@ -47,6 +47,13 @@ at cpw.mods.fml.common.network.internal.FMLNetworkHandler.fmlClientHandshake(FML
 at net.minecraft.client.network.NetHandlerLoginClient.func_147390_a(NetHandlerLoginClient.java:97)
 ```
 
+**Forge 1.7.2 and 1.7.10 and vanilla 1.7.2 to 1.7.10 clients sometimes drop their connection a few milliseconds after they open it:**
+
+```text
+[Client thread] [INFO] Connecting to localhost, 25565
+Internal Exception: io.netty.handler.codec.EncoderException: java.io.IOException: Can't serialize unregistered packet
+```
+
 **Forge 1.12 servers drop players at login under load:**
 
 ```text

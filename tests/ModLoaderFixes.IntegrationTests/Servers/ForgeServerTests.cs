@@ -117,6 +117,8 @@ public sealed class ForgeServerTests
             "ModLoaderFixes: patched net/minecraft/network/NetworkSystem (func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_150724_d redirected; "
             + "func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_74428_b redirected)"
         );
+        // Forge ships NetworkManager as a binary patch of Minecraft's, so only a running Forge shows it under FML's names.
+        ForgeServer.AssertLogged(logs, expected: "ModLoaderFixes: patched net/minecraft/network/NetworkManager (packets sent in order (2 changes))");
         ForgeServer.AssertNotLogged(logs, unexpected: "Failed to handle packet");
         // FML 1.7 scans the jar for mods with ASM 4, which reads class files up to Java 7, so the jar's launcher must be one.
         ForgeServer.AssertNotLogged(logs, unexpected: "probably a corrupt zip");

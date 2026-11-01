@@ -14,11 +14,14 @@ public sealed class MinecraftServerTests
 {
     private const string Image = "itzg/minecraft-server:2026.10.0-java8";
 
-    /// <summary>The vanilla releases at the edges of the two protocols of Minecraft 1.7, with their protocol version and the obfuscated name of their channel initializer.</summary>
-    public static TheoryData<string, int, string> VanillaReleases { get; } = new()
+    /// <summary>
+    /// The vanilla releases at the edges of the two protocols of Minecraft 1.7, with their protocol version and the obfuscated names of their channel initializer and
+    /// their NetworkManager.
+    /// </summary>
+    public static TheoryData<string, int, string, string> VanillaReleases { get; } = new()
     {
-        { "1.7.2", 4, "mt" },
-        { "1.7.10", 5, "nd" },
+        { "1.7.2", 4, "mt", "ef" },
+        { "1.7.10", 5, "nd", "ej" },
     };
 
     /// <summary>
@@ -44,14 +47,15 @@ public sealed class MinecraftServerTests
 
     /// <summary>
     /// A vanilla 1.7 server adds its new connections to the tick through the agent's helper, which finds its initializer by its shape, and lets every player of a
-    /// burst of logins reach the play state.
+    /// burst of logins reach the play state, with its NetworkManager's sends synchronized.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="protocol">Its protocol version.</param>
     /// <param name="initializer">The obfuscated name of its channel initializer.</param>
+    /// <param name="manager">The obfuscated name of its NetworkManager.</param>
     [Theory]
     [MemberData(nameof(VanillaReleases))]
-    public async Task VanillaServerKeepsPlayersThatLogInUnderLoad(string version, int protocol, string initializer)
+    public async Task VanillaServerKeepsPlayersThatLogInUnderLoad(string version, int protocol, string initializer, string manager)
     {
         string logs = await LogInPlayersAsync(type: "VANILLA", version, protocol, string.Empty);
 
@@ -59,6 +63,7 @@ public sealed class MinecraftServerTests
             logs,
             "ModLoaderFixes: patched " + initializer + " (initChannel(Lio/netty/channel/Channel;)V: new connections added to the network tick once their channel is active (2 changes))"
         );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + manager + " (packets sent in order (2 changes))");
     }
 
     private static async Task<string> LogInPlayersAsync(string type, string version, int protocol, string extraArguments)
