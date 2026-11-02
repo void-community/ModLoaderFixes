@@ -89,7 +89,7 @@ public sealed class PatcherAgent : JavaAgent
 
     private const string ClientThread = "modloaderfixes/ClientThread";
 
-    /// <summary>Gets the helpers that the patches call, all compiled from <c>src/java</c>.</summary>
+    /// <summary>Gets the helpers that the patches call, all compiled from <c>src/ModLoaderFixes/java</c>.</summary>
     internal static IReadOnlyList<JavaClassDefinition> Helpers { get; } =
     [
         JavaClasses.Modloaderfixes.Collections,

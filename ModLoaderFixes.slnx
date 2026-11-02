@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/ModLoaderFixes.csproj" />
+    <Project Path="src/ModLoaderFixes/ModLoaderFixes.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ModLoaderFixes.Tests/ModLoaderFixes.Tests.csproj" />

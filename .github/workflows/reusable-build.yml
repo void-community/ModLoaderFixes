@@ -65,7 +65,7 @@ jobs:
         run: |
           # SYSROOT_PROPERTIES is meant to split into separate arguments.
           # shellcheck disable=SC2086
-          dotnet publish src -c Release -r "$TARGET_RID" $SYSROOT_PROPERTIES -o "artifacts/agent/$TARGET_RID"
+          dotnet publish src/ModLoaderFixes -c Release -r "$TARGET_RID" $SYSROOT_PROPERTIES -o "artifacts/agent/$TARGET_RID"
       - name: Check the agent's glibc floor
         run: |
           floor="$(readelf -V "artifacts/agent/$TARGET_RID/ModLoaderFixes.so" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
@@ -101,7 +101,7 @@ jobs:
           merge-multiple: true
       # The combined jar holds the library of every platform, so one file serves java -javaagent anywhere. The tests and the release use this very file.
       - name: Combine the jars of the platforms into one
-        run: dotnet msbuild src/ModLoaderFixes.csproj -restore -t:JvmBridgeMergeAgentJars -p:JvmBridgeAgentJars="../artifacts/agent/*/ModLoaderFixes.jar" -p:JvmBridgeAgentJarOutput=../artifacts/jar/ModLoaderFixes.jar
+        run: dotnet msbuild src/ModLoaderFixes/ModLoaderFixes.csproj -restore -t:JvmBridgeMergeAgentJars -p:JvmBridgeAgentJars="../../artifacts/agent/*/ModLoaderFixes.jar" -p:JvmBridgeAgentJarOutput=../../artifacts/jar/ModLoaderFixes.jar
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: jar
