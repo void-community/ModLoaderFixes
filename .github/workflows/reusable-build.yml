@@ -56,7 +56,7 @@ jobs:
       # glibc (2.34 and later on ubuntu-24.04). Renovate updates the pinned commit when void-community/Actions changes.
       - name: Prepare the glibc 2.17 sysroot
         id: sysroot
-        uses: void-community/actions/glibc-sysroot@475f5d8911598b96e02b15cc4556e35d23b0a82d # main
+        uses: void-community/actions/glibc-sysroot@4daadfeeba28a2b06f827a1af46facc2fe016d46 # main
         with:
           rid: ${{ matrix.rid }}
       - name: Publish the native agent and its jar
