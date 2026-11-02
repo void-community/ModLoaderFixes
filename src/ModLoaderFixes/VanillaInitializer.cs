@@ -4,9 +4,10 @@ using JvmBridge.ClassFiles;
 namespace ModLoaderFixes;
 
 /// <summary>
-/// Finds vanilla Minecraft 1.7's server channel initializer, whose name changes in every release, by what its <c>initChannel</c> does, and points the two calls that
-/// add a new connection at <c>modloaderfixes.NewConnections</c>. The initializer constructs the connection with a boolean, which Minecraft 1.8 replaced with the
-/// packet direction, adds it to the tick's list with <c>List.add</c>, and puts it into the pipeline as <c>packet_handler</c>. Its other calls are left alone.
+/// Points the two calls of vanilla Minecraft 1.7's channel initializers that add a new connection at <c>modloaderfixes.NewConnections</c>. The initializers are
+/// <c>NetworkSystem</c>'s anonymous classes under each release's names, and another release gives other classes those names, so the edit checks what
+/// <c>initChannel</c> does: the initializer constructs the connection with a boolean, which Minecraft 1.8 replaced with the packet direction, adds it to the
+/// tick's list with <c>List.add</c>, and puts it into the pipeline as <c>packet_handler</c>. Its other calls are left alone.
 /// </summary>
 internal static class VanillaInitializer
 {
@@ -19,6 +20,12 @@ internal static class VanillaInitializer
     private const string AddLastDescriptor = "(Ljava/lang/String;Lio/netty/channel/ChannelHandler;)Lio/netty/channel/ChannelPipeline;";
     private const string ConnectionName = "packet_handler";
     private const string Helper = "modloaderfixes/NewConnections";
+
+    private static readonly HashSet<string> Names =
+    [
+        .. MappedClasses.NetworkInitializer.Vanilla.Select(static naming => naming.Name),
+        .. MappedClasses.MemoryInitializer.Vanilla.Select(static naming => naming.Name),
+    ];
 
     private static readonly JavaMethod AddLast = JavaMethod.Interface(owner: "io/netty/channel/ChannelPipeline", name: "addLast", AddLastDescriptor);
     private static readonly JavaMethod ListAdd = JavaMethod.Interface(owner: "java/util/List", name: "add", descriptor: "(Ljava/lang/Object;)Z");
@@ -52,6 +59,14 @@ internal static class VanillaInitializer
         return addLast is not { } connectionAddLast
             ? 0
             : Redirect(editor, additions[0], ListAdd, name: "add") + Redirect(editor, connectionAddLast, AddLast, name: "addLast");
+    }
+
+    /// <summary>Gets whether a class has the name of one of the initializers in some vanilla release.</summary>
+    /// <param name="name">The class's internal name.</param>
+    /// <returns>Whether it may be an initializer.</returns>
+    internal static bool IsInitializer(string name)
+    {
+        return Names.Contains(name);
     }
 
     // Minecraft 1.7 constructs its connection with a boolean that says whether it is a client's; 1.8 passes the packet direction instead, and its tick needs no fix.

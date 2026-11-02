@@ -15,5 +15,34 @@
     <!-- Stand-ins for the game's classes that the helpers compile against; the JVM links the helpers to the real ones, so these are never shipped. -->
     <JavaStubSource Include="stubs/**/*.java" />
     <InternalsVisibleTo Include="ModLoaderFixes.Tests" />
+    <!-- The generator runs on the build machine, so it is built for it whatever platform the agent targets, and the agent doesn't reference its assembly. -->
+    <ProjectReference Include="../ModLoaderFixes.Mappings/ModLoaderFixes.Mappings.csproj" ReferenceOutputAssembly="false" Private="false" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
   </ItemGroup>
+  <!--
+    The vanilla names of the classes and methods that Mappings.txt lists change with every release, so the build resolves them from Forge's, Ornithe's and Mojang's
+    mappings into Mappings.g.cs under obj, again whenever Mappings.txt or the generator changes, and keeps the downloaded mappings in artifacts/mappings.
+  -->
+  <Target Name="ResolveMappingsGenerator" DependsOnTargets="ResolveProjectReferences">
+    <!-- obj's path is only known once the SDK's targets have set it, so the table's is set here rather than with the project's properties. -->
+    <PropertyGroup>
+      <MappingsCache>$(MSBuildThisFileDirectory)../../artifacts/mappings</MappingsCache>
+      <MappingsTable>$(IntermediateOutputPath)Mappings.g.cs</MappingsTable>
+    </PropertyGroup>
+    <!-- The generator's assembly carries the build's version stamp, which changes on every build, so its sources tell when its output may change. -->
+    <ItemGroup>
+      <MappingsGeneratorSource Include="../ModLoaderFixes.Mappings/**/*.cs;../ModLoaderFixes.Mappings/*.csproj" Exclude="../ModLoaderFixes.Mappings/bin/**;../ModLoaderFixes.Mappings/obj/**" />
+    </ItemGroup>
+    <MSBuild Projects="../ModLoaderFixes.Mappings/ModLoaderFixes.Mappings.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)" RemoveProperties="RuntimeIdentifier;SelfContained">
+      <Output TaskParameter="TargetOutputs" ItemName="MappingsGenerator" />
+    </MSBuild>
+  </Target>
+  <Target Name="GenerateMappings" BeforeTargets="CoreCompile" DependsOnTargets="ResolveMappingsGenerator" Inputs="Mappings.txt;@(MappingsGeneratorSource)" Outputs="$(MappingsTable)">
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; &quot;@(MappingsGenerator)&quot; &quot;$(MSBuildProjectDirectory)/Mappings.txt&quot; &quot;$(MappingsTable)&quot; &quot;$(MappingsCache)&quot;" />
+  </Target>
+  <Target Name="CompileMappings" BeforeTargets="CoreCompile" DependsOnTargets="GenerateMappings">
+    <ItemGroup>
+      <Compile Include="$(MappingsTable)" />
+      <FileWrites Include="$(MappingsTable)" />
+    </ItemGroup>
+  </Target>
 </Project>

@@ -13,11 +13,11 @@ public sealed class OutboundPacketTests
     private const string MainClass = "connecting.ConnectingScreen";
     private const string Sources = "Fixtures/OutboundPacket/**/*.java";
 
-    // The managers, under the names the fixture gives them, with the line the agent logs when it patches each.
+    // The managers, under Forge's names and those of vanilla 1.7.10, with the line the agent logs when it patches each.
     private static readonly (string Manager, string Patched)[] Managers =
     [
         ("net.minecraft.network.NetworkManager", "ModLoaderFixes: patched net/minecraft/network/NetworkManager (packets sent in order (2 changes))"),
-        ("PacketConnection", "ModLoaderFixes: patched PacketConnection (packets sent in order (2 changes))"),
+        ("ej", "ModLoaderFixes: patched ej (packets sent in order (2 changes))"),
     ];
 
     /// <summary>

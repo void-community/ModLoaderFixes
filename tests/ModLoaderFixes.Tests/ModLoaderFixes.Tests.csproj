@@ -12,5 +12,6 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../../src/ModLoaderFixes/ModLoaderFixes.csproj" />
+    <ProjectReference Include="../../src/ModLoaderFixes.Mappings/ModLoaderFixes.Mappings.csproj" />
   </ItemGroup>
 </Project>

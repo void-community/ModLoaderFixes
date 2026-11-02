@@ -1,4 +1,5 @@
 using JvmBridge.Agents;
+using JvmBridge.ClassFiles;
 
 namespace ModLoaderFixes;
 
@@ -13,23 +14,29 @@ namespace ModLoaderFixes;
 internal static class OutboundPackets
 {
     private const string Description = "packets sent in order";
+    private const string SendDescriptor = "(Lnet/minecraft/network/Packet;[Lio/netty/util/concurrent/GenericFutureListener;)V";
+    private const int Synchronized = 0x0020;
 
-    /// <summary>Gets the patch of Forge 1.7's <c>NetworkManager</c>, by FML's names: <c>scheduleOutboundPacket</c> and <c>flushOutboundQueue</c>.</summary>
-    internal static ClassPatch Forge { get; } = ClassPatch.For(className: "net/minecraft/network/NetworkManager")
-        .Edit(
-            Description,
-            static context => PacketQueue.Synchronize(
-                context.Editor,
-                ("func_150725_a", "(Lnet/minecraft/network/Packet;[Lio/netty/util/concurrent/GenericFutureListener;)V"),
-                ("func_150733_h", "()V")
-            )
-        );
+    /// <summary>
+    /// Gets the patches of <c>NetworkManager</c>: Forge's, by FML's names <c>scheduleOutboundPacket</c> and <c>flushOutboundQueue</c>, and vanilla's under each
+    /// release's names.
+    /// </summary>
+    internal static IReadOnlyList<ClassPatch> Patches { get; } = MappedClasses.NetworkManager.Patches(Synchronize);
 
-    /// <summary>Gets the patch of vanilla 1.7's <c>NetworkManager</c>, which <see cref="PacketQueue"/> finds by its shape, because vanilla's names change in every release.</summary>
-    internal static ClassPatch Vanilla { get; } = ClassPatch.ForMatching(static name => !name.Contains(value: '/', StringComparison.Ordinal), description: "classes of the default package")
-        .WhereSubclassOf(superType: "io/netty/channel/SimpleChannelInboundHandler")
-        .Edit(Description, PacketQueue.SynchronizeByShape);
+    // A manager that lacks either method under the naming's names, as another release's class of the same name does, is left alone with the message.
+    private static ClassPatch Synchronize(ClassNames names)
+    {
+        JavaMethod send = names.Virtual(name: "func_150725_a", SendDescriptor);
+        JavaMethod flush = names.Virtual(name: "func_150733_h", descriptor: "()V");
 
-    /// <summary>Gets the patches, Forge's and vanilla's.</summary>
-    internal static IReadOnlyList<ClassPatch> Patches { get; } = [Forge, Vanilla];
+        return names.Patch().Edit(Description, context => Synchronize(context.Editor, send) + Synchronize(context.Editor, flush));
+    }
+
+    private static int Synchronize(ClassFileEditor editor, JavaMethod method)
+    {
+        ClassMember member = editor.Model.FindMethod(method.Name, method.Descriptor)
+            ?? throw new InvalidOperationException(editor.Model.Name + " has no " + method.Name + method.Descriptor + ".");
+
+        return (member.AccessFlags & Synchronized) != 0 ? 0 : editor.SetMethodAccess(member.Name, member.Descriptor, member.AccessFlags | Synchronized);
+    }
 }

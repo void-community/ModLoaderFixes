@@ -7,7 +7,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 
 /**
- * A connection as vanilla Minecraft 1.7 keeps it, under a name of its own as the obfuscated releases each have one: it is constructed with whether it is a
+ * A connection as vanilla Minecraft 1.7 keeps it, under a name of its own as each obfuscated release gives it: it is constructed with whether it is a
  * client's, has no channel until channelActive, and processing its packets reads the channel at once.
  */
 public class Connection implements ChannelHandler {

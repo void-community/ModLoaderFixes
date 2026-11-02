@@ -44,12 +44,12 @@ internal static class PendingConnections
         .AddFieldGetter(field: "m", name: "modloaderfixes$channel", returns: "Ljava/lang/Object;");
 
     /// <summary>
-    /// Gets the patch of vanilla 1.7's channel initializer, which <see cref="VanillaInitializer"/> finds by its shape, because vanilla's names change in every
-    /// release. The tick's names change too, and a helper can't call members it can't name, so this fixes the other end: the initializer's adding of the manager to
-    /// the tick's list goes to <c>modloaderfixes.NewConnections</c>, which adds it from a task on the channel's event loop, and Netty runs that task after
-    /// channelActive.
+    /// Gets the patch of vanilla 1.7's channel initializers, for the network and, in a client's integrated server, in memory, under each release's names, which
+    /// <see cref="VanillaInitializer"/> checks by what their <c>initChannel</c> does. The tick's names change in every release too, and a helper can't call members
+    /// whose names it doesn't know, so this fixes the other end: the initializer's adding of the manager to the tick's list goes to
+    /// <c>modloaderfixes.NewConnections</c>, which adds it from a task on the channel's event loop, and Netty runs that task after channelActive.
     /// </summary>
-    internal static ClassPatch Vanilla { get; } = ClassPatch.ForMatching(static name => !name.Contains(value: '/', StringComparison.Ordinal), description: "classes of the default package")
+    internal static ClassPatch Vanilla { get; } = ClassPatch.ForMatching(VanillaInitializer.IsInitializer, description: "vanilla 1.7's channel initializers")
         .WhereSubclassOf(superType: "io/netty/channel/ChannelInitializer")
         .Method(VanillaInitializer.MethodName, VanillaInitializer.MethodDescriptor)
         .Edit(description: "new connections added to the network tick once their channel is active", VanillaInitializer.Defer);

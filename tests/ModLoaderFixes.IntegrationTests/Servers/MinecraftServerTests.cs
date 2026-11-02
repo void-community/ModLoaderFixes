@@ -46,8 +46,8 @@ public sealed class MinecraftServerTests
     }
 
     /// <summary>
-    /// A vanilla 1.7 server adds its new connections to the tick through the agent's helper, which finds its initializer by its shape, and lets every player of a
-    /// burst of logins reach the play state, with its NetworkManager's sends synchronized.
+    /// A vanilla 1.7 server adds its new connections to the tick through the agent's helper, which finds its initializer by the release's names, and lets every
+    /// player of a burst of logins reach the play state, with its NetworkManager's sends synchronized.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="protocol">Its protocol version.</param>

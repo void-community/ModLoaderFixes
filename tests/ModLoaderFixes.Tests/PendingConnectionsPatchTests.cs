@@ -87,27 +87,33 @@ public sealed class PendingConnectionsPatchTests
         );
     }
 
-    /// <summary>Minecraft 1.8 constructs its connection with the packet direction, and its tick needs no fix, so its initializer is left alone.</summary>
+    /// <summary>
+    /// Minecraft 1.8 constructs its connection with the packet direction, and its tick needs no fix, so an initializer of its shape is left alone, even under a name
+    /// that a 1.7 release gives its own initializer.
+    /// </summary>
     [Fact]
     public void VanillaPatchLeavesMinecraft18()
     {
-        ClassPatchResult result = PendingConnections.Vanilla.Apply(CreateInitializer(className: "rd", connectionConstructor: "(Lie;)V"));
+        ClassPatchResult result = PendingConnections.Vanilla.Apply(CreateInitializer(className: "nd", connectionConstructor: "(Lie;)V"));
 
         Assert.False(result.Changed);
         Assert.Contains(expectedSubstring: "nothing to change", result.SkippedReason, StringComparison.Ordinal);
     }
 
-    /// <summary>The vanilla patch only looks at the default package, where vanilla's obfuscated classes are, so Forge's and PaperSpigot's initializers don't match.</summary>
+    /// <summary>
+    /// The vanilla patch only looks at the names that the 1.7 releases give their initializers, so Forge's initializers and other obfuscated classes don't match it.
+    /// </summary>
     [Fact]
-    public void VanillaPatchOnlyMatchesTheDefaultPackage()
+    public void VanillaPatchOnlyMatchesTheNamesOfTheInitializers()
     {
         Assert.False(
             PendingConnections.Vanilla.Matches(CreateInitializer(className: "net/minecraft/network/NetworkSystem$2", connectionConstructor: "(Z)V"), hierarchy: null)
         );
+        Assert.False(PendingConnections.Vanilla.Matches(CreateInitializer(className: "rd", connectionConstructor: "(Z)V"), hierarchy: null));
     }
 
     /// <summary>
-    /// Vanilla 1.7's initializer, found by its shape under any name, sends its List.add and the addLast that names the connection to the helper, and keeps its other
+    /// Vanilla 1.7's initializer, under the name that 1.7.10 gives it, sends its List.add and the addLast that names the connection to the helper, and keeps its other
     /// addLast calls.
     /// </summary>
     [Fact]

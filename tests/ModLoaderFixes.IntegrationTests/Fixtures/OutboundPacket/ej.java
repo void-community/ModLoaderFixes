@@ -8,11 +8,11 @@ import io.netty.util.concurrent.GenericFutureListener;
 import net.minecraft.network.Packet;
 
 /**
- * Vanilla 1.7's NetworkManager, under a name of its own as each obfuscated release has, and with the same code as Forge's: a send queues the packet while there
- * is no channel, and otherwise flushes the queue and dispatches the packet.
+ * Vanilla 1.7's NetworkManager, under the names 1.7.10 gives it and its packet, and with the same code as Forge's: a send queues the packet while there is no
+ * channel, and otherwise flushes the queue and dispatches the packet.
  */
-public class PacketConnection extends SimpleChannelInboundHandler implements Connection {
-    private final Queue<Packet> l = new ConcurrentLinkedQueue<Packet>();
+public class ej extends SimpleChannelInboundHandler implements Connection {
+    private final Queue<ft> l = new ConcurrentLinkedQueue<ft>();
     private Wire m;
 
     @Override
@@ -22,7 +22,7 @@ public class PacketConnection extends SimpleChannelInboundHandler implements Con
 
     @Override
     public void send(Packet packet) {
-        a(packet);
+        a(new ft(packet));
     }
 
     @Override
@@ -31,7 +31,7 @@ public class PacketConnection extends SimpleChannelInboundHandler implements Con
     }
 
     /** The send. */
-    public void a(Packet packet, GenericFutureListener... listeners) {
+    public void a(ft packet, GenericFutureListener... listeners) {
         if (m != null) {
             i();
             b(packet, listeners);
@@ -41,17 +41,17 @@ public class PacketConnection extends SimpleChannelInboundHandler implements Con
     }
 
     /** The dispatch. */
-    private void b(final Packet packet, GenericFutureListener[] listeners) {
+    private void b(final ft packet, GenericFutureListener[] listeners) {
         final String current = m.state();
         final Wire wire = m;
 
         wire.execute(new Runnable() {
             @Override
             public void run() {
-                if (!packet.state().equals(current))
-                    wire.setState(packet.state());
+                if (!packet.packet.state().equals(current))
+                    wire.setState(packet.packet.state());
 
-                wire.write(packet);
+                wire.write(packet.packet);
             }
         });
     }

@@ -18,7 +18,7 @@ public sealed class PendingConnectionTests
     private const string Sources = "Fixtures/PendingConnection/**/*.java";
 
     /// <summary>
-    /// Vanilla's initializer, under a name of its own as each obfuscated release has, adds a new connection that the tick then drops; with the agent the connection
+    /// Vanilla's initializer, under the name 1.7.10 gives it, adds a new connection that the tick then drops; with the agent the connection
     /// reaches the tick from a later task of the event loop, after channelActive, and its login start is answered.
     /// </summary>
     [Theory]
@@ -33,7 +33,7 @@ public sealed class PendingConnectionTests
             mainClass: "NetworkTick",
             dropped: "joining dropped, answered [], ticked 0",
             Kept + ", ticked 1",
-            patched: "ModLoaderFixes: patched ConnectionInitializer (initChannel(Lio/netty/channel/Channel;)V: new connections added to the network tick once their channel is active (2 changes))"
+            patched: "ModLoaderFixes: patched nd (initChannel(Lio/netty/channel/Channel;)V: new connections added to the network tick once their channel is active (2 changes))"
         );
     }
 

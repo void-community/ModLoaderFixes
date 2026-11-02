@@ -76,7 +76,7 @@ public sealed class RealJarTests
 
     /// <summary>
     /// Every vanilla server of Minecraft 1.7, which Mojang serves at the address of its SHA-1, with the obfuscated names of its NetworkManager and of its channel
-    /// initializer, which the vanilla patches find by their shape; and 1.8, which sends with an extra listener and whose tick needs no fix.
+    /// initializer, which the vanilla patches take from the mappings of each release; and 1.8, which sends with an extra listener and whose tick needs no fix.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaServers { get; } = new()
     {
@@ -94,8 +94,8 @@ public sealed class RealJarTests
 
     /// <summary>
     /// Every vanilla client of Minecraft 1.7, which Mojang serves at the address of its SHA-1, with the obfuscated names of its NetworkManager and of the two channel
-    /// initializers of its integrated server, for the network and in memory, which the vanilla patches find by their shape; and 1.8, which sends with an extra
-    /// listener and whose tick needs no fix.
+    /// initializers of its integrated server, for the network and in memory, which the vanilla patches take from the mappings of each release; and 1.8, which
+    /// sends with an extra listener and whose tick needs no fix.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -111,7 +111,7 @@ public sealed class RealJarTests
         { "1.8", "d722504db9de2b47f46cc592b8528446272ae648", "ccccd0a92f76fbb24279691daad9b67f85d80471a37e59e0da76d7754982dfe8", [] },
     };
 
-    /// <summary>The patches change only the NetworkManager of each vanilla 1.7 client and the two initializers of its integrated server, whatever their names, and nothing in vanilla 1.8.</summary>
+    /// <summary>The patches change only the NetworkManager of each vanilla 1.7 client and the two initializers of its integrated server, under each release's names, and nothing in vanilla 1.8.</summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
     /// <param name="sha256">Its pinned checksum.</param>
@@ -127,7 +127,7 @@ public sealed class RealJarTests
         Assert.Equal(expected.Order(StringComparer.Ordinal), Changes(jar));
     }
 
-    /// <summary>The patches change only the NetworkManager and the channel initializer of each vanilla 1.7 server, whatever their names, and nothing in vanilla 1.8.</summary>
+    /// <summary>The patches change only the NetworkManager and the channel initializer of each vanilla 1.7 server, under each release's names, and nothing in vanilla 1.8.</summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
     /// <param name="sha256">Its pinned checksum.</param>

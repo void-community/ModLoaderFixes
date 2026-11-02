@@ -32,7 +32,7 @@ public class NetworkTick {
         NetworkTick tick = new NetworkTick();
         TestChannel channel = new TestChannel();
 
-        new ConnectionInitializer(tick).initChannel(channel);
+        new nd(tick).initChannel(channel);
         tick.tick();
         channel.activate();
         channel.runTasks();
