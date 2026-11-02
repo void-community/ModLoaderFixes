@@ -19,15 +19,15 @@
     <ProjectReference Include="../ModLoaderFixes.Mappings/ModLoaderFixes.Mappings.csproj" ReferenceOutputAssembly="false" Private="false" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
   </ItemGroup>
   <!--
-    The classes and methods that the patches name by the names Forge runs them under: MCP's (srg) up to Minecraft 1.16.5, Mojang's (official) from 1.17. Vanilla
-    obfuscates them under other names in every release, so as the agent builds, src/ModLoaderFixes.Mappings finds each one in every release from From to To,
-    through Forge's, Ornithe's and Mojang's mappings, and compiles their names into MappedClasses, whose property each item names. Methods lists each method by its
-    name followed by its descriptor, separated by spaces.
+    The classes and methods that the patches name by the names Forge runs them under: MCP's up to Minecraft 1.16.5, Mojang's from 1.17, so a range of releases
+    can't cross 1.17. Vanilla obfuscates them under other names in every release, so as the agent builds, src/ModLoaderFixes.Mappings finds each one in every
+    release from From to To, through Forge's, Ornithe's and Mojang's mappings, and compiles their names into MappedClasses, whose property each item names.
+    Methods lists each method by its name followed by its descriptor, separated by spaces.
   -->
   <ItemGroup>
-    <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.7.10" Names="srg" Methods="func_150725_a(Lnet/minecraft/network/Packet;[Lio/netty/util/concurrent/GenericFutureListener;)V func_150733_h()V" />
-    <MappedClass Include="NetworkInitializer" Class="net/minecraft/network/NetworkSystem$1" From="1.7.2" To="1.7.10" Names="srg" />
-    <MappedClass Include="MemoryInitializer" Class="net/minecraft/network/NetworkSystem$2" From="1.7.2" To="1.7.10" Names="srg" />
+    <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.7.10" Methods="func_150725_a(Lnet/minecraft/network/Packet;[Lio/netty/util/concurrent/GenericFutureListener;)V func_150733_h()V" />
+    <MappedClass Include="NetworkInitializer" Class="net/minecraft/network/NetworkSystem$1" From="1.7.2" To="1.7.10" />
+    <MappedClass Include="MemoryInitializer" Class="net/minecraft/network/NetworkSystem$2" From="1.7.2" To="1.7.10" />
   </ItemGroup>
   <!--
     The build resolves the names into Mappings.g.cs under obj again whenever the items or the generator change, and keeps the downloaded mappings in
@@ -40,17 +40,13 @@
       <MappingsRequests>$(IntermediateOutputPath)MappedClasses.txt</MappingsRequests>
       <MappingsTable>$(IntermediateOutputPath)Mappings.g.cs</MappingsTable>
     </PropertyGroup>
-    <!-- The generator's assembly carries the build's version stamp, which changes on every build, so its sources tell when its output may change. -->
-    <ItemGroup>
-      <MappingsGeneratorSource Include="../ModLoaderFixes.Mappings/**/*.cs;../ModLoaderFixes.Mappings/*.csproj" Exclude="../ModLoaderFixes.Mappings/bin/**;../ModLoaderFixes.Mappings/obj/**" />
-    </ItemGroup>
     <!-- One line per item, its fields separated by tabs; the file keeps its time while the items stay the same, so it tells when they change. -->
-    <WriteLinesToFile File="$(MappingsRequests)" Lines="@(MappedClass->'%(Identity)%09%(Class)%09%(From)%09%(To)%09%(Names)%09%(Methods)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteLinesToFile File="$(MappingsRequests)" Lines="@(MappedClass->'%(Identity)%09%(Class)%09%(From)%09%(To)%09%(Methods)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <MSBuild Projects="../ModLoaderFixes.Mappings/ModLoaderFixes.Mappings.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)" RemoveProperties="RuntimeIdentifier;SelfContained">
       <Output TaskParameter="TargetOutputs" ItemName="MappingsGenerator" />
     </MSBuild>
   </Target>
-  <Target Name="GenerateMappings" BeforeTargets="CoreCompile" DependsOnTargets="ResolveMappingsGenerator" Inputs="$(MappingsRequests);@(MappingsGeneratorSource)" Outputs="$(MappingsTable)">
+  <Target Name="GenerateMappings" BeforeTargets="CoreCompile" DependsOnTargets="ResolveMappingsGenerator" Inputs="$(MappingsRequests);@(MappingsGenerator)" Outputs="$(MappingsTable)">
     <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; &quot;@(MappingsGenerator)&quot; &quot;$(MappingsRequests)&quot; &quot;$(MappingsTable)&quot; &quot;$(MappingsCache)&quot;" />
   </Target>
   <Target Name="CompileMappings" BeforeTargets="CoreCompile" DependsOnTargets="GenerateMappings">

@@ -160,24 +160,6 @@ internal sealed partial class Mapping
         return mapping.Complete();
     }
 
-    /// <summary>Gets whether an obfuscated class declares a method under an obfuscated name and descriptor.</summary>
-    /// <param name="owner">The obfuscated name of the class.</param>
-    /// <param name="name">The obfuscated name of the method.</param>
-    /// <param name="descriptor">Its obfuscated descriptor.</param>
-    /// <returns>Whether the class declares it.</returns>
-    internal bool Declares(string owner, string name, string descriptor)
-    {
-        return !IsIdentity && _namedMethods.ContainsKey(Key(owner, name, descriptor));
-    }
-
-    /// <summary>Gets whether the mapping has an obfuscated class, so that it lists the class's methods.</summary>
-    /// <param name="obfuscated">The obfuscated name.</param>
-    /// <returns>Whether it has the class.</returns>
-    internal bool HasClass(string obfuscated)
-    {
-        return !IsIdentity && _namedClasses.ContainsKey(obfuscated);
-    }
-
     /// <summary>Gets the name of an obfuscated class, or null when the mapping doesn't have it.</summary>
     /// <param name="obfuscated">The obfuscated name.</param>
     /// <returns>The name.</returns>

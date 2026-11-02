@@ -2,8 +2,8 @@ namespace ModLoaderFixes.Mappings;
 
 /// <summary>
 /// Finds the obfuscated names of a class and its methods in a release: through the release's own mapping of the requested kind of names when it has one, and
-/// through every other kind it has, which the nearest releases before and after it that have both kinds link to the requested names. Forge's names come first,
-/// then Ornithe's and then Mojang's; every route that finds the class and all its methods must agree.
+/// through every other kind it has, which the nearest other release that has both kinds links to the requested names. Forge's names come first, then Ornithe's
+/// and then Mojang's; every route that finds the class and all its methods must agree.
 /// </summary>
 /// <param name="sources">The mappings of each release.</param>
 internal sealed class Resolver(IMappingSources sources)
@@ -53,18 +53,17 @@ internal sealed class Resolver(IMappingSources sources)
 
         foreach (Namespace link in Links.Where(link => link != names && sources.Has(link, version)))
         {
+            if (Nearest(names, link, version) is not { } through)
+                continue;
+
             Mapping target = await sources.GetAsync(link, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            Mapping named = await sources.GetAsync(names, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            Mapping linked = await sources.GetAsync(link, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-            foreach (string through in Nearest(names, link, version))
+            if (Bridge(named, linked, target, request) is { } naming)
             {
-                Mapping named = await sources.GetAsync(names, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-                Mapping linked = await sources.GetAsync(link, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-
-                if (Bridge(named, linked, target, request) is { } naming)
-                {
-                    routes.Add(named.Source + " to " + linked.Source + " to " + target.Source);
-                    found.Add(naming);
-                }
+                routes.Add(named.Source + " to " + linked.Source + " to " + target.Source);
+                found.Add(naming);
             }
         }
 
@@ -130,14 +129,14 @@ internal sealed class Resolver(IMappingSources sources)
         return new Naming(name, methods);
     }
 
-    // The nearest release before the version and the nearest after it that have both kinds of names.
-    private IEnumerable<string> Nearest(Namespace names, Namespace link, string version)
+    // The nearest other release that has both kinds of names, the earlier one when two are as near.
+    private string? Nearest(Namespace names, Namespace link, string version)
     {
         IReadOnlyList<string> releases = sources.Releases;
         int index = IndexOf(releases, version);
-        string? before = releases.Take(index).LastOrDefault(release => sources.Has(names, release) && sources.Has(link, release));
-        string? after = releases.Skip(index + 1).FirstOrDefault(release => sources.Has(names, release) && sources.Has(link, release));
 
-        return new[] { before, after }.OfType<string>();
+        return releases.Where((release, other) => other != index && sources.Has(names, release) && sources.Has(link, release))
+            .OrderBy(release => Math.Abs(IndexOf(releases, release) - index))
+            .FirstOrDefault();
     }
 }

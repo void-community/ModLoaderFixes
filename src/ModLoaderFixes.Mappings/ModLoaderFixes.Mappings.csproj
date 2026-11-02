@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <!-- A fixed version keeps the assembly the same from one build to the next, so the agent's build regenerates the names only when the generator changes. -->
+    <Version>1.0.0</Version>
     <Description>Resolves the names of the classes and methods that the agent's MappedClass items list from Forge's, Ornithe's and Mojang's mappings, as the agent builds, into the Mappings.g.cs it compiles.</Description>
   </PropertyGroup>
   <ItemGroup>

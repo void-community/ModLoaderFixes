@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,7 +6,7 @@ using System.Xml.Linq;
 
 namespace ModLoaderFixes.Mappings;
 
-/// <summary>Forge's, Ornithe's and Mojang's mappings, downloaded once into a cache and remembered with their checksums.</summary>
+/// <summary>Forge's, Ornithe's and Mojang's mappings, downloaded once into a cache that later builds read them from.</summary>
 internal sealed class MappingSources : IMappingSources
 {
     private const string FirstOfficial = "1.14.4";
@@ -19,8 +18,7 @@ internal sealed class MappingSources : IMappingSources
 
     private readonly DirectoryInfo _cache;
     private readonly HttpClient _client;
-    private readonly ConcurrentDictionary<string, string> _files = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, Lazy<Task<Mapping>>> _mappings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Mapping> _mappings = new(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, string> _ornithe;
     private readonly Dictionary<string, int> _releaseIndices;
     private readonly IReadOnlySet<string> _srg;
@@ -55,17 +53,21 @@ internal sealed class MappingSources : IMappingSources
     /// <inheritdoc/>
     public IReadOnlyList<string> Releases { get; }
 
-    /// <summary>Gets the mapping files read so far, by address, with their SHA-256.</summary>
-    internal IReadOnlyDictionary<string, string> Files => _files;
-
     /// <inheritdoc/>
-    public Task<Mapping> GetAsync(Namespace names, string version, CancellationToken cancellationToken)
+    public async Task<Mapping> GetAsync(Namespace names, string version, CancellationToken cancellationToken)
     {
         string key = Describe(names) + " " + version;
 
-        return !Has(names, version)
-            ? throw new ArgumentException(version + " has no " + Describe(names) + " mapping.", nameof(version))
-            : _mappings.GetOrAdd(key, new Lazy<Task<Mapping>>(() => LoadAsync(names, version, cancellationToken))).Value;
+        if (!Has(names, version))
+            throw new ArgumentException(version + " has no " + Describe(names) + " mapping.", nameof(version));
+
+        if (!_mappings.TryGetValue(key, out Mapping? mapping))
+        {
+            mapping = await LoadAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            _mappings[key] = mapping;
+        }
+
+        return mapping;
     }
 
     /// <inheritdoc/>
@@ -163,7 +165,7 @@ internal sealed class MappingSources : IMappingSources
         return reader.ReadToEnd();
     }
 
-    private async Task<byte[]> DownloadAsync(string address, bool remember, CancellationToken cancellationToken)
+    private async Task<byte[]> DownloadAsync(string address, CancellationToken cancellationToken)
     {
         string path = Path.Combine(_cache.FullName, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(address))));
         byte[] bytes;
@@ -180,9 +182,6 @@ internal sealed class MappingSources : IMappingSources
             File.Move(path + ".part", path, overwrite: true);
         }
 
-        if (remember)
-            _files[address] = Convert.ToHexStringLower(SHA256.HashData(bytes));
-
         return bytes;
     }
 
@@ -191,7 +190,7 @@ internal sealed class MappingSources : IMappingSources
         if (names == Namespace.Srg && _srg.Contains(version))
         {
             string address = Forge + "mcp/" + version + "/mcp-" + version + "-srg.zip";
-            byte[] zip = await DownloadAsync(address, remember: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            byte[] zip = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             return Mapping.ReadSrg("Forge's " + version, ZipEntry(zip, name: "joined.srg", address));
         }
@@ -199,7 +198,7 @@ internal sealed class MappingSources : IMappingSources
         if (names == Namespace.Srg)
         {
             string address = Forge + "mcp_config/" + version + "/mcp_config-" + version + ".zip";
-            byte[] zip = await DownloadAsync(address, remember: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            byte[] zip = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             return Mapping.ReadTsrg("Forge's " + version, ZipEntry(zip, name: "config/joined.tsrg", address));
         }
@@ -211,7 +210,7 @@ internal sealed class MappingSources : IMappingSources
 
     private async Task<Mapping> LoadMojangAsync(string version, CancellationToken cancellationToken)
     {
-        byte[] file = await DownloadAsync(_versionFiles[version], remember: false, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        byte[] file = await DownloadAsync(_versionFiles[version], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         using JsonDocument document = JsonDocument.Parse(file);
 
@@ -240,14 +239,14 @@ internal sealed class MappingSources : IMappingSources
         string artifact = coordinates[1];
         string directory = Ornithe + coordinates[0].Replace(oldChar: '.', newChar: '/') + "/" + artifact + "/" + coordinates[2] + "/";
         string address = directory + artifact + "-" + coordinates[2] + "-v2.jar";
-        byte[] jar = await DownloadAsync(address, remember: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        byte[] jar = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return Mapping.ReadTiny("Ornithe's " + version, ZipEntry(jar, name: "mappings/mappings.tiny", address));
     }
 
     private async Task<string> MojangTextAsync(JsonElement download, CancellationToken cancellationToken)
     {
-        byte[] bytes = await DownloadAsync(Text(download, property: "url"), remember: true, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        byte[] bytes = await DownloadAsync(Text(download, property: "url"), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return Encoding.UTF8.GetString(bytes);
     }

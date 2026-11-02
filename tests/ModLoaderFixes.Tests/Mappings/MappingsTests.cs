@@ -11,8 +11,11 @@ public sealed class MappingsTests
 {
     private const string Manager = "net/minecraft/network/NetworkManager";
 
+    // Releases on either side of Forge's change from MCP's names to Mojang's, and one that Mojang ships unobfuscated.
+    private static readonly string[] NamedReleases = ["1.7.10", "1.16.5", "1.17", "26.1"];
+
     // The attributes of a MappedClass item, in the order the build writes them out.
-    private static readonly string[] ItemFields = ["Include", "Class", "From", "To", "Names", "Methods"];
+    private static readonly string[] ItemFields = ["Include", "Class", "From", "To", "Methods"];
 
     /// <summary>Forge, Ornithe and Mojang all map 1.14.4, and their three routes to its NetworkManager agree, by MCP's names and by Mojang's.</summary>
     [Fact]
@@ -29,7 +32,6 @@ public sealed class MappingsTests
             Manager,
             From: "1.14.4",
             To: "1.14.4",
-            Namespace.Srg,
             [new MethodName(Name: "func_179290_a", Descriptor: "(Lnet/minecraft/network/IPacket;)V")]
         );
 
@@ -38,7 +40,6 @@ public sealed class MappingsTests
             Name: "net/minecraft/network/Connection",
             From: "1.14.4",
             To: "1.14.4",
-            Namespace.Official,
             [new MethodName(Name: "send", Descriptor: "(Lnet/minecraft/network/protocol/Packet;)V")]
         );
 
@@ -54,40 +55,7 @@ public sealed class MappingsTests
         Assert.Equal(expected: "jc a(Lkc;)V", byForge.Naming.Key);
     }
 
-    /// <summary>A naming whose methods another class of the same obfuscated name also declares, in a release that names the requested class otherwise, is refused.</summary>
-    [Fact]
-    public async Task GeneratorRejectsANamingThatAnotherClassMatches()
-    {
-        FakeMappingSources sources = new FakeMappingSources(releases: ["1.0", "1.1"])
-            .With(
-                Namespace.Srg,
-                version: "1.0",
-                Mapping.ReadSrg(source: "Forge's 1.0", text: "CL: a net/Manager\nMD: a/c ()V net/Manager/func_1 ()V\n")
-            )
-            .With(
-                Namespace.Srg,
-                version: "1.1",
-                Mapping.ReadSrg(
-                    source: "Forge's 1.1",
-                    text: "CL: d net/Manager\nCL: a net/Other\nMD: d/e ()V net/Manager/func_1 ()V\nMD: a/c ()V net/Other/func_2 ()V\n"
-                )
-            );
-
-        ClassRequest request = new(
-            Property: "Manager",
-            Name: "net/Manager",
-            From: "1.0",
-            To: "1.1",
-            Namespace.Srg,
-            [new MethodName(Name: "func_1", Descriptor: "()V")]
-        );
-
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Generator.ResolveAsync([request], sources, TestContext.Current.CancellationToken));
-
-        Assert.Contains(expectedSubstring: "also matches net/Other in 1.1", exception.Message, StringComparison.Ordinal);
-    }
-
-    /// <summary>A release that Forge never mapped, such as 1.7.5, gets its names through Ornithe from the nearest releases on either side that Forge did map.</summary>
+    /// <summary>A release that Forge never mapped, such as 1.7.5, gets its names through Ornithe from the nearest release that Forge did map.</summary>
     [Fact]
     public async Task GeneratorResolvesEveryVanilla17Release()
     {
@@ -100,10 +68,7 @@ public sealed class MappingsTests
         IReadOnlyList<ResolvedClass> classes = await Generator.ResolveAsync(requests, sources, cancellationToken);
         Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, requests.Single(static request => request.Name == Manager), version: "1.7.5", cancellationToken);
 
-        Assert.Equal(
-            ["Forge's 1.7.2 to Ornithe's 1.7.2 to Ornithe's 1.7.5", "Forge's 1.7.10 to Ornithe's 1.7.10 to Ornithe's 1.7.5"],
-            resolution.Routes
-        );
+        Assert.Equal(["Forge's 1.7.2 to Ornithe's 1.7.2 to Ornithe's 1.7.5"], resolution.Routes);
         Assert.Equal(
             [
                 "1.7.2 to 1.7.4: ef a(Lfk;[Lio/netty/util/concurrent/GenericFutureListener;)V h()V",
@@ -156,14 +121,27 @@ public sealed class MappingsTests
     [Fact]
     public void RequestsRejectALineWithoutAllItsFields()
     {
-        FormatException exception = Assert.Throws<FormatException>(static () => ClassRequest.Parse(text: "Manager\tnet/Manager\t1.0\t1.1\tsrg\t\nManager\tnet/Manager\t1.0\tsrg\t\n"));
+        FormatException exception = Assert.Throws<FormatException>(static () => ClassRequest.Parse(text: "Manager\tnet/Manager\t1.0\t1.1\t\nManager\tnet/Manager\t1.0\t\n"));
 
         Assert.Contains(expectedSubstring: "Request 2", exception.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>A request takes the names Forge runs its releases under, MCP's up to 1.16.5 and Mojang's from 1.17, and may not cross from one to the other.</summary>
+    [Fact]
+    public async Task RequestsTakeForgesNamesOfTheirReleases()
+    {
+        FakeMappingSources sources = new(releases: ["1.16.5", "1.17"]);
+        ClassRequest request = new(Property: "Manager", Name: "net/Manager", From: "1.16.5", To: "1.17", []);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Generator.ResolveAsync([request], sources, TestContext.Current.CancellationToken));
+
+        Assert.Equal([Namespace.Srg, Namespace.Srg, Namespace.Official, Namespace.Official], NamedReleases.Select(ClassRequest.NamesOf));
+        Assert.Contains(expectedSubstring: "across Forge's change of names in 1.17", exception.Message, StringComparison.Ordinal);
+    }
+
     /// <summary>
-    /// A release without Forge's names gets them through Ornithe's intermediary names from the releases on either side that have both, methods and their
-    /// descriptors included.
+    /// A release without Forge's names gets them through Ornithe's intermediary names from the nearest release that has both, the earlier of two as near, methods
+    /// and their descriptors included.
     /// </summary>
     [Fact]
     public async Task ResolverBridgesAReleaseThatForgeNeverMapped()
@@ -172,7 +150,7 @@ public sealed class MappingsTests
             .ResolveAsync(Namespace.Srg, Request(), version: "1.1", TestContext.Current.CancellationToken);
 
         Assert.Equal(expected: "d f(Le;)V", resolution.Naming.Key);
-        Assert.Equal(["Forge's 1.0 to Ornithe's 1.0 to Ornithe's 1.1", "Forge's 1.2 to Ornithe's 1.2 to Ornithe's 1.1"], resolution.Routes);
+        Assert.Equal(["Forge's 1.0 to Ornithe's 1.0 to Ornithe's 1.1"], resolution.Routes);
     }
 
     /// <summary>Routes that find the class under different names stop the generator rather than let it pick one.</summary>
@@ -261,7 +239,6 @@ public sealed class MappingsTests
             Name: "net/Manager",
             From: "1.0",
             To: "1.2",
-            Namespace.Srg,
             [new MethodName(Name: "func_1", Descriptor: "(Lnet/Packet;)V")]
         );
     }
