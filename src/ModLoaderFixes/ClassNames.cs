@@ -3,7 +3,7 @@ using JvmBridge.ClassFiles;
 
 namespace ModLoaderFixes;
 
-/// <summary>A class's names in Forge or in a set of vanilla releases: its own and those of the methods <c>Mappings.txt</c> requests of it.</summary>
+/// <summary>A class's names in Forge or in a set of vanilla releases: its own and those of the methods its <c>MappedClass</c> item requests.</summary>
 internal sealed class ClassNames
 {
     private readonly IReadOnlyList<(string Name, string Descriptor)> _forgeMethods;
@@ -58,6 +58,6 @@ internal sealed class ClassNames
                 return JavaMethod.Virtual(Name, _methods[index].Name, _methods[index].Descriptor);
         }
 
-        throw new ArgumentException(name + descriptor + " isn't among the methods that Mappings.txt requests of " + Name + ".", nameof(name));
+        throw new ArgumentException(name + descriptor + " isn't among the methods that the MappedClass item of " + Name + " requests.", nameof(name));
     }
 }

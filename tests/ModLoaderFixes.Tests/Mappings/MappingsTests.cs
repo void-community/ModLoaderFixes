@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 using ModLoaderFixes.Mappings;
 
 using Xunit;
@@ -9,6 +11,9 @@ public sealed class MappingsTests
 {
     private const string Manager = "net/minecraft/network/NetworkManager";
 
+    // The attributes of a MappedClass item, in the order the build writes them out.
+    private static readonly string[] ItemFields = ["Include", "Class", "From", "To", "Names", "Methods"];
+
     /// <summary>Forge, Ornithe and Mojang all map 1.14.4, and their three routes to its NetworkManager agree, by MCP's names and by Mojang's.</summary>
     [Fact]
     public async Task ForgeOrnitheAndMojangAgreeOnMinecraft1144()
@@ -18,11 +23,22 @@ public sealed class MappingsTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         MappingSources sources = await MappingSources.CreateAsync(client, Cache(), cancellationToken);
         Resolver resolver = new(sources);
-        ClassRequest srg = new(Property: "Manager", Manager, [new MethodName(Name: "func_179290_a", Descriptor: "(Lnet/minecraft/network/IPacket;)V")]);
+
+        ClassRequest srg = new(
+            Property: "Manager",
+            Manager,
+            From: "1.14.4",
+            To: "1.14.4",
+            Namespace.Srg,
+            [new MethodName(Name: "func_179290_a", Descriptor: "(Lnet/minecraft/network/IPacket;)V")]
+        );
 
         ClassRequest official = new(
             Property: "Connection",
             Name: "net/minecraft/network/Connection",
+            From: "1.14.4",
+            To: "1.14.4",
+            Namespace.Official,
             [new MethodName(Name: "send", Descriptor: "(Lnet/minecraft/network/protocol/Packet;)V")]
         );
 
@@ -57,14 +73,16 @@ public sealed class MappingsTests
                 )
             );
 
-        RequestBlock block = new(
+        ClassRequest request = new(
+            Property: "Manager",
+            Name: "net/Manager",
             From: "1.0",
             To: "1.1",
             Namespace.Srg,
-            [new ClassRequest(Property: "Manager", Name: "net/Manager", [new MethodName(Name: "func_1", Descriptor: "()V")])]
+            [new MethodName(Name: "func_1", Descriptor: "()V")]
         );
 
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Generator.ResolveAsync([block], sources, TestContext.Current.CancellationToken));
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Generator.ResolveAsync([request], sources, TestContext.Current.CancellationToken));
 
         Assert.Contains(expectedSubstring: "also matches net/Other in 1.1", exception.Message, StringComparison.Ordinal);
     }
@@ -78,12 +96,9 @@ public sealed class MappingsTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         MappingSources sources = await MappingSources.CreateAsync(client, Cache(), cancellationToken);
 
-        IReadOnlyList<RequestBlock> requests = RequestBlock.Parse(
-            await File.ReadAllTextAsync(Path.Combine(Repository(), path2: "src", path3: "ModLoaderFixes", path4: "Mappings.txt"), cancellationToken)
-        );
-
+        IReadOnlyList<ClassRequest> requests = ClassRequest.Parse(ProjectRequests());
         IReadOnlyList<ResolvedClass> classes = await Generator.ResolveAsync(requests, sources, cancellationToken);
-        Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, requests[index: 0].Classes[index: 0], version: "1.7.5", cancellationToken);
+        Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, requests.Single(static request => request.Name == Manager), version: "1.7.5", cancellationToken);
 
         Assert.Equal(
             ["Forge's 1.7.2 to Ornithe's 1.7.2 to Ornithe's 1.7.5", "Forge's 1.7.10 to Ornithe's 1.7.10 to Ornithe's 1.7.5"],
@@ -137,13 +152,13 @@ public sealed class MappingsTests
         Assert.Equal(expected: "send", mapping.NamedMethod(owner: "wk", name: "a", descriptor: "(Labc;[I)V"));
     }
 
-    /// <summary>A line that is neither a block, a class nor a method is refused with its number.</summary>
+    /// <summary>A request that lacks one of its fields is refused with its number.</summary>
     [Fact]
-    public void RequestsRejectALineOutsideABlock()
+    public void RequestsRejectALineWithoutAllItsFields()
     {
-        FormatException exception = Assert.Throws<FormatException>(static () => RequestBlock.Parse(text: "# comment\nNetworkManager net/minecraft/network/NetworkManager\n"));
+        FormatException exception = Assert.Throws<FormatException>(static () => ClassRequest.Parse(text: "Manager\tnet/Manager\t1.0\t1.1\tsrg\t\nManager\tnet/Manager\t1.0\tsrg\t\n"));
 
-        Assert.Contains(expectedSubstring: "Line 2", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "Request 2", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -218,6 +233,17 @@ public sealed class MappingsTests
         return [.. classes.Single(resolved => resolved.Request.Name == name).Namings.Select(static naming => naming.Versions + ": " + naming.Naming.Key)];
     }
 
+    // The agent's MappedClass items as its build writes them out for the generator.
+    private static string ProjectRequests()
+    {
+        XDocument project = XDocument.Load(Path.Combine(Repository(), path2: "src", path3: "ModLoaderFixes", path4: "ModLoaderFixes.csproj"));
+
+        IEnumerable<string> lines = project.Descendants(name: "MappedClass")
+            .Select(static item => string.Join(separator: '\t', ItemFields.Select(name => (string?)item.Attribute(name) ?? "")));
+
+        return string.Join(separator: '\n', lines);
+    }
+
     private static string Repository()
     {
         string directory = AppContext.BaseDirectory;
@@ -230,7 +256,14 @@ public sealed class MappingsTests
 
     private static ClassRequest Request()
     {
-        return new ClassRequest(Property: "Manager", Name: "net/Manager", [new MethodName(Name: "func_1", Descriptor: "(Lnet/Packet;)V")]);
+        return new ClassRequest(
+            Property: "Manager",
+            Name: "net/Manager",
+            From: "1.0",
+            To: "1.2",
+            Namespace.Srg,
+            [new MethodName(Name: "func_1", Descriptor: "(Lnet/Packet;)V")]
+        );
     }
 
     // A Tiny v2 file of classes, each followed by its methods, written with spaces between a class line's parts for brevity.

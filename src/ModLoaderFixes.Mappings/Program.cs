@@ -1,9 +1,9 @@
 using ModLoaderFixes.Mappings;
 
-// The agent's build runs this before it compiles: it resolves the names that Mappings.txt lists and writes Mappings.g.cs, caching what it downloads.
+// The agent's build runs this before it compiles: it resolves the names of the MappedClass items it wrote out and writes Mappings.g.cs, caching what it downloads.
 if (args is not [{ } requests, { } table, { } cache])
 {
-    await Console.Error.WriteLineAsync(value: "Usage: ModLoaderFixes.Mappings <Mappings.txt> <Mappings.g.cs> <cache directory>").ConfigureAwait(continueOnCapturedContext: false);
+    await Console.Error.WriteLineAsync(value: "Usage: ModLoaderFixes.Mappings <requests> <Mappings.g.cs> <cache directory>").ConfigureAwait(continueOnCapturedContext: false);
 
     return 2;
 }

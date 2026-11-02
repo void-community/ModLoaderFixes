@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <Description>Resolves the names that the agent lists in Mappings.txt from Forge's, Ornithe's and Mojang's mappings, as the agent builds, into the Mappings.g.cs it compiles.</Description>
+    <Description>Resolves the names of the classes and methods that the agent's MappedClass items list from Forge's, Ornithe's and Mojang's mappings, as the agent builds, into the Mappings.g.cs it compiles.</Description>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="ModLoaderFixes.Tests" />

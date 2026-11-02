@@ -5,7 +5,7 @@ namespace ModLoaderFixes;
 /// <summary>
 /// A class of Minecraft that patches name by the names Forge runs it under, MCP's up to 1.16.5 and Mojang's from 1.17, with the names that each vanilla release
 /// obfuscated it and the requested methods to. <c>src/ModLoaderFixes.Mappings</c> resolves them from Forge's, Ornithe's and Mojang's mappings into
-/// <c>Mappings.g.cs</c>, for the classes and methods that <c>Mappings.txt</c> lists.
+/// <c>Mappings.g.cs</c>, for the classes and methods that the project's <c>MappedClass</c> items list.
 /// </summary>
 internal sealed class MappedClass
 {

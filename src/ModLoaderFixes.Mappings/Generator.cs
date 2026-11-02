@@ -1,12 +1,12 @@
 namespace ModLoaderFixes.Mappings;
 
-/// <summary>Resolves the requested classes in every release of their blocks and writes them as <c>Mappings.g.cs</c>.</summary>
+/// <summary>Resolves the requested classes in every release they were requested in and writes them as <c>Mappings.g.cs</c>.</summary>
 internal static class Generator
 {
     private static readonly Namespace[] Listings = [Namespace.Srg, Namespace.Intermediary, Namespace.Official];
 
     /// <summary>Resolves the requests from the real mappings, which it keeps in a cache between builds, and writes the table's text.</summary>
-    /// <param name="requests">The contents of <c>Mappings.txt</c>.</param>
+    /// <param name="requests">The requests that the agent's build writes from its <c>MappedClass</c> items.</param>
     /// <param name="cache">The directory that keeps the downloaded mapping files.</param>
     /// <param name="client">The client that downloads the mappings.</param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
@@ -14,14 +14,14 @@ internal static class Generator
     internal static async Task<string> GenerateAsync(string requests, string cache, HttpClient client, CancellationToken cancellationToken)
     {
         MappingSources sources = await MappingSources.CreateAsync(client, cache, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        IReadOnlyList<ResolvedClass> classes = await ResolveAsync(RequestBlock.Parse(requests), sources, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        IReadOnlyList<ResolvedClass> classes = await ResolveAsync(ClassRequest.Parse(requests), sources, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return Write(classes, sources.Files);
     }
 
     /// <summary>Names releases, a run of consecutive ones by its ends: <c>1.7.6 to 1.7.10</c>.</summary>
     /// <param name="versions">The releases to name.</param>
-    /// <param name="releases">Every release of the block, in order, which tells the runs apart.</param>
+    /// <param name="releases">Every release that was requested, in order, which tells the runs apart.</param>
     /// <returns>The text.</returns>
     internal static string Label(IReadOnlyList<string> versions, IReadOnlyList<string> releases)
     {
@@ -49,36 +49,31 @@ internal static class Generator
     }
 
     /// <summary>
-    /// Resolves each requested class in every release of its block, and fails when a naming's methods also match another class of the same obfuscated name in a
+    /// Resolves each requested class in every release it is requested in, and fails when a naming's methods also match another class of the same obfuscated name in a
     /// release that names the requested class otherwise, which a patch by that naming would then change too.
     /// </summary>
-    /// <param name="blocks">The requests.</param>
+    /// <param name="requests">The classes and the releases to find each in.</param>
     /// <param name="sources">The mappings of each release.</param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
     /// <returns>The classes, in the order of the requests.</returns>
-    internal static async Task<IReadOnlyList<ResolvedClass>> ResolveAsync(IReadOnlyList<RequestBlock> blocks, IMappingSources sources, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<ResolvedClass>> ResolveAsync(IReadOnlyList<ClassRequest> requests, IMappingSources sources, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(blocks);
+        ArgumentNullException.ThrowIfNull(requests);
         ArgumentNullException.ThrowIfNull(sources);
 
         Resolver resolver = new(sources);
         List<ResolvedClass> classes = [];
 
-        foreach (RequestBlock block in blocks)
+        foreach (ClassRequest request in requests)
         {
-            int from = Resolver.IndexOf(sources.Releases, block.From);
-            int to = Resolver.IndexOf(sources.Releases, block.To);
+            int from = Resolver.IndexOf(sources.Releases, request.From);
+            int to = Resolver.IndexOf(sources.Releases, request.To);
             string[] versions = [.. sources.Releases.Skip(from).Take(to - from + 1)];
 
             if (versions.Length == 0)
-                throw new InvalidOperationException(block.From + " comes after " + block.To + ".");
+                throw new InvalidOperationException(request.Name + " is requested from " + request.From + ", which comes after " + request.To + ".");
 
-            foreach (ClassRequest request in block.Classes)
-            {
-                classes.Add(
-                    await ResolveAsync(resolver, sources, block, request, versions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)
-                );
-            }
+            classes.Add(await ResolveAsync(resolver, sources, request, versions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
         }
 
         return classes;
@@ -96,7 +91,7 @@ internal static class Generator
         List<string> lines =
         [
             "// <auto-generated>",
-            "// src/ModLoaderFixes.Mappings generated this as the agent built, from Mappings.txt and the mappings below.",
+            "// src/ModLoaderFixes.Mappings generated this as the agent built, from its MappedClass items and the mappings below.",
             "//",
             .. files.OrderBy(static file => file.Key, StringComparer.Ordinal).Select(static file => "// " + file.Key + " " + file.Value),
             "// </auto-generated>",
@@ -115,9 +110,7 @@ internal static class Generator
             if (lines[^1] != "{")
                 lines.Add(item: "");
 
-            lines.Add(
-                "    /// <summary>Gets <c>" + request.Name + "</c> in Minecraft " + resolved.Block.From + " to " + resolved.Block.To + ".</summary>"
-            );
+            lines.Add("    /// <summary>Gets <c>" + request.Name + "</c> in Minecraft " + request.From + " to " + request.To + ".</summary>");
             lines.Add("    internal static MappedClass " + request.Property + " { get; } = new(");
             lines.Add("        name: " + Quote(request.Name) + ",");
             lines.Add("        methods: " + Methods(request.Methods) + ",");
@@ -194,21 +187,14 @@ internal static class Generator
         }
     }
 
-    private static async Task<ResolvedClass> ResolveAsync(
-        Resolver resolver,
-        IMappingSources sources,
-        RequestBlock block,
-        ClassRequest request,
-        string[] versions,
-        CancellationToken cancellationToken
-    )
+    private static async Task<ResolvedClass> ResolveAsync(Resolver resolver, IMappingSources sources, ClassRequest request, string[] versions, CancellationToken cancellationToken)
     {
         List<List<string>> shared = [];
         List<Naming> namings = [];
 
         foreach (string version in versions)
         {
-            Resolution resolution = await resolver.ResolveAsync(block.Names, request, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            Resolution resolution = await resolver.ResolveAsync(request.Names, request, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             int existing = namings.FindIndex(naming => naming.Key == resolution.Naming.Key);
 
             if (existing < 0)
@@ -225,6 +211,6 @@ internal static class Generator
         for (int index = 0; index < namings.Count; index++)
             await RejectAmbiguityAsync(sources, request, namings[index], shared[index], versions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        return new ResolvedClass(request, block, [.. namings.Select((naming, index) => new ReleaseNaming(Label(shared[index], versions), naming))]);
+        return new ResolvedClass(request, [.. namings.Select((naming, index) => new ReleaseNaming(Label(shared[index], versions), naming))]);
     }
 }
