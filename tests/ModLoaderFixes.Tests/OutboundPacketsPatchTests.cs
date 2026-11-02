@@ -5,121 +5,113 @@ using Xunit;
 
 namespace ModLoaderFixes.Tests;
 
-/// <summary>Keeping Minecraft 1.7's outbound packets in order: the send and the flush of NetworkManager synchronized, under Forge's names and each vanilla release's.</summary>
+/// <summary>One flush of NetworkManager's outbound queue at a time, from Minecraft 1.7.2 to 1.14.3: the flush synchronized, under Forge's names and each vanilla release's.</summary>
 public sealed class OutboundPacketsPatchTests
 {
     private const string ForgeManager = "net/minecraft/network/NetworkManager";
     private const string Handler = "io/netty/channel/SimpleChannelInboundHandler";
-    private const string Listeners = "[Lio/netty/util/concurrent/GenericFutureListener;";
+    private const string SendDescriptor = "(Ljava/lang/Object;)V";
     private const int Synchronized = 0x0020;
 
-    /// <summary>Gets each vanilla naming of the manager: its name, its packet's, and its flush's, which 1.7.8 renamed.</summary>
-    public static TheoryData<string, string, string> VanillaManagers { get; } = new()
+    private static readonly JavaMethod IsEmpty = JavaMethod.Interface(owner: "java/util/Queue", name: "isEmpty", descriptor: "()Z");
+    private static readonly JavaMethod Poll = JavaMethod.Interface(owner: "java/util/Queue", name: "poll", descriptor: "()Ljava/lang/Object;");
+
+    /// <summary>Gets vanilla's managers at the edges of their namings: 1.7.2, 1.7.10, 1.8, 1.9.3, 1.12.2 and 1.14.3, each with its flush's name.</summary>
+    public static TheoryData<string, string> VanillaManagers { get; } = new()
     {
-        { "ef", "fk", "h" },
-        { "eg", "fq", "h" },
-        { "ej", "ft", "h" },
-        { "ej", "ft", "i" },
+        { "ef", "h" },
+        { "ej", "i" },
+        { "gr", "m" },
+        { "em", "m" },
+        { "gw", "m" },
+        { "jb", "o" },
     };
 
-    /// <summary>A NetworkManager without the send, by other names, is left alone with a reason that names it.</summary>
+    /// <summary>A NetworkManager without the flush, by other names, is left alone with a reason that names it.</summary>
     [Fact]
-    public void ForgePatchLeavesManagersWithoutTheSend()
+    public void ForgePatchLeavesManagersWithoutTheFlush()
     {
-        ClassPatchResult result = OutboundPackets.Patches[index: 0]
-            .Apply(
-                CreateManager(
-                    ForgeManager,
-                    packet: "net/minecraft/network/Packet",
-                    send: "scheduleOutboundPacket",
-                    dispatch: "func_150732_b",
-                    flush: "func_150733_h"
-                )
-            );
+        ClassPatchResult result = OutboundPackets.Patches[index: 0].Apply(CreateManager(ForgeManager, flush: "flushOutboundQueue", checksEmptiness: true));
 
         Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "func_150725_a", result.SkippedReason, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "func_150733_h", result.SkippedReason, StringComparison.Ordinal);
     }
 
-    /// <summary>Forge's send and flush become synchronized, and its dispatch keeps its flags.</summary>
+    /// <summary>Minecraft 1.14.4 polls the queue until it is empty, under the queue's monitor, so Forge's manager of that shape is left alone.</summary>
     [Fact]
-    public void ForgePatchSynchronizesTheSendAndTheFlush()
+    public void ForgePatchLeavesTheFlushOfMinecraft1144()
     {
-        byte[] classFile = CreateManager(ForgeManager, packet: "net/minecraft/network/Packet", send: "func_150725_a", dispatch: "func_150732_b", flush: "func_150733_h");
+        ClassPatchResult result = OutboundPackets.Patches[index: 0].Apply(CreateManager(ForgeManager, flush: "func_150733_h", checksEmptiness: false));
 
-        AssertSynchronized(
-            Patched(classFile),
-            send: "func_150725_a",
-            dispatch: "func_150732_b",
-            flush: "func_150733_h",
-            packet: "net/minecraft/network/Packet"
-        );
+        Assert.False(result.Changed);
+        Assert.Contains(expectedSubstring: "nothing to change", result.SkippedReason, StringComparison.Ordinal);
     }
 
-    /// <summary>Only the names that the 1.7 releases give their managers match, so another obfuscated class of the manager's shape is left alone.</summary>
+    /// <summary>Forge's flush becomes synchronized, and its send and dispatch keep their flags.</summary>
+    [Fact]
+    public void ForgePatchSynchronizesTheFlush()
+    {
+        AssertSynchronized(Patched(CreateManager(ForgeManager, flush: "func_150733_h", checksEmptiness: true)), flush: "func_150733_h");
+    }
+
+    /// <summary>Only the names that the releases give their managers match, so another obfuscated class of the manager's shape is left alone.</summary>
     [Fact]
     public void PatchesOnlyMatchTheNamesOfTheManagers()
     {
-        byte[] classFile = CreateManager(className: "gr", packet: "ft", send: "a", dispatch: "b", flush: "i");
+        byte[] classFile = CreateManager(className: "zz", flush: "m", checksEmptiness: true);
 
         Assert.DoesNotContain(OutboundPackets.Patches, patch => patch.Matches(classFile, hierarchy: null));
     }
 
-    /// <summary>
-    /// Minecraft 1.8 sends with an extra listener, so a class of its shape is left alone, even under a name that a 1.7 release gives its manager; the patches that
-    /// match it skip it with the method they miss.
-    /// </summary>
+    /// <summary>Another release's class of a manager's name, without the flush of that naming, is left alone by the patches that match it, with the method they miss.</summary>
     [Fact]
-    public void VanillaPatchesLeaveMinecraft18()
+    public void VanillaPatchesLeaveAnotherClassOfTheSameName()
     {
-        byte[] classFile = CreateManager(className: "ej", packet: "ft", send: null, dispatch: "b", flush: "i");
+        byte[] classFile = CreateManager(className: "ej", flush: "m", checksEmptiness: true);
         ClassPatchResult[] results = [.. OutboundPackets.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)).Select(patch => patch.Apply(classFile))];
 
         Assert.Equal(expected: 2, results.Length);
-        Assert.All(results, result => Assert.Contains(expectedSubstring: "ej has no a(Lft;", result.SkippedReason, StringComparison.Ordinal));
+        Assert.All(results, static result => Assert.Contains(expectedSubstring: "ej has no ", result.SkippedReason, StringComparison.Ordinal));
     }
 
-    /// <summary>Each vanilla release's manager gets its send and flush synchronized by the one patch of its naming, and its dispatch keeps its flags.</summary>
+    /// <summary>Each vanilla release's manager gets its flush synchronized by the one patch of its naming, and its send and dispatch keep their flags.</summary>
     /// <param name="manager">The manager's obfuscated name.</param>
-    /// <param name="packet">The packet's.</param>
     /// <param name="flush">The flush's.</param>
     [Theory]
     [MemberData(nameof(VanillaManagers))]
-    public void VanillaPatchesSynchronizeTheSendAndTheFlushOfEachRelease(string manager, string packet, string flush)
+    public void VanillaPatchesSynchronizeTheFlushOfEachRelease(string manager, string flush)
     {
-        AssertSynchronized(Patched(CreateManager(manager, packet, send: "a", dispatch: "b", flush)), send: "a", dispatch: "b", flush, packet);
+        AssertSynchronized(Patched(CreateManager(manager, flush, checksEmptiness: true)), flush);
     }
 
-    private static void AssertSynchronized(byte[] patched, string send, string dispatch, string flush, string packet)
+    private static void AssertSynchronized(byte[] patched, string flush)
     {
         JavaClassFile model = JavaClassFile.Read(patched);
-        string descriptor = "(L" + packet + ";" + Listeners + ")V";
 
-        Assert.Equal(Synchronized, Flags(model, send, descriptor) & Synchronized);
         Assert.Equal(Synchronized, Flags(model, flush, descriptor: "()V") & Synchronized);
-        Assert.Equal(expected: 0, Flags(model, dispatch, descriptor) & Synchronized);
+        Assert.Equal(expected: 0, Flags(model, name: "send", SendDescriptor) & Synchronized);
+        Assert.Equal(expected: 0, Flags(model, name: "dispatch", SendDescriptor) & Synchronized);
     }
 
-    // A manager with 1.7's send, which flushes the queue and dispatches, a private dispatch and a flush that dispatches; without a send, it has 1.8's instead, which
-    // takes an extra listener.
-    private static byte[] CreateManager(string className, string packet, string? send, string dispatch, string flush)
+    // A manager whose send flushes and then dispatches, and whose flush checks whether the queue is empty before it polls, as 1.7.2 to 1.14.3 do, or only polls,
+    // as 1.14.4 does.
+    private static byte[] CreateManager(string className, string flush, bool checksEmptiness)
     {
-        string descriptor = "(L" + packet + ";" + Listeners + ")V";
-        JavaMethod dispatching = JavaMethod.Virtual(className, dispatch, descriptor);
+        JavaMethod dispatching = JavaMethod.Virtual(className, name: "dispatch", SendDescriptor);
         JavaMethod flushing = JavaMethod.Virtual(className, flush, descriptor: "()V");
 
         return new ClassFileWriter(className, Handler, majorVersion: 50)
             .AddMethod(
-                send ?? "a",
-                send is null ? "(L" + packet + ";Lio/netty/util/concurrent/GenericFutureListener;" + Listeners + ")V" : descriptor,
-                code => code.ALoad(slot: 0).Invoke(flushing).ALoad(slot: 0).ALoad(slot: 1).ALoad(slot: 2).Invoke(dispatching).Return(),
-                accessFlags: 0x0081
+                name: "send",
+                SendDescriptor,
+                code => code.ALoad(slot: 0).Invoke(flushing).ALoad(slot: 0).ALoad(slot: 1).Invoke(dispatching).Return(),
+                accessFlags: 0x0001
             )
-            .AddMethod(dispatch, descriptor, code => code.Return(), accessFlags: 0x0002)
+            .AddMethod(name: "dispatch", SendDescriptor, static code => code.Return(), accessFlags: 0x0002)
             .AddMethod(
                 flush,
                 descriptor: "()V",
-                code => code.ALoad(slot: 0).AConstNull().AConstNull().Invoke(dispatching).Return(),
+                code => code.AConstNull().Invoke(checksEmptiness ? IsEmpty : Poll).Pop().ALoad(slot: 0).AConstNull().Invoke(dispatching).Return(),
                 accessFlags: 0x0002
             )
             .ToArray();

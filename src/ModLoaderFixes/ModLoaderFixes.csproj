@@ -25,7 +25,7 @@
     Methods lists each method by its name followed by its descriptor, separated by spaces.
   -->
   <ItemGroup>
-    <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.7.10" Methods="func_150725_a(Lnet/minecraft/network/Packet;[Lio/netty/util/concurrent/GenericFutureListener;)V func_150733_h()V" />
+    <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.14.3" Methods="func_150733_h()V" />
     <MappedClass Include="NetworkInitializer" Class="net/minecraft/network/NetworkSystem$1" From="1.7.2" To="1.7.10" />
     <MappedClass Include="MemoryInitializer" Class="net/minecraft/network/NetworkSystem$2" From="1.7.2" To="1.7.10" />
   </ItemGroup>

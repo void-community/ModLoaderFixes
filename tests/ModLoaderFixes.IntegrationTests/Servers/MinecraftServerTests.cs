@@ -63,7 +63,7 @@ public sealed class MinecraftServerTests
             logs,
             "ModLoaderFixes: patched " + initializer + " (initChannel(Lio/netty/channel/Channel;)V: new connections added to the network tick once their channel is active (2 changes))"
         );
-        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + manager + " (packets sent in order (2 changes))");
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + manager + " (outbound queue flushed by one thread at a time (1 change))");
     }
 
     private static async Task<string> LogInPlayersAsync(string type, string version, int protocol, string extraArguments)

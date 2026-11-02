@@ -75,8 +75,9 @@ public sealed class RealJarTests
     };
 
     /// <summary>
-    /// Every vanilla server of Minecraft 1.7, which Mojang serves at the address of its SHA-1, with the obfuscated names of its NetworkManager and of its channel
-    /// initializer, which the vanilla patches take from the mappings of each release; and 1.8, which sends with an extra listener and whose tick needs no fix.
+    /// Vanilla servers, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
+    /// each release: every 1.7 release's NetworkManager and channel initializer; the NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick
+    /// needs no fix; and 1.14.4, whose flush needs none either.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaServers { get; } = new()
     {
@@ -89,13 +90,18 @@ public sealed class RealJarTests
         { "1.7.8", "c69ebfb84c2577661770371c4accdd5f87b8b21d", "5907ef1103acf15952d6d50cde3db01e4fc5a95b9f5fec0be25fa56a5ef0d121", ["ej +0", "nc +0"] },
         { "1.7.9", "4cec86a928ec171fdc0c6b40de2de102f21601b5", "f7b9150d05c2cf8c48541527de310557e6bd9bde73e8ac9479e8ffe722c60a21", ["ej +0", "nc +0"] },
         { "1.7.10", "952438ac4e01b4d115c5fc38f891710c4941df29", "c70870f00c4024d829e154f7e5f4e885b02dd87991726a3308d81f513972f3fc", ["ej +0", "nd +0"] },
-        { "1.8", "a028f00e678ee5c6aef0e29656dca091b5df11c7", "40e23f3823d6f0e3cbadc491cedb55b8ba53f8ab516b68182ddd1536babeb291", [] },
+        { "1.8", "a028f00e678ee5c6aef0e29656dca091b5df11c7", "40e23f3823d6f0e3cbadc491cedb55b8ba53f8ab516b68182ddd1536babeb291", ["gr +0"] },
+        { "1.8.2", "a37bdd5210137354ed1bfe3dac0a5b77fe08fe2e", "d99f3b3478018cb454fbee36fd60e3c4acbe1132f1cb26b3657f9ad291e7035c", ["el +0"] },
+        { "1.9.3", "8e897b6b6d784f745332644f4d104f7a6e737ccf", "0eb669eeca23bad6d4ee5237aa24cd51274dfbda15813477f8414f4bfc2f1f27", ["em +0"] },
+        { "1.12.2", "886945bfb2b978778c3a0288fd7fab09d315b25f", "fe1f9274e6dad9191bf6e6e8e36ee6ebc737f373603df0946aafcded0d53167e", ["gw +0"] },
+        { "1.14.3", "d0d0fe2b1dc6ab4c65554cb734270872b72dadd6", "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38", ["jb +0"] },
+        { "1.14.4", "3dc3d84a581f14691199cf6831b71ed1296a9fdf", "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729", [] },
     };
 
     /// <summary>
-    /// Every vanilla client of Minecraft 1.7, which Mojang serves at the address of its SHA-1, with the obfuscated names of its NetworkManager and of the two channel
-    /// initializers of its integrated server, for the network and in memory, which the vanilla patches take from the mappings of each release; and 1.8, which
-    /// sends with an extra listener and whose tick needs no fix.
+    /// Vanilla clients, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
+    /// each release: every 1.7 release's NetworkManager and the two channel initializers of its integrated server, for the network and in memory; the
+    /// NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick needs no fix; and 1.14.4, whose flush needs none either.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -108,10 +114,15 @@ public sealed class RealJarTests
         { "1.7.8", "83ae44189888a873f46f7509a87ebdb6dc785741", "09d06a078aaedc075682440a5d87d473ee5ebfb35270aa8f085575f133029a31", ["ej +0", "nc +0", "nd +0"] },
         { "1.7.9", "fbbaae784b1de315a8d08a82c6c345a583fb676b", "38f8d799a9b42fb539ca7250e317dd6546910c8ac7718a720c11aad79780e8d8", ["ej +0", "nc +0", "nd +0"] },
         { "1.7.10", "e80d9b3bf5085002218d4be59e668bac718abbc6", "a4fc2284657544e0f4bcc964f927c2fda3e3a205178ed1d5d58883aaf9780cce", ["ej +0", "nd +0", "ne +0"] },
-        { "1.8", "d722504db9de2b47f46cc592b8528446272ae648", "ccccd0a92f76fbb24279691daad9b67f85d80471a37e59e0da76d7754982dfe8", [] },
+        { "1.8", "d722504db9de2b47f46cc592b8528446272ae648", "ccccd0a92f76fbb24279691daad9b67f85d80471a37e59e0da76d7754982dfe8", ["gr +0"] },
+        { "1.8.2", "a8e71f6c81acfa834d249579a242f5b0852075c1", "5cc5b24312f3d182bf06e7f1a4da3a05ce94be6c861d5c9995c86e6d8811fbe9", ["el +0"] },
+        { "1.9.3", "b6985b0d3a0520dfb6f17eeb1e8ba58ce9577061", "ab8fdde789c5b4614ffc98249e04fdcce7dfce320b55215bfe5418608af6a63b", ["em +0"] },
+        { "1.12.2", "0f275bc1547d01fa5f56ba34bdc87d981ee12daf", "8ada07da5ee77dad3527bd7278fbd05ee1fc8a597813b216a871a2d7d64cc64f", ["gw +0"] },
+        { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["jb +0"] },
+        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", [] },
     };
 
-    /// <summary>The patches change only the NetworkManager of each vanilla 1.7 client and the two initializers of its integrated server, under each release's names, and nothing in vanilla 1.8.</summary>
+    /// <summary>The patches change only the connection of each vanilla client, under each release's names: its NetworkManager up to 1.14.3, and in 1.7 its initializers.</summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
     /// <param name="sha256">Its pinned checksum.</param>
@@ -127,7 +138,7 @@ public sealed class RealJarTests
         Assert.Equal(expected.Order(StringComparer.Ordinal), Changes(jar));
     }
 
-    /// <summary>The patches change only the NetworkManager and the channel initializer of each vanilla 1.7 server, under each release's names, and nothing in vanilla 1.8.</summary>
+    /// <summary>The patches change only the connection of each vanilla server, under each release's names: its NetworkManager up to 1.14.3, and in 1.7 its initializer.</summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
     /// <param name="sha256">Its pinned checksum.</param>

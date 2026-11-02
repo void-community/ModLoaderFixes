@@ -18,6 +18,12 @@ internal static class ForgeServer
     /// </summary>
     internal const string Collection = "Forge servers";
 
+    /// <summary>
+    /// The line the agent logs when it lets one thread at a time flush NetworkManager's outbound queue, under FML's names, in Forge for Minecraft 1.7.2 to 1.14.3.
+    /// Forge ships NetworkManager as a binary patch of Minecraft's, so only a running Forge shows it.
+    /// </summary>
+    internal const string FlushPatched = "ModLoaderFixes: patched net/minecraft/network/NetworkManager (outbound queue flushed by one thread at a time (1 change))";
+
     /// <summary>The line the agent logs when it makes the class hierarchy cache of ModLauncher 2 to 5, which Forge for Minecraft 1.13.2 to 1.15.2 ships, safe to share.</summary>
     internal const string ModLauncherPatched =
         "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";

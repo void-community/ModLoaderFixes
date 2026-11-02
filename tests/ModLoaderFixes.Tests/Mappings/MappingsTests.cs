@@ -55,9 +55,12 @@ public sealed class MappingsTests
         Assert.Equal(expected: "jc a(Lkc;)V", byForge.Naming.Key);
     }
 
-    /// <summary>A release that Forge never mapped, such as 1.7.5, gets its names through Ornithe from the nearest release that Forge did map.</summary>
+    /// <summary>
+    /// The agent's MappedClass items resolve in every release they cover; a release that Forge never mapped, such as 1.7.5, gets its names through Ornithe from the
+    /// nearest release that Forge did map.
+    /// </summary>
     [Fact]
-    public async Task GeneratorResolvesEveryVanilla17Release()
+    public async Task GeneratorResolvesTheClassesOfTheProject()
     {
         using HttpClient client = new();
 
@@ -71,10 +74,20 @@ public sealed class MappingsTests
         Assert.Equal(["Forge's 1.7.2 to Ornithe's 1.7.2 to Ornithe's 1.7.5"], resolution.Routes);
         Assert.Equal(
             [
-                "1.7.2 to 1.7.4: ef a(Lfk;[Lio/netty/util/concurrent/GenericFutureListener;)V h()V",
-                "1.7.5: eg a(Lfq;[Lio/netty/util/concurrent/GenericFutureListener;)V h()V",
-                "1.7.6 and 1.7.7: ej a(Lft;[Lio/netty/util/concurrent/GenericFutureListener;)V h()V",
-                "1.7.8 to 1.7.10: ej a(Lft;[Lio/netty/util/concurrent/GenericFutureListener;)V i()V",
+                "1.7.2 to 1.7.4: ef h()V",
+                "1.7.5: eg h()V",
+                "1.7.6 and 1.7.7: ej h()V",
+                "1.7.8 to 1.7.10: ej i()V",
+                "1.8 and 1.8.1: gr m()V",
+                "1.8.2 and 1.8.3: el m()V",
+                "1.8.4 to 1.9.2: ek m()V",
+                "1.9.3 and 1.9.4: em m()V",
+                "1.10 to 1.10.2: eo m()V",
+                "1.11 to 1.11.2: er m()V",
+                "1.12 to 1.12.2: gw m()V",
+                "1.13 to 1.13.2: hw o()V",
+                "1.14 to 1.14.2: ja o()V",
+                "1.14.3: jb o()V",
             ],
             Namings(classes, Manager)
         );

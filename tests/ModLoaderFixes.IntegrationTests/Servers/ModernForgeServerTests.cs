@@ -91,6 +91,12 @@ public sealed class ModernForgeServerTests
         else
             ForgeServer.AssertNotLogged(logs, ForgeServer.ModLauncherPatched);
 
+        // Forge for 1.13.2 ships Minecraft's flush of the outbound queue, which two threads can run at once; Mojang's 1.14.4 polls it under the queue's monitor.
+        if (version == "1.13.2")
+            ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
+        else
+            ForgeServer.AssertNotLogged(logs, ForgeServer.FlushPatched);
+
         // The client reports a login that skipped FML's handshake separately, so this also says every player went through it.
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);
         Assert.Contains(expectedSubstring: "LOGINS {logged in=200}", logins.Stdout, StringComparison.Ordinal);

@@ -54,6 +54,18 @@ at net.minecraft.client.network.NetHandlerLoginClient.func_147390_a(NetHandlerLo
 Internal Exception: io.netty.handler.codec.EncoderException: java.io.IOException: Can't serialize unregistered packet
 ```
 
+**Forge 1.12 to 1.12.2 and 1.13.2 and vanilla 1.8 to 1.14.3 clients sometimes crash as they start to connect:**
+
+```text
+[Client thread] [INFO] Connecting to localhost, 25565
+Description: Ticking screen
+java.lang.NullPointerException: Ticking screen
+	at em$a.a(SourceFile:387)
+	at em.m(SourceFile:220)
+	at em.a(SourceFile:229)
+	at beg.e(SourceFile:91)
+```
+
 **Forge 1.12 servers drop players at login under load:**
 
 ```text
