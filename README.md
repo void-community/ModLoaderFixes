@@ -127,6 +127,18 @@ java.lang.ClassCastException: class java.util.HashMap$Node cannot be cast to cla
 
 **Forge 1.14.2 and 1.14.3 clients sometimes hang at startup and never reach their menu.** A thread dump shows the client thread waiting in `EventListenerHelper.getListenerListInternal` while a `modloading-worker` thread holds EventBus's lock.
 
+**Forge, NeoForge and vanilla clients from 1.14 to 1.20.4 sometimes crash the JVM as they leave a world while a sound streams:**
+
+```text
+# A fatal error has been detected by the Java Runtime Environment:
+#  SIGSEGV (0xb) at pc=0x00007522e862e144
+# Problematic frame:
+# C  [liblwjgl_stb.so+0x2e144]
+Current thread: JavaThread "Sound engine"
+J  org.lwjgl.stb.STBVorbis.nstb_vorbis_decode_frame_pushdata
+J  net.minecraft.client.audio.OggAudioStream.func_216460_a
+```
+
 **Forge and NeoForge 1.20.1 to 1.21.4 clients sometimes crash before the game's window opens:**
 
 ```text
