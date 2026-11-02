@@ -10,10 +10,12 @@ namespace ModLoaderFixes.Tests;
 public sealed class RealJarTests
 {
     private const string EventListenerHelper = "net/minecraftforge/eventbus/api/EventListenerHelper";
+    private const string FmlHandshakeHandler = "net/minecraftforge/fml/network/FMLHandshakeHandler";
     private const string Forge = "https://maven.minecraftforge.net";
     private const string ForgeClientHandler = "cpw/mods/fml/client/FMLClientHandler";
 
     private const string ForgeConfiguration = "net/minecraftforge/fml/loading/FMLConfig";
+    private const string HandshakeHandler = "net/minecraftforge/network/HandshakeHandler";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
     private const string NeoForged = "https://maven.neoforged.net/releases";
     private const string ObjectHolderRegistry = "net/minecraftforge/registries/ObjectHolderRegistry";
@@ -40,22 +42,27 @@ public sealed class RealJarTests
             ["net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$4 +0", "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$7 +0"]
         },
         { Forge, "net.minecraftforge:forge:1.12.2-14.23.5.2859:universal", "bd8314729d787e35164476d75afb337afb9783917e4f6fa1f77f049adba22f2d", [] },
-        // The handshake handler under each of its names, and the object holder registry, which keeps its HashSet up to 1.21.4.
+        // The handshake handler under each of its names, with its list of sent messages and, from 1.14, the order of its reply handlers, which 1.13.2 builds in
+        // NetworkInitialization; and the object holder registry, which keeps its HashSet up to 1.21.4.
         {
             Forge, "net.minecraftforge:forge:1.13.2-25.0.223:universal", "2a346876d4ea5dbfec7ae7fb88ac69fded58a2c504baa7a63156fe1fc3253786",
-            ["net/minecraftforge/fml/network/FMLHandshakeHandler +0", ObjectHolderRegistry + " +0"]
+            [FmlHandshakeHandler + " +0", "net/minecraftforge/fml/network/NetworkInitialization +0", ObjectHolderRegistry + " +0"]
+        },
+        {
+            Forge, "net.minecraftforge:forge:1.16.5-36.2.39:universal", "2aa41930bca8ed63f460d0e05185a64f247342aece121cd5255c8018b76ab33c",
+            [FmlHandshakeHandler + " +0", FmlHandshakeHandler + " +0", ObjectHolderRegistry + " +0"]
         },
         {
             Forge, "net.minecraftforge:forge:1.17.1-37.1.1:universal", "2cc032ae95d60f03e62be4929f3ecd66354e6ed135fa3cf676ced2b2f7910a6d",
-            ["net/minecraftforge/fmllegacy/network/FMLHandshakeHandler +0", ObjectHolderRegistry + " +0"]
+            ["net/minecraftforge/fmllegacy/network/FMLHandshakeHandler +0", "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler +0", ObjectHolderRegistry + " +0"]
         },
         {
             Forge, "net.minecraftforge:forge:1.20.1-47.4.28:universal", "9a6e4341cb5fc92ac6efdea4a9bc7e83cdec75c0f996f9af376c58af7ea7bf97",
-            ["net/minecraftforge/network/HandshakeHandler +0", ObjectHolderRegistry + " +0"]
+            [HandshakeHandler + " +0", HandshakeHandler + " +0", ObjectHolderRegistry + " +0"]
         },
         {
             NeoForged, "net.neoforged:forge:1.20.1-47.1.106:universal", "af67e430f39dc742713c94975166fac29c1a49f5ba7c31095a77289931399dc1",
-            ["net/minecraftforge/network/HandshakeHandler +0", ObjectHolderRegistry + " +0"]
+            [HandshakeHandler + " +0", HandshakeHandler + " +0", ObjectHolderRegistry + " +0"]
         },
         { Forge, "net.minecraftforge:forge:1.21.4-54.1.0:universal", "d5537ad2a67aaee88b1d84b58817f62e49d64f0e0b3ea51b8b03b95e17a7dad0", [ObjectHolderRegistry + " +0"] },
         // FML's config: loaded once, with its getter and invoker, and up to 1.19.4 built without autosave and autoreload; NeoForge's FML 4 changed configData's type.

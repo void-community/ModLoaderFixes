@@ -90,6 +90,16 @@ Caused by: java.lang.NullPointerException
 [Server thread/INFO] [minecraft/ServerLoginNetHandler]: com.mojang.authlib.GameProfile@6ac532df[id=<null>,name=Player,properties={},legacy=false] (/172.17.0.1:43658) lost connection: Internal Exception: java.util.ConcurrentModificationException
 ```
 
+**Forge 1.13.2 to 1.20.1 and NeoForge 1.20.1 servers now and then drop a player just as its login handshake completes:**
+
+```text
+[Server thread/DEBUG] [net.minecraftforge.network.HandshakeHandler]: Handshake complete!
+[Netty Epoll Server IO #2/DEBUG] [net.minecraft.network.Connection]: Failed to sent packet
+java.lang.NullPointerException: null
+	at net.minecraftforge.network.HandshakeHandler.lambda$biConsumerFor$1(HandshakeHandler.java:154)
+	at java.util.function.BiConsumer.lambda$andThen$0(Unknown Source)
+```
+
 **Forge 1.13.2 to 1.15.2 now and then crashes while it loads a world or its mods:**
 
 ```text

@@ -5,7 +5,7 @@ using JvmBridge.Testing;
 
 using Xunit;
 
-namespace ModLoaderFixes.Tests;
+namespace ModLoaderFixes.Tests.Handshakes;
 
 /// <summary>Making the list of Forge's handshake messages that wait for a reply a CopyOnWriteArrayList, in the handler's constructor.</summary>
 public sealed class SentMessagesPatchTests

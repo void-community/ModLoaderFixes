@@ -12,6 +12,9 @@ public sealed class ModernForgeServerTests
 {
     private const string ConfigurationWatchPatched = "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)";
 
+    // The handshake's builder of reply handlers is NetworkInitialization in 1.13.2 and the handler from 1.14, so the line is matched without the class.
+    private const string RepliesPatched = " (indexed replies handled before they are marked answered (1 change))";
+
     /// <summary>
     /// One build of each Forge branch whose handshake handler keeps <c>sentMessages</c> in an ArrayList, the ones seen dropping players among them, with the itzg image
     /// that runs it, the protocol version of its Minecraft and FML's network version. Forge from 1.17 runs on the Java 17 image, whose Ubuntu 20.04 has glibc 2.31, so
@@ -73,6 +76,9 @@ public sealed class ModernForgeServerTests
             expected: "HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)"
         );
         ForgeServer.AssertNotLogged(logs, unexpected: "ConcurrentModificationException");
+        // Each client's last acknowledgement is handled before its index is removed, so the server thread can't finish the handshake while the network thread
+        // still needs the handler.
+        ForgeServer.AssertLogged(logs, RepliesPatched);
         // Mod loading fills ObjectHolderRegistry's handlers on these servers too, from the same worker threads as on clients.
         ForgeServer.AssertLogged(
             logs,

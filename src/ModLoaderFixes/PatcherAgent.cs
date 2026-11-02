@@ -11,7 +11,8 @@ namespace ModLoaderFixes;
 /// Minecraft clients from 1.20.5 when it arrives before play is set up, and the listener lists that EventBus builds under its lock and deadlocks Forge 1.14.2 and
 /// 1.14.3 clients with, and the file watcher that reloads FML's config while Forge 1.13.2 to 1.19.4 still corrects it on a first start, the network tick that drops new connections on
 /// Forge, PaperSpigot and vanilla servers for Minecraft 1.7, and the class hierarchy cache that ModLauncher's threads share without a lock on Forge for 1.13.2 to 1.15.2, and the short wait for the
-/// client thread that drops Forge 1.7 clients while they join, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect.
+/// client thread that drops Forge 1.7 clients while they join, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect, and the handshake replies that Forge for 1.13.2
+/// to 1.20.1 looks its handler up for after the server thread has dropped it.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -112,6 +113,7 @@ public sealed class PatcherAgent : JavaAgent
         RegistryRevert,
         RegistryInjection,
         HandshakeSentMessages.Patch,
+        HandshakeReplies.Patch,
         .. ModLoaderConfigurationLoad.Patches,
         ObjectHolderHandlers.Patch,
         ChunkBatchAnswer,
