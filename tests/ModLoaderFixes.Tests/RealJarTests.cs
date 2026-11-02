@@ -109,8 +109,9 @@ public sealed class RealJarTests
     /// Vanilla clients, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
     /// each release: every 1.7 release's NetworkManager and the two channel initializers of its integrated server, for the network and in memory; the
     /// NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick needs no fix; and 1.14.4, whose flush needs none either. ChannelAccess, whose clear
-    /// moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis
-    /// and whose only change is 26.1's chunk batch answer.
+    /// moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis.
+    /// From 1.14.4 the packet listener whose Disconnect waits for the client thread: ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
+    /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -129,17 +130,20 @@ public sealed class RealJarTests
         { "1.12.2", "0f275bc1547d01fa5f56ba34bdc87d981ee12daf", "8ada07da5ee77dad3527bd7278fbd05ee1fc8a597813b216a871a2d7d64cc64f", ["gw +0"] },
         { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dxv +0", "jb +0"] },
         { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dxo +0", "ja +0"] },
-        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["eaj +0"] },
-        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["enn +0"] },
-        { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["fav +0"] },
-        { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["gix +0"] },
-        { "1.20.5", "c6b92b2374a629f20802bb284f98a4ee790e950a", "49d5949adbb1021a7eb00c1b949f9e39934b10249cbf86d25004774d1b3ff510", [] },
-        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/client/multiplayer/ClientPacketListener +0"] },
+        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "eaj +0"] },
+        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["dwu +0", "enn +0"] },
+        { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["eji +0", "fav +0"] },
+        { "1.20.1", "0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838", "56b71336d2b4fdffd197f56595b0da93e32a946f78f382a299b8f4b92758bb0f", ["fex +0", "fyv +0"] },
+        { "1.20.2", "82d1974e75fc984c5ed4b038e764e50958ac61a0", "fa1a19be56a506426308abbc1cad85f299a7fc6dae4335559351ba0246713fda", ["fiu +0", "gdj +0"] },
+        { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["fnp +0", "gix +0"] },
+        { "1.20.5", "c6b92b2374a629f20802bb284f98a4ee790e950a", "49d5949adbb1021a7eb00c1b949f9e39934b10249cbf86d25004774d1b3ff510", ["fxt +0"] },
+        { "1.21.11", "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd", "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd", ["hia +0"] },
+        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl +0", "net/minecraft/client/multiplayer/ClientPacketListener +0"] },
     };
 
     /// <summary>
     /// The patches change only the connection and the sound channels of each vanilla client, under each release's names: its NetworkManager up to 1.14.3, in 1.7 its
-    /// initializers, its ChannelAccess from 1.14 to 1.20.4, and from 26.1 its ClientPacketListener.
+    /// initializers, its ChannelAccess from 1.14 to 1.20.4, its packet listener from 1.14.4, and from 26.1 its ClientPacketListener's chunk batch answer.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
