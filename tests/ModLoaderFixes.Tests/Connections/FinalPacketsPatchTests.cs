@@ -14,6 +14,7 @@ public sealed class FinalPacketsPatchTests
 {
     private const string Moved = "modloaderfixes$handleDisconnect";
     private const string ProcessThenCheck = "modloaderfixes$processReceivedPackets";
+    private const string Schedule = "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;";
 
     /// <summary>
     /// Gets Minecraft 1.7's PlayerControllerMP under Forge's names and vanilla 1.7.10's, with its tick, the play client and its getter of the connection, and the
@@ -28,7 +29,10 @@ public sealed class FinalPacketsPatchTests
         { "bje", "e", "bjb", "b", "ej", "d", "a" },
     };
 
-    /// <summary>Gets each packet listener under Forge's names, with its client, its Disconnect packet and the name its handler has, and one under vanilla 1.16.3's.</summary>
+    /// <summary>
+    /// Gets each packet listener from 1.14 under Forge's names, with its client, its Disconnect packet and the name its handler has, and those of vanilla 1.14 and
+    /// 1.16.3.
+    /// </summary>
     public static TheoryData<string, string, string, string> Listeners { get; } = new()
     {
         { "net/minecraft/client/network/play/ClientPlayNetHandler", "net/minecraft/client/Minecraft", "net/minecraft/network/play/server/SDisconnectPacket", "func_147253_a" },
@@ -37,8 +41,29 @@ public sealed class FinalPacketsPatchTests
             "net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl", "net/minecraft/client/Minecraft",
             "net/minecraft/network/protocol/common/ClientboundDisconnectPacket", "handleDisconnect"
         },
+        { "dhi", "cvi", "le", "a" },
         { "dwm", "djw", "pm", "a" },
     };
+
+    /// <summary>
+    /// Gets Minecraft 1.13's packet listener under Forge's names and vanilla 1.13.1's, with its client, its Disconnect packet, the name its handler has and the name of
+    /// the client's method that queues a task.
+    /// </summary>
+    public static TheoryData<string, string, string, string, string> ScheduledListeners { get; } = new()
+    {
+        {
+            "net/minecraft/client/network/NetHandlerPlayClient", "net/minecraft/client/Minecraft", "net/minecraft/network/play/server/SPacketDisconnect",
+            "func_147253_a", "func_152344_a"
+        },
+        { "crc", "cfs", "ka", "a", "a" },
+    };
+
+    /// <summary>A 1.13 listener that doesn't call the client's method that queues a task is left alone, since the patch can't tell that method's name.</summary>
+    [Fact]
+    public void PatchLeavesA113ListenerWithoutTheClientsQueueAlone()
+    {
+        Assert.False(Apply(CreateListener(className: "crc", client: "cfs", packet: "ka", handler: "a")).Changed);
+    }
 
     /// <summary>A controller that has the added method already is left as it is.</summary>
     [Fact]
@@ -126,6 +151,50 @@ public sealed class FinalPacketsPatchTests
         Assert.Equal(expected: 0x100A, patched.FindMethod(helper.Name, helper.Descriptor)?.AccessFlags);
     }
 
+    /// <summary>
+    /// Once patched, a 1.13 handler queues a task that does nothing through the client's own method, which the listener calls elsewhere, waits on the future it returns,
+    /// and then runs its old code, moved to a method of its own.
+    /// </summary>
+    /// <param name="className">The listener.</param>
+    /// <param name="client">The client's class.</param>
+    /// <param name="packet">The Disconnect packet.</param>
+    /// <param name="handler">The name of the handler.</param>
+    /// <param name="schedule">The name of the client's method that queues a task.</param>
+    [Theory]
+    [MemberData(nameof(ScheduledListeners))]
+    public void PatchQueuesATaskThroughA113ClientBeforeTheDisconnect(string className, string client, string packet, string handler, string schedule)
+    {
+        string descriptor = "(L" + packet + ";)V";
+        ClassPatchResult result = Apply(CreateListener(className, client, packet, handler, schedule));
+        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.ToString()));
+        CodeAttribute code = patched.FindMethod(handler, descriptor)?.Code ?? throw new InvalidOperationException(message: "The handler is gone.");
+
+        Assert.Equal(
+            [
+                Opcodes.ALoad0, Opcodes.GetField, Opcodes.InvokeStatic, Opcodes.InvokeVirtual, Opcodes.InvokeStatic, Opcodes.ALoad0, Opcodes.ALoad1, Opcodes.InvokeSpecial,
+                Opcodes.Return,
+            ],
+            OpcodesOf(code)
+        );
+        Assert.True(
+            patched.Invokes(
+                code.Instructions[index: 2],
+                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "nothing", descriptor: "()Ljava/lang/Runnable;")
+            )
+        );
+        Assert.True(patched.Invokes(code.Instructions[index: 3], JavaMethod.Virtual(client, schedule, Schedule)));
+        Assert.True(
+            patched.Invokes(
+                code.Instructions[index: 4],
+                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "awaitHandled", descriptor: "(Ljava/util/concurrent/Future;)V")
+            )
+        );
+        Assert.Equal(
+            [Opcodes.ALoad0, Opcodes.GetField, Opcodes.ALoad1, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return],
+            OpcodesOf(patched.FindMethod(Moved, descriptor)?.Code)
+        );
+    }
+
     /// <summary>Once patched, the handler hands the client to the helper, which waits for the client thread, and then runs its old code, moved to a method of its own.</summary>
     /// <param name="className">The listener.</param>
     /// <param name="client">The client's class.</param>
@@ -204,12 +273,23 @@ public sealed class FinalPacketsPatchTests
     }
 
     // A listener as Minecraft compiles it: a constructor that takes the client first and keeps it in a field, the connection, and the Disconnect's handler, which
-    // closes the connection with the packet's reason.
-    private static byte[] CreateListener(string className, string client, string packet, string handler)
+    // closes the connection with the packet's reason. A 1.13 listener also queues a task through the client's own method, as its resource pack handler does.
+    private static byte[] CreateListener(string className, string client, string packet, string handler, string? schedule = null)
     {
         string connection = "Lnet/minecraft/network/Connection;";
+        ClassFileWriter listener = new(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52);
 
-        return new ClassFileWriter(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52)
+        if (schedule is not null)
+        {
+            listener = listener.AddMethod(
+                name: "handleResourcePack",
+                descriptor: "(Ljava/lang/Runnable;)V",
+                code => code.ALoad(slot: 0).GetField(className, name: "f", "L" + client + ";").ALoad(slot: 1).Invoke(JavaMethod.Virtual(client, schedule, Schedule)).Pop().Return(),
+                accessFlags: 0x0001
+            );
+        }
+
+        return listener
             .AddField(name: "f", "L" + client + ";", accessFlags: 0x0012)
             .AddField(name: "c", connection, accessFlags: 0x0012)
             .AddMethod(

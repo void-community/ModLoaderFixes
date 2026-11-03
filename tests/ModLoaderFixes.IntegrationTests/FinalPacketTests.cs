@@ -6,14 +6,48 @@ namespace ModLoaderFixes.IntegrationTests;
 
 /// <summary>
 /// The published agent in a real JVM, against fixtures whose server sends a chat, a Disconnect and its close one after the other, as a server that explains a kick
-/// does, to a client that handles them as Minecraft 1.14.4 and later do, and to one that handles them as Minecraft 1.7 does.
+/// does, to a client that handles them as Minecraft 1.14.4 and later do, to one that handles them as Minecraft 1.13 does, and to one that handles them as
+/// Minecraft 1.7 does.
 /// </summary>
 public sealed class FinalPacketTests
 {
     private const string LegacyMainClass = "net.minecraft.client.multiplayer.PlayerControllerMP";
     private const string LegacySources = "Fixtures/FinalPackets17/**/*.java";
     private const string MainClass = "net.minecraft.client.multiplayer.ClientPacketListener";
+    private const string ScheduledMainClass = "net.minecraft.client.network.NetHandlerPlayClient";
+    private const string ScheduledSources = "Fixtures/FinalPackets13/**/*.java";
     private const string Sources = "Fixtures/FinalPackets/**/*.java";
+
+    /// <summary>
+    /// Without the agent a Minecraft 1.13 client, which is busy in a tick as the chat and the Disconnect arrive, finds the connection closed at the end of the tick and
+    /// leaves the world, which drops the chat still queued; with it the Disconnect waits until the client has run the chat, and the client keeps the Disconnect's
+    /// reason. Minecraft 1.13 runs on Java 8.
+    /// </summary>
+    [Theory]
+    [JdkData(8)]
+    public async Task AgentShowsTheChatBeforeMinecraft113LeavesTheWorld(Jdk jdk)
+    {
+        ArgumentNullException.ThrowIfNull(jdk);
+
+        PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
+
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        string classPath = await jdk.CompileAsync(ScheduledSources, jdk.Major, cancellationToken);
+        JavaRun unpatched = await jdk.RunAsync(ScheduledMainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
+
+        Assert.NotEqual(expected: 0, unpatched.ExitCode);
+        Assert.Contains(expectedSubstring: "DROPPED [] Proxy is shutting down", unpatched.Output, StringComparison.Ordinal);
+
+        JavaRun patched = await jdk.RunAsync(ScheduledMainClass, classPath, agent, Verified(), cancellationToken);
+
+        Assert.True(patched.ExitCode is 0, patched.Output);
+        Assert.Contains(
+            expectedSubstring: "ModLoaderFixes: patched net/minecraft/client/network/NetHandlerPlayClient (packets before a disconnect handled first (1 change))",
+            patched.Output,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(expectedSubstring: "SHOWN [[CHAT] Stopping proxy...] Proxy is shutting down", patched.Output, StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// Without the agent Minecraft 1.7's client tick finds the connection closed and reports the Disconnect without processing the chat queued before it; with it the

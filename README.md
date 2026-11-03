@@ -139,7 +139,7 @@ J  org.lwjgl.stb.STBVorbis.nstb_vorbis_decode_frame_pushdata
 J  net.minecraft.client.audio.OggAudioStream.func_216460_a
 ```
 
-**Forge and vanilla 1.7 clients, and Forge, NeoForge and vanilla clients from 1.14.4, drop the chat a server sends just before it disconnects them**, such as a proxy's explanation of a kick. 1.7 clients never show it. From 1.14.4 clients drop it now and then, and with debug logging they log `Ignoring packet due to disconnection` for it.
+**Forge and vanilla 1.7 clients, and Forge, NeoForge and vanilla clients from 1.13, drop the chat a server sends just before it disconnects them**, such as a proxy's explanation of a kick. 1.7 clients never show it. Clients from 1.13 drop it now and then, and from 1.14.4 they log `Ignoring packet due to disconnection` for it with debug logging.
 
 **Forge and NeoForge 1.20.1 to 1.21.4 clients sometimes crash before the game's window opens:**
 

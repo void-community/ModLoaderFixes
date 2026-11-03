@@ -32,9 +32,16 @@
     <MappedClass Include="ChannelManager" Class="net/minecraft/client/audio/ChannelManager" From="1.14" To="1.16.5" />
     <MappedClass Include="ChannelAccess" Class="net/minecraft/client/sounds/ChannelAccess" From="1.17" To="1.20.4" />
     <MappedClass
+      Include="PlayClientHandler"
+      Class="net/minecraft/client/network/NetHandlerPlayClient"
+      From="1.13"
+      To="1.13.2"
+      Methods="func_147253_a(Lnet/minecraft/network/play/server/SPacketDisconnect;)V"
+    />
+    <MappedClass
       Include="PlayNetHandler"
       Class="net/minecraft/client/network/play/ClientPlayNetHandler"
-      From="1.14.4"
+      From="1.14"
       To="1.16.5"
       Methods="func_147253_a(Lnet/minecraft/network/play/server/SDisconnectPacket;)V"
     />
