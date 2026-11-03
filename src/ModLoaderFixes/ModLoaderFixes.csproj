@@ -28,6 +28,7 @@
     <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.14.3" Methods="func_150733_h()V" />
     <MappedClass Include="NetworkInitializer" Class="net/minecraft/network/NetworkSystem$1" From="1.7.2" To="1.7.10" />
     <MappedClass Include="MemoryInitializer" Class="net/minecraft/network/NetworkSystem$2" From="1.7.2" To="1.7.10" />
+    <MappedClass Include="PlayerController" Class="net/minecraft/client/multiplayer/PlayerControllerMP" From="1.7.2" To="1.7.10" Methods="func_78765_e()V" />
     <MappedClass Include="ChannelManager" Class="net/minecraft/client/audio/ChannelManager" From="1.14" To="1.16.5" />
     <MappedClass Include="ChannelAccess" Class="net/minecraft/client/sounds/ChannelAccess" From="1.17" To="1.20.4" />
     <MappedClass

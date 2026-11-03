@@ -107,23 +107,23 @@ public sealed class RealJarTests
 
     /// <summary>
     /// Vanilla clients, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
-    /// each release: every 1.7 release's NetworkManager and the two channel initializers of its integrated server, for the network and in memory; the
-    /// NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick needs no fix; and 1.14.4, whose flush needs none either. ChannelAccess, whose clear
-    /// moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis.
-    /// From 1.14.4 the packet listener whose Disconnect waits for the client thread: ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
-    /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer.
+    /// each release: every 1.7 release's PlayerControllerMP, whose tick processes the received packets before it checks the connection, NetworkManager and the two
+    /// channel initializers of its integrated server, for the network and in memory; the NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick
+    /// needs no fix; and 1.14.4, whose flush needs none either. ChannelAccess, whose clear moves to the sound thread, at the edges of MCP's and Mojang's names from
+    /// 1.14 to 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis. From 1.14.4 the packet listener whose Disconnect waits for the client
+    /// thread: ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
-        { "1.7.2", "0c8689f904922af71c7144dcfb81bce976cadd49", "507fb3660e77ab1a3000424d9b08c61606ae1e5a9be41caa3728bddd9597365f", ["ef +0", "mt +0", "mu +0"] },
-        { "1.7.3", "feaf10fa9da94c388f2c53a2cf31a14406d0c532", "8b1d90ae662b235072d05dbc27d38ae5fef8b322a21d10302703fd798feb05c5", ["ef +0", "mw +0", "mx +0"] },
-        { "1.7.4", "900950d8e3217b3a42405d1ecf767dcc31239d69", "c51494c52a612648cbcb7ebcdaedbcb61f6cd287f6215f90113a43136cb62526", ["ef +0", "mw +0", "mx +0"] },
-        { "1.7.5", "77aa70ac5054cbf1140b6449b579e950d5050c4a", "5f83b944b59c48ea7fa8f92fefd491ecb6d1e8d6c9b412fc849f6457c8cee27b", ["eg +0", "nc +0", "nd +0"] },
-        { "1.7.6", "6b2c5827994e17f904f0852f962dd6fccfbb8bdc", "b1bde364f26f5fbdf657bb7b2b877c34eac201ac346c402192dd98b0ef322281", ["ej +0", "nc +0", "nd +0"] },
-        { "1.7.7", "e520f254a2b496d61839b816d712e238b1243f30", "3e41fd81092a1e9bb7d3d268ebd8c8700b5906065974dc6a962ba8417d57ba73", ["ej +0", "nc +0", "nd +0"] },
-        { "1.7.8", "83ae44189888a873f46f7509a87ebdb6dc785741", "09d06a078aaedc075682440a5d87d473ee5ebfb35270aa8f085575f133029a31", ["ej +0", "nc +0", "nd +0"] },
-        { "1.7.9", "fbbaae784b1de315a8d08a82c6c345a583fb676b", "38f8d799a9b42fb539ca7250e317dd6546910c8ac7718a720c11aad79780e8d8", ["ej +0", "nc +0", "nd +0"] },
-        { "1.7.10", "e80d9b3bf5085002218d4be59e668bac718abbc6", "a4fc2284657544e0f4bcc964f927c2fda3e3a205178ed1d5d58883aaf9780cce", ["ej +0", "nd +0", "ne +0"] },
+        { "1.7.2", "0c8689f904922af71c7144dcfb81bce976cadd49", "507fb3660e77ab1a3000424d9b08c61606ae1e5a9be41caa3728bddd9597365f", ["biy +0", "ef +0", "mt +0", "mu +0"] },
+        { "1.7.3", "feaf10fa9da94c388f2c53a2cf31a14406d0c532", "8b1d90ae662b235072d05dbc27d38ae5fef8b322a21d10302703fd798feb05c5", ["bjz +0", "ef +0", "mw +0", "mx +0"] },
+        { "1.7.4", "900950d8e3217b3a42405d1ecf767dcc31239d69", "c51494c52a612648cbcb7ebcdaedbcb61f6cd287f6215f90113a43136cb62526", ["bjz +0", "ef +0", "mw +0", "mx +0"] },
+        { "1.7.5", "77aa70ac5054cbf1140b6449b579e950d5050c4a", "5f83b944b59c48ea7fa8f92fefd491ecb6d1e8d6c9b412fc849f6457c8cee27b", ["bkf +0", "eg +0", "nc +0", "nd +0"] },
+        { "1.7.6", "6b2c5827994e17f904f0852f962dd6fccfbb8bdc", "b1bde364f26f5fbdf657bb7b2b877c34eac201ac346c402192dd98b0ef322281", ["blo +0", "ej +0", "nc +0", "nd +0"] },
+        { "1.7.7", "e520f254a2b496d61839b816d712e238b1243f30", "3e41fd81092a1e9bb7d3d268ebd8c8700b5906065974dc6a962ba8417d57ba73", ["blo +0", "ej +0", "nc +0", "nd +0"] },
+        { "1.7.8", "83ae44189888a873f46f7509a87ebdb6dc785741", "09d06a078aaedc075682440a5d87d473ee5ebfb35270aa8f085575f133029a31", ["blq +0", "ej +0", "nc +0", "nd +0"] },
+        { "1.7.9", "fbbaae784b1de315a8d08a82c6c345a583fb676b", "38f8d799a9b42fb539ca7250e317dd6546910c8ac7718a720c11aad79780e8d8", ["blq +0", "ej +0", "nc +0", "nd +0"] },
+        { "1.7.10", "e80d9b3bf5085002218d4be59e668bac718abbc6", "a4fc2284657544e0f4bcc964f927c2fda3e3a205178ed1d5d58883aaf9780cce", ["bje +0", "ej +0", "nd +0", "ne +0"] },
         { "1.8", "d722504db9de2b47f46cc592b8528446272ae648", "ccccd0a92f76fbb24279691daad9b67f85d80471a37e59e0da76d7754982dfe8", ["gr +0"] },
         { "1.8.2", "a8e71f6c81acfa834d249579a242f5b0852075c1", "5cc5b24312f3d182bf06e7f1a4da3a05ce94be6c861d5c9995c86e6d8811fbe9", ["el +0"] },
         { "1.9.3", "b6985b0d3a0520dfb6f17eeb1e8ba58ce9577061", "ab8fdde789c5b4614ffc98249e04fdcce7dfce320b55215bfe5418608af6a63b", ["em +0"] },
@@ -143,7 +143,8 @@ public sealed class RealJarTests
 
     /// <summary>
     /// The patches change only the connection and the sound channels of each vanilla client, under each release's names: its NetworkManager up to 1.14.3, in 1.7 its
-    /// initializers, its ChannelAccess from 1.14 to 1.20.4, its packet listener from 1.14.4, and from 26.1 its ClientPacketListener's chunk batch answer.
+    /// initializers and its PlayerControllerMP, its ChannelAccess from 1.14 to 1.20.4, its packet listener from 1.14.4, and from 26.1 its ClientPacketListener's chunk
+    /// batch answer.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
