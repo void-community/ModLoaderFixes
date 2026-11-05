@@ -139,6 +139,14 @@ J  org.lwjgl.stb.STBVorbis.nstb_vorbis_decode_frame_pushdata
 J  net.minecraft.client.audio.OggAudioStream.func_216460_a
 ```
 
+**Forge, Paper, Spigot and vanilla 1.16 to 1.18.2 servers sometimes hang at startup and never finish loading their data packs.** The log stops after `Reloading ResourceManager`, and a thread dump shows the main thread waiting while the worker threads sit idle:
+
+```text
+"main" #1 ... WAITING (parking)
+	at java.util.concurrent.CompletableFuture.get(CompletableFuture.java:1908)
+	at net.minecraft.server.v1_16_R3.Main.main(Main.java:188)
+```
+
 **Forge and vanilla 1.7 clients, and Forge, NeoForge and vanilla clients from 1.13, drop the chat a server sends just before it disconnects them**, such as a proxy's explanation of a kick. 1.7 clients never show it. Clients from 1.13 drop it now and then, and from 1.14.4 they log `Ignoring packet due to disconnection` for it with debug logging.
 
 **Forge and NeoForge 1.20.1 to 1.21.4 clients sometimes crash before the game's window opens:**

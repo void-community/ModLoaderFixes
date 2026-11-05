@@ -12,6 +12,8 @@ public sealed class ModernForgeServerTests
 {
     private const string ConfigurationWatchPatched = "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)";
 
+    private const string ReloadPatched = " (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)";
+
     // The handshake's builder of reply handlers is NetworkInitialization in 1.13.2 and the handler from 1.14, so the line is matched without the class.
     private const string RepliesPatched = " (indexed replies handled before they are marked answered (1 change))";
 
@@ -102,6 +104,16 @@ public sealed class ModernForgeServerTests
             ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
         else
             ForgeServer.AssertNotLogged(logs, ForgeServer.FlushPatched);
+
+        // The startup reloads the data packs with the workers as the game executor from 1.16, through the reload whose set of listeners the agent locks: AsyncReloader
+        // by MCP's name, which Forge gives it from 1.14, and SimpleReloadInstance by Mojang's from 1.17. Both keep the same code where only the server or main thread
+        // uses the set, before 1.16 and after 1.18.2, and the lock changes nothing there; Minecraft 1.13.2 reloads otherwise.
+        if (version == "1.13.2")
+            ForgeServer.AssertNotLogged(logs, ReloadPatched);
+        else if (string.CompareOrdinal(version, strB: "1.17") < 0)
+            ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/resources/AsyncReloader" + ReloadPatched);
+        else
+            ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/server/packs/resources/SimpleReloadInstance" + ReloadPatched);
 
         // The client reports a login that skipped FML's handshake separately, so this also says every player went through it.
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);

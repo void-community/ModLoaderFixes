@@ -84,7 +84,9 @@ public sealed class RealJarTests
     /// <summary>
     /// Vanilla servers, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
     /// each release: every 1.7 release's NetworkManager and channel initializer; the NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick
-    /// needs no fix; and 1.14.4, whose flush needs none either.
+    /// needs no fix; 1.14.4, whose flush needs none either; and the reload whose set of listeners the startup of 1.16 to 1.18.2 removes from on several threads, at
+    /// the edges of its namings, and 1.15.2, whose startup reloads on the server thread. The bundled server jars from 1.18 nest the game in another jar, so the
+    /// clients cover those.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaServers { get; } = new()
     {
@@ -103,13 +105,19 @@ public sealed class RealJarTests
         { "1.12.2", "886945bfb2b978778c3a0288fd7fab09d315b25f", "fe1f9274e6dad9191bf6e6e8e36ee6ebc737f373603df0946aafcded0d53167e", ["gw +0"] },
         { "1.14.3", "d0d0fe2b1dc6ab4c65554cb734270872b72dadd6", "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38", ["jb +0"] },
         { "1.14.4", "3dc3d84a581f14691199cf6831b71ed1296a9fdf", "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729", [] },
+        { "1.15.2", "bb2b6b1aefcd70dfd1892149ac3a215f6c636b07", "80cf86dc2004ec6a2dc0183d1c75a9af3ba0669f7c332e4247afb1d76fb67e8a", [] },
+        { "1.16", "a0d03225615ba897619220e256a266cb33a44b6b", "7d2d2d127b90baf2bd8fc61092cbff42bea1bdfae30a2838f45edb31294979b9", ["abg +0"] },
+        { "1.16.3", "f02f4473dbf152c23d7d484952121db0b36698cb", "32e450e74c081aec06dcfbadfa5ba9aa1c7f370bd869e658caec0c3004f7ad5b", ["acj +0"] },
+        { "1.16.4", "35139deedbd5182953cf1caa23835da59ca3d7cd", "444d30d903a1ef489b6737bb9d021494faf23434ca8568fd72ce2e3d40b32506", ["acl +0"] },
+        { "1.17.1", "a16d67e5807f57fc4e550299cf20226194497dc2", "e8c211b41317a9f5a780c98a89592ecb72eb39a6e475d4ac9657e5bc9ffaf55f", ["ady +0"] },
     };
 
     /// <summary>
     /// Vanilla clients, which Mojang serves at the address of its SHA-1, with the obfuscated names of what the patches change, which they take from the mappings of
     /// each release: every 1.7 release's PlayerControllerMP, whose tick processes the received packets before it checks the connection, NetworkManager and the two
     /// channel initializers of its integrated server, for the network and in memory; the NetworkManager of 1.8 to 1.14.3 at the edges of its namings, whose tick needs
-    /// no fix; and 1.14.4, whose flush needs none either. ChannelAccess, whose clear moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to
+    /// no fix; and 1.14.4, whose flush needs none either. The reload of 1.16.5 to 1.18.2, which the clients ship with the servers' names, and 1.19, whose server
+    /// startup reloads on the main thread. ChannelAccess, whose clear moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to
     /// 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis. From 1.13 the packet listener whose Disconnect waits for the client thread:
     /// NetHandlerPlayClient up to 1.13.2, whose client is no executor, at each 1.13 release, ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
     /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer.
@@ -135,8 +143,12 @@ public sealed class RealJarTests
         { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dho +0", "dxv +0", "jb +0"] },
         { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dhi +0", "dxo +0", "ja +0"] },
         { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "eaj +0"] },
-        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["dwu +0", "enn +0"] },
-        { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["eji +0", "fav +0"] },
+        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["acl +0", "dwu +0", "enn +0"] },
+        { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["ady +0", "eji +0", "fav +0"] },
+        { "1.18", "d49eb6caed53d23927648c97451503442f9e26fd", "381e090ef22584526113bcccf26ae38a310a22094d14c2d0dec72b71fdf65aaa", ["afp +0", "elm +0", "fdb +0"] },
+        { "1.18.1", "7e46fb47609401970e2818989fa584fd467cd036", "737c28a56c8980fcd8574465c61538ebde8f511bdd035c69d0cbe27953f892aa", ["afp +0", "elm +0", "fdb +0"] },
+        { "1.18.2", "2e9a3e3107cca00d6bc9c97bf7d149cae163ef21", "1d09e3639644b6b2254499469d0765cc005a286d19f3fa595b0ed8fb07971ec7", ["agf +0", "emt +0", "fei +0"] },
+        { "1.19", "c0898ec7c6a5a2eaa317770203a1554260699994", "ffd4fb3037d4110085b4d3d2dc47b760695528eb14292c3e5f7c758983c6d764", ["etn +0", "flu +0"] },
         { "1.20.1", "0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838", "56b71336d2b4fdffd197f56595b0da93e32a946f78f382a299b8f4b92758bb0f", ["fex +0", "fyv +0"] },
         { "1.20.2", "82d1974e75fc984c5ed4b038e764e50958ac61a0", "fa1a19be56a506426308abbc1cad85f299a7fc6dae4335559351ba0246713fda", ["fiu +0", "gdj +0"] },
         { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["fnp +0", "gix +0"] },
@@ -146,9 +158,28 @@ public sealed class RealJarTests
     };
 
     /// <summary>
-    /// The patches change only the connection and the sound channels of each vanilla client, under each release's names: its NetworkManager up to 1.14.3, in 1.7 its
-    /// initializers and its PlayerControllerMP, its ChannelAccess from 1.14 to 1.20.4, its packet listener from 1.14.4, and from 26.1 its ClientPacketListener's chunk
-    /// batch answer.
+    /// The patches change only the connection and the reload of each vanilla server, under each release's names: its NetworkManager up to 1.14.3, in 1.7 its
+    /// initializer, and its reload from 1.16 to 1.18.2.
+    /// </summary>
+    /// <param name="version">The Minecraft version.</param>
+    /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
+    /// <param name="sha256">Its pinned checksum.</param>
+    /// <param name="expected">What the patches change, as <c>class +added members</c>.</param>
+    [Theory]
+    [MemberData(nameof(VanillaServers))]
+    public async Task PatchesChangeOnlyTheConnectionAndReloadOfAVanillaServer(string version, string sha1, string sha256, string[] expected)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+
+        string jar = await VanillaServer(version, sha1, sha256).GetPathAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected.Order(StringComparer.Ordinal), Changes(jar));
+    }
+
+    /// <summary>
+    /// The patches change only the connection, the sound channels and the reload of each vanilla client, under each release's names: its NetworkManager up to
+    /// 1.14.3, in 1.7 its initializers and its PlayerControllerMP, its ChannelAccess from 1.14 to 1.20.4, its packet listener from 1.14.4, its reload from 1.16 to
+    /// 1.18.2, and from 26.1 its ClientPacketListener's chunk batch answer.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
@@ -156,27 +187,11 @@ public sealed class RealJarTests
     /// <param name="expected">What the patches change, as <c>class +added members</c>.</param>
     [Theory]
     [MemberData(nameof(VanillaClients))]
-    public async Task PatchesChangeOnlyTheConnectionAndSoundChannelsOfAVanillaClient(string version, string sha1, string sha256, string[] expected)
+    public async Task PatchesChangeOnlyTheConnectionSoundChannelsAndReloadOfAVanillaClient(string version, string sha1, string sha256, string[] expected)
     {
         ArgumentNullException.ThrowIfNull(expected);
 
         string jar = await VanillaClient(version, sha1, sha256).GetPathAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(expected.Order(StringComparer.Ordinal), Changes(jar));
-    }
-
-    /// <summary>The patches change only the connection of each vanilla server, under each release's names: its NetworkManager up to 1.14.3, and in 1.7 its initializer.</summary>
-    /// <param name="version">The Minecraft version.</param>
-    /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
-    /// <param name="sha256">Its pinned checksum.</param>
-    /// <param name="expected">What the patches change, as <c>class +added members</c>.</param>
-    [Theory]
-    [MemberData(nameof(VanillaServers))]
-    public async Task PatchesChangeOnlyTheConnectionOfAVanillaServer(string version, string sha1, string sha256, string[] expected)
-    {
-        ArgumentNullException.ThrowIfNull(expected);
-
-        string jar = await VanillaServer(version, sha1, sha256).GetPathAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(expected.Order(StringComparer.Ordinal), Changes(jar));
     }
