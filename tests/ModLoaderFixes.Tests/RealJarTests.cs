@@ -13,10 +13,12 @@ public sealed class RealJarTests
     private const string FmlHandshakeHandler = "net/minecraftforge/fml/network/FMLHandshakeHandler";
     private const string Forge = "https://maven.minecraftforge.net";
     private const string ForgeClientHandler = "cpw/mods/fml/client/FMLClientHandler";
-
     private const string ForgeConfiguration = "net/minecraftforge/fml/loading/FMLConfig";
+
+    private const string ForgeDisplayWindow = "net/minecraftforge/fml/earlydisplay/DisplayWindow";
     private const string HandshakeHandler = "net/minecraftforge/network/HandshakeHandler";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
+    private const string NeoForgeDisplayWindow = "net/neoforged/fml/earlydisplay/DisplayWindow";
     private const string NeoForged = "https://maven.neoforged.net/releases";
     private const string ObjectHolderRegistry = "net/minecraftforge/registries/ObjectHolderRegistry";
     private const string TransformerClassWriter = "cpw/mods/modlauncher/TransformerClassWriter";
@@ -70,6 +72,18 @@ public sealed class RealJarTests
         { Forge, "net.minecraftforge:fmlloader:1.20.1-47.4.28", "9c26db7ee5ae50e0d3d493fe2f07dd4a10d61c1e678203af97986e45c269f414", [ForgeConfiguration + " +2"] },
         { NeoForged, "net.neoforged.fancymodloader:loader:2.0.17", "fdb7c4ffd3b03ce5dba32d453a5335630416b4c820ce54eada5cba96e36be625", [NeoForgeConfiguration + " +2"] },
         { NeoForged, "net.neoforged.fancymodloader:loader:4.0.39", "2c5b1386bba0e77c769e95d53eb2edb00773ef3bded5196a44277ade8f112534", [NeoForgeConfiguration + " +2"] },
+        // The early loading window's watchdog: none before Forge 1.20.1-47.0.19, 10 seconds in every Forge build after, in NeoForge 1.20.1's, which keeps Forge's
+        // package, and in FancyModLoader up to 4.0.36 and 6.0.8, and 30 seconds from 4.0.37 and 6.0.9.
+        { Forge, "net.minecraftforge:fmlearlydisplay:1.20.1-47.0.18", "5a3906283de88c38fa3b55a13c1b4b3fa183fa14ee35851d6f3eb5c6c6041bf5", [] },
+        { Forge, "net.minecraftforge:fmlearlydisplay:1.20.1-47.0.19", "aced26f0cb9d08125d116f64eedcbebcb36f3d895d4382cea2b01f427675c9bd", [ForgeDisplayWindow + " +0"] },
+        { Forge, "net.minecraftforge:fmlearlydisplay:1.21.5-55.1.18", "6fa56bf11385cd3be90b60898e2f1fbc39b57b658e90ef59aa3ac4df680e9730", [ForgeDisplayWindow + " +0"] },
+        { Forge, "net.minecraftforge:fmlearlydisplay:26.3-66.1.5", "84ad9dc4607c2db5887fb0a8f662aa0824919ab91caf77ce618ca285a1731ef1", [ForgeDisplayWindow + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:47.2.2", "6c48a279c3624c439941108196758e3af9d73d16f279c747f120da0c3491d6da", [ForgeDisplayWindow + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:4.0.36", "cb6700c9bae180dbeaa54be16b12e0b233ac331bd314f5f7d0d0c9f76a4fa520", [NeoForgeDisplayWindow + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:4.0.37", "edd81779904d0a085ffc17e212ed0859f06cd1daf0b8025cbaa2c5b49346c9e1", [] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:6.0.8", "c137028e7f1b75231a0e8fbf8bde0ebbe75b96e164f22d044bf7eb7b3b1dc828", [NeoForgeDisplayWindow + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:6.0.9", "5420beb4f2e6af6418a4a64bfe84710603a28ae7688ebd50ef0f2e5e65546f23", [] },
+        { NeoForged, "net.neoforged.fancymodloader:earlydisplay:12.0.12", "290befe35178d17caa553fb2f42501b3e195aa1d15e8ed6a08935db82922e6f6", [] },
         // EventBus's listener lists: built in computeIfAbsent up to 0.10.1, under the write lock with the helper's accessors in 0.10.2 to 0.10.4, and fixed from 0.10.5.
         { Forge, "net.minecraftforge:eventbus:0.10.1", "00315a766018bc6f0c4a2e1eb465c866ac194d7a29d820283ba3db57ba763915", [EventListenerHelper + " +0"] },
         { Forge, "net.minecraftforge:eventbus:0.10.3", "eee16845dafb8d3032b246b82b9a542860dc09c067182c02fcb31038a741d028", [EventListenerHelper + " +3"] },

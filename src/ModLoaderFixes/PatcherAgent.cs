@@ -16,7 +16,8 @@ namespace ModLoaderFixes;
 /// client thread that drops Forge 1.7 clients while they join, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect, and the handshake replies that Forge for 1.13.2
 /// to 1.20.1 looks its handler up for after the server thread has dropped it, and the sound channels that Minecraft 1.14 to 1.20.4 clients release on the Render thread
 /// while the sound thread decodes their streams, and the chat that Minecraft 1.7 clients and those from 1.13 drop when a server disconnects them right after it, and
-/// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once.
+/// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
+/// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -132,6 +133,7 @@ public sealed class PatcherAgent : JavaAgent
         .. SoundChannels.Patches,
         .. FinalPackets.Patches,
         .. ReloadListeners.Patches,
+        .. WindowWatchdog.Patches,
     ];
 
     /// <inheritdoc/>

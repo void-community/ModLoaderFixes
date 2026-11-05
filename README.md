@@ -157,6 +157,17 @@ java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.N
 	at net.minecraftforge.fml.loading.ImmediateWindowHandler.setupMinecraftWindow(ImmediateWindowHandler.java:54)
 ```
 
+**Forge clients from 1.20.1 and NeoForge 1.20.1 to 1.21.3 clients give up at startup when the game's window takes more than 10 seconds to open**, as it can on a busy machine or one that renders in software:
+
+```text
+[main/INFO]: Trying GL version 4.6
+[pool-2-thread-1/ERROR]: ERROR DISPLAY
+Failed to initialize the mod loading system and display.
+
+Failure details:
+Timed out trying to setup the Game Window.
+```
+
 **Forge and NeoForge clients from 1.20.6, and vanilla clients from 26.1, sometimes drop their connection as they join or as a proxy moves them to another server:**
 
 ```text
