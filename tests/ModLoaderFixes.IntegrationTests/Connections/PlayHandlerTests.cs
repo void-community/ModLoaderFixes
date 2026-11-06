@@ -65,7 +65,14 @@ public sealed class PlayHandlerTests
     private static void AssertPatched(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);
+
+        // The dispatcher's setter and advice come on its one line, with no empty one before it.
+        string dispatcher = Assert.Single(
+            patched.Output.Split(separator: '\n'),
+            static line => line.Contains(value: "patched cpw/mods/fml/common/network/handshake/NetworkDispatcher", StringComparison.Ordinal)
+        );
+
+        Assert.Contains(Patched, dispatcher, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "first connection: joined; second connection: joined", patched.Output, StringComparison.Ordinal);
     }
 

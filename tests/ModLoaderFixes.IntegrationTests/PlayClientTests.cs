@@ -12,7 +12,7 @@ public sealed class PlayClientTests
 {
     private const string MainClass = "cpw.mods.fml.client.FMLClientHandler";
     private const string Patched =
-        "ModLoaderFixes: patched cpw/mods/fml/client/FMLClientHandler (waitForPlayClient()V: 1 invocation of java/util/concurrent/CountDownLatch.await redirected)";
+        "ModLoaderFixes: patched cpw/mods/fml/client/FMLClientHandler (waitForPlayClient()V: 1 invocation of java/util/concurrent/CountDownLatch.await redirected; modloaderfixes$playClientBlock()Ljava/util/concurrent/CountDownLatch;: getter of field playClientBlock added)";
     private const string Sources = "Fixtures/PlayClient/**/*.java";
 
     /// <summary>

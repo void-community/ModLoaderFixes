@@ -50,14 +50,10 @@ public sealed class ModLoaderConfigurationServerTests
         string package = type == "NEOFORGE" ? "net/neoforged" : "net/minecraftforge";
 
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
+        // The agent logs the redirect and the members the patch adds on one line.
         ForgeServer.AssertLogged(
             logs,
-            $"ModLoaderFixes: patched {package}/fml/loading/FMLConfig (load()V: 1 invocation of {package}/fml/loading/FMLConfig.loadFrom redirected)"
-        );
-        // The agent logs the members a patch adds on a line of their own, when it defines the class.
-        ForgeServer.AssertLogged(
-            logs,
-            $"ModLoaderFixes: patched {package}/fml/loading/FMLConfig (modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)"
+            $"ModLoaderFixes: patched {package}/fml/loading/FMLConfig (load()V: 1 invocation of {package}/fml/loading/FMLConfig.loadFrom redirected; modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)"
         );
     }
 }

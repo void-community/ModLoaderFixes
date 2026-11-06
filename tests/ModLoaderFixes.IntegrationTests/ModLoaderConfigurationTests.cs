@@ -56,14 +56,9 @@ public sealed class ModLoaderConfigurationTests
     private static void AssertPatched(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
+        // The agent logs the redirect and the members the patch adds on one line.
         Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (load()V: 1 invocation of net/minecraftforge/fml/loading/FMLConfig.loadFrom redirected)",
-            patched.Output,
-            StringComparison.Ordinal
-        );
-        // The agent logs the members a patch adds on a line of their own, when it defines the class.
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)",
+            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (load()V: 1 invocation of net/minecraftforge/fml/loading/FMLConfig.loadFrom redirected; modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)",
             patched.Output,
             StringComparison.Ordinal
         );
