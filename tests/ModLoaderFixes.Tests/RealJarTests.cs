@@ -20,6 +20,7 @@ public sealed class RealJarTests
     private const string Mojang = "https://libraries.minecraft.net";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
     private const string NeoForgeDisplayWindow = "net/neoforged/fml/earlydisplay/DisplayWindow";
+    private const string NeoForgeHandshake = "net/neoforged/neoforge/network/HandshakeHandler";
     private const string NeoForged = "https://maven.neoforged.net/releases";
     private const string NetworkDispatcher = "cpw/mods/fml/common/network/handshake/NetworkDispatcher";
     private const string ObjectHolderRegistry = "net/minecraftforge/registries/ObjectHolderRegistry";
@@ -77,6 +78,12 @@ public sealed class RealJarTests
             NeoForged, "net.neoforged:forge:1.20.1-47.1.106:universal", "af67e430f39dc742713c94975166fac29c1a49f5ba7c31095a77289931399dc1",
             [HandshakeHandler + " +0", HandshakeHandler + " +0", ObjectHolderRegistry + " +0"]
         },
+        // NeoForge's own handshake handler from 1.20.2, with its IntArrayList of sent messages and its indexFirst, until 1.20.4-20.4.70-beta replaced the handshake.
+        { NeoForged, "net.neoforged:neoforge:20.2.3-beta:universal", "4906f318b2ba191b7accbd5c84674b62071741a66f1437fe7eec037f595e91e9", [NeoForgeHandshake + " +0", NeoForgeHandshake + " +0"] },
+        { NeoForged, "net.neoforged:neoforge:20.2.93:universal", "14738ecbf2b5322536c78c0a1de678ba457b3244a891f31efb5bac89eadee172", [NeoForgeHandshake + " +0", NeoForgeHandshake + " +0"] },
+        { NeoForged, "net.neoforged:neoforge:20.3.8-beta:universal", "fe1f948efc857d55b59d073a9dc0ed1cd5baa4ce4dac3d2709054834d3258fb8", [NeoForgeHandshake + " +0", NeoForgeHandshake + " +0"] },
+        { NeoForged, "net.neoforged:neoforge:20.4.69-beta:universal", "c958abb6339110ad1fea85f281283ba3008fd7c24212da2becb5e4551a033b9d", [NeoForgeHandshake + " +0", NeoForgeHandshake + " +0"] },
+        { NeoForged, "net.neoforged:neoforge:20.4.70-beta:universal", "b54f0f6d9944f8e2cbd9de5058a6625fa3fb822d3682979785aa4b1021ed0151", [] },
         { Forge, "net.minecraftforge:forge:1.21.4-54.1.0:universal", "d5537ad2a67aaee88b1d84b58817f62e49d64f0e0b3ea51b8b03b95e17a7dad0", [ObjectHolderRegistry + " +0"] },
         // FML's config: loaded once, with its getter and invoker, and up to 1.19.4 built without autosave and autoreload; NeoForge's FML 4 changed configData's type.
         { Forge, "net.minecraftforge:fmlloader:1.19.4-45.3.0", "1a5469a8646c0b83561fedd828a7605ede8812d329434042489571883e8f89a5", [ForgeConfiguration + " +0", ForgeConfiguration + " +2"] },

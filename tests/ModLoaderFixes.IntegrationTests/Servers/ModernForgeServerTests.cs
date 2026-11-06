@@ -6,7 +6,7 @@ using Xunit;
 
 namespace ModLoaderFixes.IntegrationTests.Servers;
 
-/// <summary>Real Forge and NeoForge servers for Minecraft 1.13 to 1.20.1, as itzg installs them, with the agent loaded and players logging in through FML's handshake.</summary>
+/// <summary>Real Forge and NeoForge servers for Minecraft 1.13 to 1.20.2, as itzg installs them, with the agent loaded and players logging in through FML's handshake.</summary>
 [Collection(ForgeServer.Collection)]
 public sealed class ModernForgeServerTests
 {
@@ -33,6 +33,7 @@ public sealed class ModernForgeServerTests
         { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.19.2", "43.5.0", 760, "FML3" },
         { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.20.1", "47.4.28", 763, "FML3" },
         { "itzg/minecraft-server:2026.10.0-java17", "NEOFORGE", "1.20.1", "47.1.106", 763, "FML3" },
+        { "itzg/minecraft-server:2026.10.0-java17", "NEOFORGE", "1.20.2", "20.2.93", 764, "FML3" },
     };
 
     /// <summary>
@@ -73,19 +74,29 @@ public sealed class ModernForgeServerTests
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token);
 
+        // NeoForge from 1.20.2 has a handler of its own, which keeps the indexes in a fastutil IntArrayList, and the object holders under its own package.
+        bool isNeoForgesOwn = type == "NEOFORGE" && version != "1.20.1";
+
         ForgeServer.AssertLogged(
             logs,
-            expected: "HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)"
+            isNeoForgesOwn
+                ? "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (<init>: 1 new it/unimi/dsi/fastutil/ints/IntArrayList replaced by new modloaderfixes/HandshakeIndexes stored in sentMessages)"
+                : "HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)"
         );
         ForgeServer.AssertNotLogged(logs, unexpected: "ConcurrentModificationException");
+        ForgeServer.AssertNotLogged(logs, unexpected: "Badly compressed packet");
         // Each client's last acknowledgement is handled before its index is removed, so the server thread can't finish the handshake while the network thread
         // still needs the handler.
         ForgeServer.AssertLogged(logs, RepliesPatched);
+
         // Mod loading fills ObjectHolderRegistry's handlers on these servers too, from the same worker threads as on clients.
-        ForgeServer.AssertLogged(
-            logs,
-            expected: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)"
-        );
+        if (!isNeoForgesOwn)
+        {
+            ForgeServer.AssertLogged(
+                logs,
+                expected: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)"
+            );
+        }
 
         // Forge before 1.20 builds its fml.toml with autosave and autoreload, which each server here corrects on its first start; Forge 1.20.1 and NeoForge don't.
         if (type == "FORGE" && !version.StartsWith(value: "1.20", StringComparison.Ordinal))

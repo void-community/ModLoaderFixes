@@ -19,7 +19,8 @@ import java.util.zip.Inflater;
 /**
  * Logs many players in to a Minecraft server in offline mode at once, as far as the first packets of the play state, and prints how the logins ended. It
  * runs beside the server, so the logins load its event loops without crossing the host's network. Given FML's network version (FML2 for Forge 1.13 to
- * 1.17, FML3 for 1.18 to 1.20.1), it logs in as a Forge client: it answers FML's handshake with the server's own mod list and acknowledges the rest.
+ * 1.17, FML3 for 1.18 to 1.20.1 and NeoForge 1.20.2), it logs in as a Forge client: it answers FML's handshake with the server's own mod list and acknowledges
+ * the rest. From Minecraft 1.20.2 it acknowledges the login and goes through the configuration state before play.
  * Usage: LoginLoad host port protocol logins parallel [fmlVersion]
  */
 public final class LoginLoad {
@@ -28,6 +29,14 @@ public final class LoginLoad {
     private static final int SET_COMPRESSION = 0x03;
     private static final int LOGIN_PLUGIN_REQUEST = 0x04;
     private static final int LOGIN_PLUGIN_RESPONSE = 0x02;
+    private static final int LOGIN_ACKNOWLEDGED = 0x03;
+    private static final int CONFIGURATION_DISCONNECT = 0x01;
+    private static final int FINISH_CONFIGURATION = 0x02;
+    private static final int CONFIGURATION_KEEP_ALIVE = 0x03;
+    private static final int CONFIGURATION_PING = 0x04;
+    private static final int CONFIGURATION_PONG = 0x04;
+    // Minecraft 1.20.2's protocol, which brings the configuration state and a Login Start that always carries the player's UUID.
+    private static final int CONFIGURATION_PROTOCOL = 764;
     private static final String LOGIN_WRAPPER = "fml:loginwrapper";
     private static final String HANDSHAKE = "fml:handshake";
     private static final int S2C_MOD_LIST = 1;
@@ -124,11 +133,14 @@ public final class LoginLoad {
 
             writeString(loginStart, name);
 
-            // Minecraft 1.19 adds an optional signature key to Login Start, 1.19.1 an optional UUID, and 1.19.3 drops the key again.
+            // Minecraft 1.19 adds an optional signature key to Login Start, 1.19.1 an optional UUID, 1.19.3 drops the key again, and 1.20.2 makes the UUID
+            // required, which an offline server replaces with its own.
             if (protocol >= 759 && protocol <= 760)
                 loginStart.write(0);
 
-            if (protocol >= 760)
+            if (protocol >= CONFIGURATION_PROTOCOL)
+                loginStart.write(new byte[16]);
+            else if (protocol >= 760)
                 loginStart.write(0);
 
             int threshold = -1;
@@ -148,7 +160,7 @@ public final class LoginLoad {
                 if (packet[0] == SET_COMPRESSION)
                     threshold = readVarInt(fields);
                 else if (packet[0] == LOGIN_PLUGIN_REQUEST) {
-                    String outcome = answerLoginQuery(output, threshold, fields);
+                    String outcome = answerLoginQuery(output, threshold, fields, protocol);
 
                     if (outcome == null)
                         handshakeMessages++;
@@ -158,6 +170,13 @@ public final class LoginLoad {
                     return "unexpected login packet " + packet[0];
 
                 packet = readPacket(input, threshold);
+            }
+
+            if (protocol >= CONFIGURATION_PROTOCOL) {
+                String outcome = configure(input, output, threshold);
+
+                if (outcome != null)
+                    return outcome;
             }
 
             for (int read = 0; read < PLAY_PACKETS_TO_READ; read++)
@@ -180,12 +199,43 @@ public final class LoginLoad {
         }
     }
 
+    // Acknowledges the login and goes through the configuration state as a vanilla client does, answering its keep-alives and pings, until the server finishes
+    // it. Returns null once the client is in play, and how the login ended otherwise.
+    private static String configure(DataInputStream input, OutputStream output, int threshold) throws IOException, DataFormatException {
+        writePacket(output, threshold, LOGIN_ACKNOWLEDGED, new byte[0]);
+
+        while (true) {
+            byte[] packet = readPacket(input, threshold);
+            byte[] fields = java.util.Arrays.copyOfRange(packet, 1, packet.length);
+
+            if (packet[0] == CONFIGURATION_DISCONNECT)
+                return "disconnected in configuration: " + readString(new DataInputStream(new java.io.ByteArrayInputStream(fields)));
+
+            if (packet[0] == FINISH_CONFIGURATION) {
+                writePacket(output, threshold, FINISH_CONFIGURATION, new byte[0]);
+                return null;
+            }
+
+            if (packet[0] == CONFIGURATION_KEEP_ALIVE)
+                writePacket(output, threshold, CONFIGURATION_KEEP_ALIVE, fields);
+            else if (packet[0] == CONFIGURATION_PING)
+                writePacket(output, threshold, CONFIGURATION_PONG, fields);
+        }
+    }
+
     // Answers one login query: FML's handshake messages as a Forge client with the server's mods does, anything else as a vanilla client does. Returns null
-    // for an FML message answered, an empty string for another query, and how the login ended when the server refused it.
-    private static String answerLoginQuery(OutputStream output, int threshold, DataInputStream query) throws IOException {
+    // for an FML message answered, an empty string for another query, and how the login ended when the server refused it. From 1.20.2 NeoForge wraps each
+    // query's data in a payload that starts with its packet index and channel again, and reads the answer's data the same way.
+    private static String answerLoginQuery(OutputStream output, int threshold, DataInputStream query, int protocol) throws IOException {
         int messageId = readVarInt(query);
         String channel = readString(query);
         ByteArrayOutputStream response = new ByteArrayOutputStream();
+        int packetIndex = -1;
+
+        if (protocol >= CONFIGURATION_PROTOCOL && channel.equals(LOGIN_WRAPPER)) {
+            packetIndex = readVarInt(query);
+            readString(query);
+        }
 
         writeVarInt(response, messageId);
 
@@ -229,6 +279,12 @@ public final class LoginLoad {
             message.write(C2S_ACKNOWLEDGE);
 
         response.write(1);
+
+        if (packetIndex >= 0) {
+            writeVarInt(response, packetIndex);
+            writeString(response, LOGIN_WRAPPER);
+        }
+
         writeString(response, HANDSHAKE);
         writeVarInt(response, message.size());
         message.writeTo(response);

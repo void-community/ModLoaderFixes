@@ -23,6 +23,37 @@ public sealed class SentMessagesPatchTests
         "net/minecraftforge/network/HandshakeHandler",
     ];
 
+    /// <summary>
+    /// NeoForge's handler from 1.20.2 constructs its <c>sentMessages</c> as the helper's IntArrayList, whose methods lock, and the other IntArrayList the constructor
+    /// creates stays one.
+    /// </summary>
+    [Fact]
+    public void NeoForgePatchCreatesSentMessagesAsTheLockedList()
+    {
+        const string intArrayList = "it/unimi/dsi/fastutil/ints/IntArrayList";
+        const string className = "net/neoforged/neoforge/network/HandshakeHandler";
+
+        static CodeBuilder StoreNewList(CodeBuilder code, string field)
+        {
+            return code.ALoad(slot: 0).New(intArrayList).Dup().InvokeSpecial(intArrayList, Constructor, descriptor: "()V").PutField(className, field, "L" + intArrayList + ";");
+        }
+
+        byte[] classFile = new ClassFileWriter(className)
+            .AddMethod(
+                Constructor,
+                descriptor: "()V",
+                static code => StoreNewList(StoreNewList(code, field: "sentMessages"), field: "otherIndexes").Return(),
+                accessFlags: 0x0001
+            )
+            .ToArray();
+
+        ClassPatchResult result = HandshakeSentMessages.NeoForgePatch.Apply(classFile);
+        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+
+        Assert.Equal(expected: 1, result.ReplacedConstructions);
+        Assert.Equal(["modloaderfixes/HandshakeIndexes", intArrayList], CreatedClasses(patched));
+    }
+
     /// <summary>The list stored in <c>sentMessages</c> becomes a CopyOnWriteArrayList, and the other list the constructor creates stays an ArrayList.</summary>
     /// <param name="className">The handler's name.</param>
     [Theory]

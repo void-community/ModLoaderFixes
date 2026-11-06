@@ -9,13 +9,13 @@ namespace ModLoaderFixes;
 /// <summary>
 /// Repairs Forge where its own code breaks: the tweaker sort that stops Forge for Minecraft 1.7.2 on Java 8u20 and later, the connection state switch that drops
 /// players at login on Forge for Minecraft 1.12, the registry rebuilds that crash Forge for 1.12 and 1.12.1 clients when a proxy moves them to another server, and
-/// the list of handshake messages that drops players at login on Forge for 1.13 to 1.20.1, and the second load of FML's config that crashes Forge and NeoForge
+/// the list of handshake messages that drops players at login on Forge for 1.13 to 1.20.1 and NeoForge for 1.20.2, and the second load of FML's config that crashes Forge and NeoForge
 /// clients at startup from 1.20.1, the set of object holder handlers that mods fill from several threads in Forge from 1.13.2, and the chunk batch answer that drops
 /// Minecraft clients from 1.20.5 when it arrives before play is set up, and the listener lists that EventBus builds under its lock and deadlocks Forge 1.14.2 and
 /// 1.14.3 clients with, and the file watcher that reloads FML's config while Forge 1.13.2 to 1.19.4 still corrects it on a first start, the network tick that drops new connections on
 /// Forge, PaperSpigot and vanilla servers for Minecraft 1.7, and the class hierarchy cache that ModLauncher's threads share without a lock on Forge for 1.13.2 to 1.15.2, and the short wait for the
 /// client thread that drops Forge 1.7 clients while they join, and the latch of an earlier connection that lets their handshake go on before its own has the play handler, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect, and the handshake replies that Forge for 1.13.2
-/// to 1.20.1 looks its handler up for after the server thread has dropped it, and the sound channels that Minecraft 1.14 to 1.20.4 clients release on the Render thread
+/// to 1.20.1 and NeoForge for 1.20.2 look their handler up for after the server thread has dropped it, and the sound channels that Minecraft 1.14 to 1.20.4 clients release on the Render thread
 /// while the sound thread decodes their streams, and the chat that Minecraft 1.7 clients and those from 1.13 drop when a server disconnects them right after it, and
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
 /// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game, and Mojang's list of blocked servers that
@@ -111,6 +111,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.PlayClients,
         JavaClasses.Modloaderfixes.PlayHandlers,
         JavaClasses.Modloaderfixes.BlockLists,
+        JavaClasses.Modloaderfixes.HandshakeIndexes,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -124,6 +125,7 @@ public sealed class PatcherAgent : JavaAgent
         RegistryRevert,
         RegistryInjection,
         HandshakeSentMessages.Patch,
+        HandshakeSentMessages.NeoForgePatch,
         HandshakeReplies.Patch,
         .. ModLoaderConfigurationLoad.Patches,
         ObjectHolderHandlers.Patch,

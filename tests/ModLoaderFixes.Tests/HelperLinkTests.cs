@@ -71,6 +71,21 @@ public sealed class HelperLinkTests
         await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.EventListeners, [eventBus], PatcherAgent.Patches, cancellationToken);
     }
 
+    /// <summary>NeoForge 1.20.2's list of handshake indexes links against the fastutil that Minecraft 1.20.2 to 1.20.4 ship, whose IntArrayList it extends.</summary>
+    [Fact]
+    public async Task HandshakeIndexesHelperLinks()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        string fastutil = await new MavenArtifact(
+            repository: "https://libraries.minecraft.net",
+            coordinates: "it.unimi.dsi:fastutil:8.5.12",
+            sha256: "b5543ee08d062d551cf0a5c9bc0fb70588b0382079029ba48941fa9c9be8a5d4"
+        ).GetPathAsync(cancellationToken);
+
+        await ClassFileAssert.LinksAsync(new Jdk(major: 17), JavaClasses.Modloaderfixes.HandshakeIndexes, [fastutil], PatcherAgent.Patches, cancellationToken);
+    }
+
     /// <summary>The helper that adds vanilla's new connections links against the Netty that vanilla 1.7.2 and 1.7.10 servers bundle, the oldest and newest.</summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>

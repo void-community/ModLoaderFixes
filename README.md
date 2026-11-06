@@ -110,7 +110,16 @@ Caused by: java.lang.NullPointerException
 [Server thread/INFO] [minecraft/ServerLoginNetHandler]: com.mojang.authlib.GameProfile@6ac532df[id=<null>,name=Player,properties={},legacy=false] (/172.17.0.1:43658) lost connection: Internal Exception: java.util.ConcurrentModificationException
 ```
 
-**Forge 1.13.2 to 1.20.1 and NeoForge 1.20.1 servers now and then drop a player just as its login handshake completes:**
+**NeoForge 1.20.2 and 1.20.3 servers, and the first betas for 1.20.4, now and then end a player's login handshake before its last answer and drop the player:**
+
+```text
+[Server thread/DEBUG] [net.neoforged.neoforge.network.HandshakeHandler/FMLHANDSHAKE]: Handshake complete!
+[Netty Epoll Server IO #4/DEBUG] [net.minecraft.network.Connection/]: Failed to sent packet
+io.netty.handler.codec.DecoderException: Badly compressed packet - size of 2 is below server threshold of 256
+	at net.minecraft.network.CompressionDecoder.decode(CompressionDecoder.java:45)
+```
+
+**Forge 1.13.2 to 1.20.1 and NeoForge 1.20.1 to 1.20.3 servers, and the first NeoForge betas for 1.20.4, now and then drop a player just as its login handshake completes:**
 
 ```text
 [Server thread/DEBUG] [net.minecraftforge.network.HandshakeHandler]: Handshake complete!

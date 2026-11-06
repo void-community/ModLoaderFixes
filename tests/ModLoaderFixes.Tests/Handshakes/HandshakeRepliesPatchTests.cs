@@ -1,43 +1,51 @@
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
 using JvmBridge.ClassFiles.Code;
+using JvmBridge.Testing;
 
 using Xunit;
 
 namespace ModLoaderFixes.Tests.Handshakes;
 
-/// <summary>Swapping the halves of Forge's indexed reply handlers in <c>indexFirst</c>, so that a reply's own handler runs before the reply is marked answered.</summary>
+/// <summary>
+/// Swapping the halves of Forge's and NeoForge's indexed reply handlers in <c>indexFirst</c>, so that a reply's own handler runs before the reply is marked answered.
+/// </summary>
 public sealed class HandshakeRepliesPatchTests
 {
+    private const string BiConsumer = "java/util/function/BiConsumer";
     private const string Combine = "biConsumerFor";
     private const string IndexFirst = "indexFirst";
 
-    private static readonly JavaMethod AndThen = JavaMethod.Interface(
-        owner: "java/util/function/BiConsumer",
-        name: "andThen",
-        descriptor: "(Ljava/util/function/BiConsumer;)Ljava/util/function/BiConsumer;"
-    );
-
-    /// <summary>Gets each class that has declared <c>indexFirst</c>, with the type of the consumer that its <c>biConsumerFor</c> takes.</summary>
-    public static TheoryData<string, string> Builders { get; } = new()
+    /// <summary>
+    /// Gets each class that has declared <c>indexFirst</c>, with the type of the consumer that its combiner takes, the combiner's name and the type it returns:
+    /// Forge's <c>biConsumerFor</c> a BiConsumer, NeoForge's <c>consumerFor</c> from 1.20.2 a MessageConsumer.
+    /// </summary>
+    public static TheoryData<string, string, string, string> Builders { get; } = new()
     {
-        { "net/minecraftforge/fml/network/NetworkInitialization", "net/minecraftforge/fml/util/ThreeConsumer" },
-        { "net/minecraftforge/fml/network/FMLHandshakeHandler", "net/minecraftforge/fml/util/ThreeConsumer" },
-        { "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler", "net/minecraftforge/fmllegacy/util/ThreeConsumer" },
-        { "net/minecraftforge/network/HandshakeHandler", "net/minecraftforge/network/HandshakeHandler$HandshakeConsumer" },
+        { "net/minecraftforge/fml/network/NetworkInitialization", "net/minecraftforge/fml/util/ThreeConsumer", Combine, BiConsumer },
+        { "net/minecraftforge/fml/network/FMLHandshakeHandler", "net/minecraftforge/fml/util/ThreeConsumer", Combine, BiConsumer },
+        { "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler", "net/minecraftforge/fmllegacy/util/ThreeConsumer", Combine, BiConsumer },
+        { "net/minecraftforge/network/HandshakeHandler", "net/minecraftforge/network/HandshakeHandler$HandshakeConsumer", Combine, BiConsumer },
+        {
+            "net/neoforged/neoforge/network/HandshakeHandler", "net/neoforged/neoforge/network/HandshakeHandler$HandshakeConsumer", "consumerFor",
+            "net/neoforged/neoforge/network/simple/MessageFunctions$MessageConsumer"
+        },
     };
 
     /// <summary>Once patched, <c>indexFirst</c> composes the handler of the reply first and the removal of its index after it, from the same two halves.</summary>
     /// <param name="className">The class that declares <c>indexFirst</c>.</param>
-    /// <param name="consumer">The type of the consumer that <c>biConsumerFor</c> takes.</param>
+    /// <param name="consumer">The type of the consumer that the combiner takes.</param>
+    /// <param name="combiner">The combiner's name.</param>
+    /// <param name="result">The type the combiner returns, whose <c>andThen</c> composes the halves.</param>
     [Theory]
     [MemberData(nameof(Builders))]
-    public void PatchHandlesTheReplyBeforeItsIndex(string className, string consumer)
+    public void PatchHandlesTheReplyBeforeItsIndex(string className, string consumer, string combiner, string result)
     {
-        ClassPatchResult result = HandshakeReplies.Patch.Apply(CreateBuilder(className, consumer, reordered: false));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult patchResult = HandshakeReplies.Patch.Apply(CreateBuilder(className, consumer, reordered: false, combiner, result));
+        byte[] patched = patchResult.Bytes ?? throw new InvalidOperationException(patchResult.ToString());
 
-        Assert.Equal(Opcodes(CreateBuilder(className, consumer, reordered: true)), Opcodes(patched));
+        Assert.Equal(Opcodes(CreateBuilder(className, consumer, reordered: true, combiner, result)), Opcodes(patched));
+        ClassFileAssert.Calls(patched, IndexFirst, result, name: "andThen", "(L" + result + ";)L" + result + ";");
     }
 
     /// <summary>An <c>indexFirst</c> that already composes the reply's handler first has nothing to swap.</summary>
@@ -76,22 +84,24 @@ public sealed class HandshakeRepliesPatchTests
         Assert.False(HandshakeReplies.Patch.Matches(classFile, hierarchy: null));
     }
 
-    // indexFirst as Forge compiles it, with aconst_null in place of the invokedynamic of handleIndexedMessage's method reference, which ClassFileWriter doesn't write.
-    private static byte[] CreateBuilder(string className, string consumer, bool reordered)
+    // indexFirst as Forge and NeoForge compile it, with aconst_null in place of the invokedynamic of handleIndexedMessage's method reference, which ClassFileWriter
+    // doesn't write.
+    private static byte[] CreateBuilder(string className, string consumer, bool reordered, string combiner = Combine, string result = BiConsumer)
     {
-        JavaMethod combine = JavaMethod.Static(className, Combine, "(L" + consumer + ";)Ljava/util/function/BiConsumer;");
+        JavaMethod combine = JavaMethod.Static(className, combiner, "(L" + consumer + ";)L" + result + ";");
+        JavaMethod andThen = JavaMethod.Interface(result, name: "andThen", "(L" + result + ";)L" + result + ";");
 
         CodeBuilder Compose(CodeBuilder code)
         {
             CodeBuilder first = code.AConstNull().Invoke(combine).AStore(slot: 1);
 
             return reordered
-                ? first.ALoad(slot: 0).Invoke(combine).ALoad(slot: 1).Invoke(AndThen).AReturn()
-                : first.ALoad(slot: 1).ALoad(slot: 0).Invoke(combine).Invoke(AndThen).AReturn();
+                ? first.ALoad(slot: 0).Invoke(combine).ALoad(slot: 1).Invoke(andThen).AReturn()
+                : first.ALoad(slot: 1).ALoad(slot: 0).Invoke(combine).Invoke(andThen).AReturn();
         }
 
         return new ClassFileWriter(className)
-            .AddMethod(IndexFirst, "(L" + consumer + ";)Ljava/util/function/BiConsumer;", Compose, accessFlags: 0x0009)
+            .AddMethod(IndexFirst, "(L" + consumer + ";)L" + result + ";", Compose, accessFlags: 0x0009)
             .ToArray();
     }
 
