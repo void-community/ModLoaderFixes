@@ -1,6 +1,7 @@
 using JvmBridge.Agents;
 using JvmBridge.ClassFiles;
 
+using ModLoaderFixes.Connections;
 using ModLoaderFixes.Startup;
 
 namespace ModLoaderFixes;
@@ -17,7 +18,8 @@ namespace ModLoaderFixes;
 /// to 1.20.1 looks its handler up for after the server thread has dropped it, and the sound channels that Minecraft 1.14 to 1.20.4 clients release on the Render thread
 /// while the sound thread decodes their streams, and the chat that Minecraft 1.7 clients and those from 1.13 drop when a server disconnects them right after it, and
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
-/// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game.
+/// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game, and Mojang's list of blocked servers that
+/// Minecraft clients from 1.12 hang on when patchy can't read it to its end.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -108,6 +110,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.ClassHierarchyCache,
         JavaClasses.Modloaderfixes.PlayClients,
         JavaClasses.Modloaderfixes.PlayHandlers,
+        JavaClasses.Modloaderfixes.BlockLists,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -136,6 +139,7 @@ public sealed class PatcherAgent : JavaAgent
         .. FinalPackets.Patches,
         .. ReloadListeners.Patches,
         .. WindowWatchdog.Patches,
+        .. BlockedServerLists.Patches,
     ];
 
     /// <inheritdoc/>

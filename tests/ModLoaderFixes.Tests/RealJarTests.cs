@@ -17,6 +17,7 @@ public sealed class RealJarTests
 
     private const string ForgeDisplayWindow = "net/minecraftforge/fml/earlydisplay/DisplayWindow";
     private const string HandshakeHandler = "net/minecraftforge/network/HandshakeHandler";
+    private const string Mojang = "https://libraries.minecraft.net";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
     private const string NeoForgeDisplayWindow = "net/neoforged/fml/earlydisplay/DisplayWindow";
     private const string NeoForged = "https://maven.neoforged.net/releases";
@@ -94,6 +95,10 @@ public sealed class RealJarTests
         { NeoForged, "net.neoforged.fancymodloader:earlydisplay:6.0.8", "c137028e7f1b75231a0e8fbf8bde0ebbe75b96e164f22d044bf7eb7b3b1dc828", [NeoForgeDisplayWindow + " +0"] },
         { NeoForged, "net.neoforged.fancymodloader:earlydisplay:6.0.9", "5420beb4f2e6af6418a4a64bfe84710603a28ae7688ebd50ef0f2e5e65546f23", [] },
         { NeoForged, "net.neoforged.fancymodloader:earlydisplay:12.0.12", "290befe35178d17caa553fb2f42501b3e195aa1d15e8ed6a08935db82922e6f6", [] },
+        // patchy's read of Mojang's list of blocked servers: in 1.3.9's BlockedServers, for Minecraft 1.12 to 1.16.5, and in 2's supplier, for 1.17 and later.
+        { Mojang, "com.mojang:patchy:1.3.9", "79f5a9d8c788489d3375cb77cc826a905e261e50d23f31b94c2d5f2b92ad3dc6", ["com/mojang/patchy/BlockedServers +0"] },
+        { Mojang, "com.mojang:patchy:2.1.6", "302c68c244f0f8c13e186f9201030b21fc99c302f30e41d4ed8e8d31276faf1f", ["com/mojang/patchy/MojangBlockListSupplier +0"] },
+        { Mojang, "com.mojang:patchy:2.2.10", "16d70e7968b45caffc81576268eb000f473fb60bf257182d3447dea8ec919d5a", ["com/mojang/patchy/MojangBlockListSupplier +0"] },
         // EventBus's listener lists: built in computeIfAbsent up to 0.10.1, under the write lock with the helper's accessors in 0.10.2 to 0.10.4, and fixed from 0.10.5.
         { Forge, "net.minecraftforge:eventbus:0.10.1", "00315a766018bc6f0c4a2e1eb465c866ac194d7a29d820283ba3db57ba763915", [EventListenerHelper + " +0"] },
         { Forge, "net.minecraftforge:eventbus:0.10.3", "eee16845dafb8d3032b246b82b9a542860dc09c067182c02fcb31038a741d028", [EventListenerHelper + " +3"] },

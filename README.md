@@ -76,6 +76,16 @@ java.lang.NullPointerException: Ticking screen
 	at beg.e(SourceFile:91)
 ```
 
+**Minecraft clients from 1.12 sometimes stay on their connecting screen forever when Mojang's list of blocked servers is cut off**, and every later connection of the game fails too:
+
+```text
+[Server Connector #1/ERROR]: Caught previously unhandled exception :
+java.lang.ExceptionInInitializerError: null
+Caused by: java.io.UncheckedIOException: java.net.SocketException: Connection reset
+	at java.io.BufferedReader$1.hasNext(BufferedReader.java:574) ~[?:?]
+	at com.mojang.patchy.MojangBlockListSupplier.createBlockList(MojangBlockListSupplier.java:25) ~[patchy-2.2.10.jar:?]
+```
+
 **Forge 1.12 servers drop players at login under load:**
 
 ```text
