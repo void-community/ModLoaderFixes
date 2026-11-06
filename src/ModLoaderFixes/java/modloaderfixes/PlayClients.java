@@ -19,8 +19,15 @@ public final class PlayClients {
     private PlayClients() {
     }
 
-    /** Stands in for latch.await(timeout, unit) in waitForPlayClient: true once the client thread counts the latch down, false when the wait is given up. */
+    /**
+     * Stands in for latch.await(timeout, unit) in waitForPlayClient: true once the client thread counts the latch down, false when the wait is given up. Before the
+     * first connection has made a latch there is none to wait on, and FML would throw a NullPointerException, so it returns true and leaves the wait for the
+     * connection's play handler to PlayHandlers.
+     */
     public static boolean await(CountDownLatch latch, long timeout, TimeUnit unit) throws InterruptedException {
+        if (latch == null)
+            return true;
+
         long deadline = System.nanoTime() + Math.max(LIMIT, unit.toNanos(timeout));
 
         while (!latch.await(SLICE, TimeUnit.NANOSECONDS)) {

@@ -14,6 +14,11 @@ public class NetworkManager {
         throw new UnsupportedOperationException();
     }
 
+    /** getNetHandler. */
+    public INetHandler func_150729_e() {
+        throw new UnsupportedOperationException();
+    }
+
     /** processReceivedPackets. */
     public void func_74428_b() {
         throw new UnsupportedOperationException();

@@ -13,7 +13,7 @@ namespace ModLoaderFixes;
 /// Minecraft clients from 1.20.5 when it arrives before play is set up, and the listener lists that EventBus builds under its lock and deadlocks Forge 1.14.2 and
 /// 1.14.3 clients with, and the file watcher that reloads FML's config while Forge 1.13.2 to 1.19.4 still corrects it on a first start, the network tick that drops new connections on
 /// Forge, PaperSpigot and vanilla servers for Minecraft 1.7, and the class hierarchy cache that ModLauncher's threads share without a lock on Forge for 1.13.2 to 1.15.2, and the short wait for the
-/// client thread that drops Forge 1.7 clients while they join, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect, and the handshake replies that Forge for 1.13.2
+/// client thread that drops Forge 1.7 clients while they join, and the latch of an earlier connection that lets their handshake go on before its own has the play handler, and the queue of packets that Forge and vanilla 1.7 clients send out of order as they connect, and the handshake replies that Forge for 1.13.2
 /// to 1.20.1 looks its handler up for after the server thread has dropped it, and the sound channels that Minecraft 1.14 to 1.20.4 clients release on the Render thread
 /// while the sound thread decodes their streams, and the chat that Minecraft 1.7 clients and those from 1.13 drop when a server disconnects them right after it, and
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
@@ -107,6 +107,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.Connections,
         JavaClasses.Modloaderfixes.ClassHierarchyCache,
         JavaClasses.Modloaderfixes.PlayClients,
+        JavaClasses.Modloaderfixes.PlayHandlers,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -129,6 +130,7 @@ public sealed class PatcherAgent : JavaAgent
         .. PendingConnections.Patches,
         ModLauncherHierarchies.Patch,
         PlayClientWait.Patch,
+        PlayClientWait.Handshake,
         .. OutboundPackets.Patches,
         .. SoundChannels.Patches,
         .. FinalPackets.Patches,

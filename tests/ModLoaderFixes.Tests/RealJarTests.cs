@@ -20,6 +20,7 @@ public sealed class RealJarTests
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
     private const string NeoForgeDisplayWindow = "net/neoforged/fml/earlydisplay/DisplayWindow";
     private const string NeoForged = "https://maven.neoforged.net/releases";
+    private const string NetworkDispatcher = "cpw/mods/fml/common/network/handshake/NetworkDispatcher";
     private const string ObjectHolderRegistry = "net/minecraftforge/registries/ObjectHolderRegistry";
     private const string TransformerClassWriter = "cpw/mods/modlauncher/TransformerClassWriter";
 
@@ -32,11 +33,20 @@ public sealed class RealJarTests
         // FML 1.7's wait for the play client, with the getter of its latch, and the tweak sort that Forge for 1.7.2 runs into on Java 8u20 and later and 1.7.10 no longer has.
         {
             Forge, "net.minecraftforge:forge:1.7.2-10.12.2.1161-mc172:universal", "17628bcf403e312f8de275633528c171795fd0b5469ba9e496baf401a2cd1b7e",
-            ["cpw/mods/fml/relauncher/CoreModManager +0", ForgeClientHandler + " +1"]
+            ["cpw/mods/fml/relauncher/CoreModManager +0", ForgeClientHandler + " +1", NetworkDispatcher + " +1"]
         },
         {
             Forge, "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10:universal", "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529",
-            [ForgeClientHandler + " +1"]
+            [ForgeClientHandler + " +1", NetworkDispatcher + " +1"]
+        },
+        // FML 1.7's handshake, which waits for the play client from 1.7.2-10.12.0.1000 and before that reads it at once.
+        {
+            Forge, "net.minecraftforge:forge:1.7.2-10.12.0.999:universal", "b2637c5554303bd31091249facfe12d5071fe3a16fc7a867cf361236c1dd1674",
+            ["cpw/mods/fml/relauncher/CoreModManager +0"]
+        },
+        {
+            Forge, "net.minecraftforge:forge:1.7.2-10.12.0.1000:universal", "ffe350046652ae02df847d7ca339a6b64692c59fc08a283b3bf8b7b8b21f0142",
+            ["cpw/mods/fml/relauncher/CoreModManager +0", ForgeClientHandler + " +1", NetworkDispatcher + " +1"]
         },
         // FML's registry rebuilds on the network thread, which Forge for 1.12.2 moved to the client thread itself.
         {

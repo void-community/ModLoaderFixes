@@ -47,6 +47,16 @@ at cpw.mods.fml.common.network.internal.FMLNetworkHandler.fmlClientHandshake(FML
 at net.minecraft.client.network.NetHandlerLoginClient.func_147390_a(NetHandlerLoginClient.java:97)
 ```
 
+**Forge 1.7.2 and 1.7.10 clients now and then drop a connection as they join a server again**, when the server answers before the game has set the connection up:
+
+```text
+[Netty Client IO #1/ERROR]: ChannelRegistrationHandler exception
+java.lang.ClassCastException: Cannot cast net.minecraft.client.network.NetHandlerLoginClient to net.minecraft.client.network.NetHandlerPlayClient
+	at java.lang.Class.cast(Class.java:3369)
+	at cpw.mods.fml.common.network.FMLNetworkEvent$CustomPacketRegistrationEvent.<init>(FMLNetworkEvent.java:93)
+	at cpw.mods.fml.client.FMLClientHandler.fireNetRegistrationEvent(FMLClientHandler.java:887)
+```
+
 **Forge 1.7.2 and 1.7.10 and vanilla 1.7.2 to 1.7.10 clients sometimes drop their connection a few milliseconds after they open it:**
 
 ```text
