@@ -30,7 +30,7 @@ public sealed class ReloadListenerTests
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
-        // In many runs on Java 8 and 25, limited to the 4 CPUs of a CI runner, every one hung within 61 reloads.
+        // On ARM64 every run hung within 61 reloads; on x64 CI one run got through 1000 without a hang, so the fixture reloads 20000 times.
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
         Assert.Contains(expectedSubstring: "HUNG at reload", unpatched.Output, StringComparison.Ordinal);
 
@@ -65,7 +65,7 @@ public sealed class ReloadListenerTests
             StringComparison.Ordinal
         );
         Assert.Contains(expectedSubstring: "SET modloaderfixes.ReloadListeners$LockedSet", patched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "RELOADED 1000 times", patched.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "RELOADED 20000 times", patched.Output, StringComparison.Ordinal);
     }
 
     // The patched constructor goes through the full verifier.

@@ -17,11 +17,11 @@ import java.util.concurrent.TimeoutException;
  * Sets.newHashSet, and each listener's barrier hands the game executor a task that removes the listener and completes the barrier once the set is empty. main
  * reloads again and again as a dedicated server's startup does, with Runnable::run as the game executor, so each worker removes the listeners it prepared from the
  * set while the others remove theirs; a reload whose set loses a removal never completes, as the server never finishes loading its data packs. A reload has many
- * more listeners than a vanilla server, as a modded one does, so the workers race in every reload and a lost removal comes within a few.
+ * more listeners than a vanilla server, as a modded one does, so the workers race in every reload, and one of the 20000 reloads loses a removal.
  */
 public class SimpleReloadInstance {
     private static final int LISTENERS = 256;
-    private static final int RELOADS = 1000;
+    private static final int RELOADS = 20000;
     private static final int WORKERS = 4;
 
     final Set<Object> preparingListeners;
