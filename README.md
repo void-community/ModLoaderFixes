@@ -214,6 +214,16 @@ Timed out trying to setup the Game Window.
 [Netty Epoll IO #0] [ERROR] io.netty.handler.codec.EncoderException: Sending unknown packet 'serverbound/minecraft:chunk_batch_received'
 ```
 
+**Minecraft, Forge, NeoForge and Paper servers from 1.21.11 now and then crash while they generate a chunk**, often as a player arrives:
+
+```text
+Description: Exception generating new chunk
+java.lang.NullPointerException: Cannot invoke "net.minecraft.world.level.MoonPhase.index()" because "moonphase" is null
+	at net.minecraft.server.level.ServerLevel.getMoonBrightness(ServerLevel.java:708)
+	at net.minecraft.server.level.WorldGenRegion.getCurrentDifficultyAt(WorldGenRegion.java:365)
+	at net.minecraft.world.level.NaturalSpawner.spawnMobsForChunkGeneration(NaturalSpawner.java:404)
+```
+
 ## 🚀 Usage
 
 Download the agent from the [**latest release**](https://github.com/void-community/ModLoaderFixes/releases/latest):

@@ -3,6 +3,7 @@ using JvmBridge.ClassFiles;
 
 using ModLoaderFixes.Connections;
 using ModLoaderFixes.Startup;
+using ModLoaderFixes.Worlds;
 
 namespace ModLoaderFixes;
 
@@ -20,7 +21,8 @@ namespace ModLoaderFixes;
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
 /// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game, and Mojang's list of blocked servers that
 /// Minecraft clients from 1.12 hang on when patchy can't read it to its end, and the reload of the sound system that Minecraft 1.7 to 1.13.2 clients start a second
-/// sound system with while the first still loads.
+/// sound system with while the first still loads, and the tick cache of a dimension's environment attributes that world generation reads as null on servers from
+/// 1.21.11 when the server thread clears it in between.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -114,6 +116,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.BlockLists,
         JavaClasses.Modloaderfixes.HandshakeIndexes,
         JavaClasses.Modloaderfixes.SoundLoaders,
+        JavaClasses.Modloaderfixes.AttributeValues,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -145,6 +148,7 @@ public sealed class PatcherAgent : JavaAgent
         .. WindowWatchdog.Patches,
         .. BlockedServerLists.Patches,
         .. SoundSystemLoads.Patches,
+        .. AttributeSamplers.Patches,
     ];
 
     /// <inheritdoc/>

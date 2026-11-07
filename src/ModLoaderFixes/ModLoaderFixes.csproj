@@ -33,6 +33,7 @@
     <MappedClass Include="ChannelManager" Class="net/minecraft/client/audio/ChannelManager" From="1.14" To="1.16.5" />
     <MappedClass Include="ChannelAccess" Class="net/minecraft/client/sounds/ChannelAccess" From="1.17" To="1.20.4" />
     <MappedClass Include="AsyncReloader" Class="net/minecraft/resources/AsyncReloader" From="1.16" To="1.16.5" />
+    <MappedClass Include="AttributeSampler" Class="net/minecraft/world/attribute/EnvironmentAttributeSystem$ValueSampler" From="1.21.11" To="1.21.11" />
     <MappedClass Include="SimpleReloadInstance" Class="net/minecraft/server/packs/resources/SimpleReloadInstance" From="1.17" To="1.18.2" />
     <MappedClass
       Include="PlayClientHandler"

@@ -189,8 +189,8 @@ public sealed class RealJarTests
         { "1.20.2", "82d1974e75fc984c5ed4b038e764e50958ac61a0", "fa1a19be56a506426308abbc1cad85f299a7fc6dae4335559351ba0246713fda", ["fiu +0", "gdj +0"] },
         { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["fnp +0", "gix +0"] },
         { "1.20.5", "c6b92b2374a629f20802bb284f98a4ee790e950a", "49d5949adbb1021a7eb00c1b949f9e39934b10249cbf86d25004774d1b3ff510", ["fxt +0"] },
-        { "1.21.11", "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd", "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd", ["hia +0"] },
-        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl +0", "net/minecraft/client/multiplayer/ClientPacketListener +0"] },
+        { "1.21.11", "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd", "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd", ["cef$b +0", "hia +0"] },
+        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl +0", "net/minecraft/client/multiplayer/ClientPacketListener +0", "net/minecraft/world/attribute/EnvironmentAttributeSystem$ValueSampler +0"] },
     };
 
     /// <summary>
@@ -215,7 +215,8 @@ public sealed class RealJarTests
     /// <summary>
     /// The patches change only the connection, the sound system and the reload of each vanilla client, under each release's names: its NetworkManager up to
     /// 1.14.3, in 1.7 its initializers and its PlayerControllerMP, its SoundManager from 1.7 to 1.13.2, its ChannelAccess from 1.14 to 1.20.4, its packet listener
-    /// from 1.14.4, its reload from 1.16 to 1.18.2, and from 26.1 its ClientPacketListener's chunk batch answer.
+    /// from 1.14.4, its reload from 1.16 to 1.18.2, from 1.21.11 the sampler of its environment attributes, which the integrated server's world generation reads,
+    /// and from 26.1 its ClientPacketListener's chunk batch answer.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
