@@ -57,6 +57,16 @@ java.lang.ClassCastException: Cannot cast net.minecraft.client.network.NetHandle
 	at cpw.mods.fml.client.FMLClientHandler.fireNetRegistrationEvent(FMLClientHandler.java:887)
 ```
 
+**Forge and vanilla clients from 1.7 to 1.12.2 sometimes crash with their sound system when its resources reload while it still loads**, as Forge's second reload at startup can:
+
+```text
+[Thread-8] java.lang.IllegalStateException: Only one OpenAL context may be instantiated at any one time.
+	at org.lwjgl.openal.AL.create(AL.java:113)
+	at paulscode.sound.libraries.LibraryLWJGLOpenAL.init(LibraryLWJGLOpenAL.java:164)
+[Sound Library Loader]         SoundSystem did not load after 30 seconds.
+[Thread-7] java.lang.UnsatisfiedLinkError: org.lwjgl.openal.AL10.nalGetSourcei(II)I
+```
+
 **Forge 1.7.2 and 1.7.10 and vanilla 1.7.2 to 1.7.10 clients sometimes drop their connection a few milliseconds after they open it:**
 
 ```text

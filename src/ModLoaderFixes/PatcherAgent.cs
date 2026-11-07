@@ -19,7 +19,8 @@ namespace ModLoaderFixes;
 /// while the sound thread decodes their streams, and the chat that Minecraft 1.7 clients and those from 1.13 drop when a server disconnects them right after it, and
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
 /// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game, and Mojang's list of blocked servers that
-/// Minecraft clients from 1.12 hang on when patchy can't read it to its end.
+/// Minecraft clients from 1.12 hang on when patchy can't read it to its end, and the reload of the sound system that Minecraft 1.7 to 1.13.2 clients start a second
+/// sound system with while the first still loads.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -112,6 +113,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.PlayHandlers,
         JavaClasses.Modloaderfixes.BlockLists,
         JavaClasses.Modloaderfixes.HandshakeIndexes,
+        JavaClasses.Modloaderfixes.SoundLoaders,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -142,6 +144,7 @@ public sealed class PatcherAgent : JavaAgent
         .. ReloadListeners.Patches,
         .. WindowWatchdog.Patches,
         .. BlockedServerLists.Patches,
+        .. SoundSystemLoads.Patches,
     ];
 
     /// <inheritdoc/>
