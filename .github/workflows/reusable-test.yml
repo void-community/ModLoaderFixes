@@ -35,7 +35,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: 10.0.403
+          dotnet-version: 10.0.404
       # Forge for Minecraft 1.7 runs on Java 8 only.
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
