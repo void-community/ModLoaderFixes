@@ -12,6 +12,7 @@ public sealed class ModernForgeServerTests
 {
     private const string ConfigurationWatchPatched = "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)";
 
+    private const string ListenerChildrenPatched = "ModLoaderFixes: patched net/minecraftforge/eventbus/ListenerList$ListenerListInst (";
     private const string ReloadPatched = " (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)";
 
     // The handshake's builder of reply handlers is NetworkInitialization in 1.13.2 and the handler from 1.14, so the line is matched without the class.
@@ -125,6 +126,13 @@ public sealed class ModernForgeServerTests
             ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/resources/AsyncReloader" + ReloadPatched);
         else
             ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/server/packs/resources/SimpleReloadInstance" + ReloadPatched);
+
+        // Forge before 1.16.4-35.1.37 ships an EventBus before 4.0.0, whose listener lists' children the mod-loading workers add to while another mod's
+        // registration iterates them; the builds here from 1.16.5 ship EventBus 4.0.0 or later, which lock them.
+        if (type == "FORGE" && string.CompareOrdinal(version, strB: "1.16.5") < 0)
+            ForgeServer.AssertLogged(logs, ListenerChildrenPatched);
+        else
+            ForgeServer.AssertNotLogged(logs, ListenerChildrenPatched);
 
         // The client reports a login that skipped FML's handshake separately, so this also says every player went through it.
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);

@@ -164,6 +164,16 @@ java.lang.ClassCastException: class java.util.HashMap$Node cannot be cast to cla
 	at net.minecraftforge.registries.ObjectHolderRegistry.addHandler(ObjectHolderRegistry.java:64)
 ```
 
+**Forge 1.13.2 to 1.16.4 games and servers now and then fail a mod's construction at startup**, and a client then joins servers without that mod's channels:
+
+```text
+[modloading-worker-3] [ERROR] java.util.ConcurrentModificationException
+	at java.util.ArrayList$Itr.checkForComodification(ArrayList.java:909)
+	at net.minecraftforge.eventbus.ListenerList$ListenerListInst.forceRebuild(ListenerList.java:228)
+	at net.minecraftforge.eventbus.ListenerList$ListenerListInst.register(ListenerList.java:266)
+[Render thread] [FATAL] Failed to complete lifecycle event CONSTRUCT, 1 errors found
+```
+
 **Forge 1.14.2 and 1.14.3 clients sometimes hang at startup and never reach their menu.** A thread dump shows the client thread waiting in `EventListenerHelper.getListenerListInternal` while a `modloading-worker` thread holds EventBus's lock.
 
 **Forge, NeoForge and vanilla clients from 1.14 to 1.20.4 sometimes crash the JVM as they leave a world while a sound streams:**

@@ -14,9 +14,10 @@ public sealed class RealJarTests
     private const string Forge = "https://maven.minecraftforge.net";
     private const string ForgeClientHandler = "cpw/mods/fml/client/FMLClientHandler";
     private const string ForgeConfiguration = "net/minecraftforge/fml/loading/FMLConfig";
-
     private const string ForgeDisplayWindow = "net/minecraftforge/fml/earlydisplay/DisplayWindow";
+
     private const string HandshakeHandler = "net/minecraftforge/network/HandshakeHandler";
+    private const string ListenerListInst = "net/minecraftforge/eventbus/ListenerList$ListenerListInst";
     private const string Mojang = "https://libraries.minecraft.net";
     private const string NeoForgeConfiguration = "net/neoforged/fml/loading/FMLConfig";
     private const string NeoForgeDisplayWindow = "net/neoforged/fml/earlydisplay/DisplayWindow";
@@ -107,9 +108,14 @@ public sealed class RealJarTests
         { Mojang, "com.mojang:patchy:2.1.6", "302c68c244f0f8c13e186f9201030b21fc99c302f30e41d4ed8e8d31276faf1f", ["com/mojang/patchy/MojangBlockListSupplier +0"] },
         { Mojang, "com.mojang:patchy:2.2.10", "16d70e7968b45caffc81576268eb000f473fb60bf257182d3447dea8ec919d5a", ["com/mojang/patchy/MojangBlockListSupplier +0"] },
         // EventBus's listener lists: built in computeIfAbsent up to 0.10.1, under the write lock with the helper's accessors in 0.10.2 to 0.10.4, and fixed from 0.10.5.
-        { Forge, "net.minecraftforge:eventbus:0.10.1", "00315a766018bc6f0c4a2e1eb465c866ac194d7a29d820283ba3db57ba763915", [EventListenerHelper + " +0"] },
-        { Forge, "net.minecraftforge:eventbus:0.10.3", "eee16845dafb8d3032b246b82b9a542860dc09c067182c02fcb31038a741d028", [EventListenerHelper + " +3"] },
-        { Forge, "net.minecraftforge:eventbus:0.10.5", "061c8c32b827425c4d38d18629c4a45e3d4230b2228fb93d15d9ec28e141a262", [] },
+        // And the children of each listener list, which every EventBus before 4.0.0 adds to and iterates without a lock.
+        { Forge, "net.minecraftforge:eventbus:0.9.3", "2a826e1b41444329ba8d0c9be00340a06fca79d2bb138ec309d050191fb6f6eb", [EventListenerHelper + " +0", ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:0.10.1", "00315a766018bc6f0c4a2e1eb465c866ac194d7a29d820283ba3db57ba763915", [EventListenerHelper + " +0", ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:0.10.3", "eee16845dafb8d3032b246b82b9a542860dc09c067182c02fcb31038a741d028", [EventListenerHelper + " +3", ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:0.10.5", "061c8c32b827425c4d38d18629c4a45e3d4230b2228fb93d15d9ec28e141a262", [ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:3.0.3", "443c886b7ccf8d229036db900be2effe8a82f3b62360c0e0edc3a3ae5146398e", [ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:3.0.5", "63bf74fe61d57d1147d41ee4f7262a5c15cc248a60b18e5eb5e67c12f86027f6", [ListenerListInst + " +0"] },
+        { Forge, "net.minecraftforge:eventbus:4.0.0", "8754a57ff4d15dffcab15f50b691f4a9c1108b057fbcfff5c915ce928c41f84e", [] },
         // ModLauncher's class hierarchy cache: shared plain HashMaps in 2 to 5, which Forge for 1.13.2 to 1.15.2 ships, and ConcurrentHashMaps from 8.
         { Forge, "cpw.mods:modlauncher:2.1.5", "d00219b4f85ee3355e630751fef05df9c1dd64b1f33b07834c22c9d6adbef616", [TransformerClassWriter + " +0"] },
         { Forge, "cpw.mods:modlauncher:4.1.0", "a8f8a7f3f45b2077bf5408ec5a35c7fac6fd51a9f81c15354dfff7a1a732a865", [TransformerClassWriter + " +0"] },
