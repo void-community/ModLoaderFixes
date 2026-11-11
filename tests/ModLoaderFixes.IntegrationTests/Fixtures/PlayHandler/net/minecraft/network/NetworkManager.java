@@ -6,11 +6,23 @@ import net.minecraft.client.network.NetHandlerPlayClient;
 /**
  * Minecraft 1.7's connection by FML's names: the network thread switches its state, and only the client thread's network tick reports the switch to the handler,
  * which for the play state sets the play handler up, as FML's patch of NetHandlerLoginClient.onConnectionStateTransition does, and then tells FMLClientHandler.
+ * closeChannel stores the exit message on the thread that closes it, and the channel stays open to the network thread, which would run the close itself.
  */
 public class NetworkManager {
     private volatile INetHandler netHandler = new net.minecraft.client.network.NetHandlerLoginClient();
     private volatile EnumConnectionState state = EnumConnectionState.LOGIN;
     private EnumConnectionState reportedState = EnumConnectionState.LOGIN;
+    private volatile net.minecraft.util.IChatComponent exitMessage;
+
+    /** closeChannel, as the connecting screen's cancel calls it. */
+    public void func_150718_a(net.minecraft.util.IChatComponent reason) {
+        exitMessage = reason;
+    }
+
+    /** getExitMessage. */
+    public net.minecraft.util.IChatComponent func_150730_f() {
+        return exitMessage;
+    }
 
     /** isChannelOpen. */
     public boolean func_150724_d() {

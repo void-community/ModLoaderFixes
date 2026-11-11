@@ -16,8 +16,9 @@ public sealed class PlayClientTests
     private const string Sources = "Fixtures/PlayClient/**/*.java";
 
     /// <summary>
-    /// Without the agent the network thread gives the join up after a second; with it the network thread waits until the client thread catches up, and still gives
-    /// a connection up at once when the client connects again before it does. Forge for Minecraft 1.7 runs on Java 8.
+    /// Without the agent the network thread gives the join up after a second; with it the network thread waits until the client thread catches up, and stops
+    /// waiting at once when the client connects again before it does, which replaces the latch; the dispatcher's own wait then tells which connection it was.
+    /// Forge for Minecraft 1.7 runs on Java 8.
     /// </summary>
     [Theory]
     [JdkData(8)]

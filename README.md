@@ -47,7 +47,7 @@ at cpw.mods.fml.common.network.internal.FMLNetworkHandler.fmlClientHandshake(FML
 at net.minecraft.client.network.NetHandlerLoginClient.func_147390_a(NetHandlerLoginClient.java:97)
 ```
 
-**Forge 1.7.2 and 1.7.10 clients now and then drop a connection as they join a server again**, when the server answers before the game has set the connection up:
+**Forge 1.7.2 and 1.7.10 clients now and then drop a connection as they join a server again**, when the server answers before the game has set the connection up, even right after a login the server refused:
 
 ```text
 [Netty Client IO #1/ERROR]: ChannelRegistrationHandler exception

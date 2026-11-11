@@ -11,10 +11,11 @@ import net.minecraft.network.NetworkManager;
 
 /**
  * Forge 1.7.10's FMLClientHandler: connectToServer shows the connecting screen, which starts the connection, and only then gives playClientBlock a new latch;
- * setPlayClient counts the latch down and then stores the play client. main connects twice, as a game that joins a server again does, and each time the server
- * answers while the client thread is still busy showing the screen, so the network thread waits for the play client before the latch is replaced: on the first
- * connection there is no latch yet, and on the second it is the first connection's, which is counted down already. A REGISTER then casts the connection's
- * handler to NetHandlerPlayClient, as FML's CustomPacketRegistrationEvent does.
+ * setPlayClient counts the latch down and then stores the play client. main connects again and again, as a game that joins servers does, and each time the
+ * server answers while the client thread is still busy showing the screen, so the network thread waits for the play client before the latch is replaced: on the
+ * first connection there is no latch yet, on the second it is the first connection's, which is counted down already, and after a login the server refused it is
+ * that connection's, which nothing counts down. A REGISTER then casts the connection's handler to NetHandlerPlayClient, as FML's CustomPacketRegistrationEvent
+ * does. Last, the client cancels a connection while its network thread waits for the play client, and connects no more.
  */
 public class FMLClientHandler {
     private static final FMLClientHandler INSTANCE = new FMLClientHandler();
@@ -65,8 +66,41 @@ public class FMLClientHandler {
         String first = connect();
         String second = connect();
 
-        System.out.println("first connection: " + first + "; second connection: " + second);
-        System.exit(first.equals("joined") && second.equals("joined") ? 0 : 1);
+        refuse();
+
+        String afterRefusal = connect();
+        String cancelled = cancel();
+
+        System.out.println("first connection: " + first + "; second connection: " + second + "; after a refused login: " + afterRefusal + "; cancelled connection: " + cancelled);
+        System.exit(first.equals("joined") && second.equals("joined") && afterRefusal.equals("joined") && cancelled.equals("let go") ? 0 : 1);
+    }
+
+    // A connection whose server refuses the login, as for a banned player: the network thread never reaches Login Success, and the client thread never sets a
+    // play handler up, so nothing counts its latch down.
+    private static void refuse() throws InterruptedException {
+        Handshake refused = new Handshake(null);
+
+        INSTANCE.connectToServer(refused);
+        refused.thread.join();
+    }
+
+    // A connection whose server answers, and which the client cancels while the network thread waits for the play client, as the connecting screen's cancel does;
+    // the client thread never ticks it. Its network thread is let go when it ends within a second of the cancel.
+    private static String cancel() throws InterruptedException {
+        NetworkManager manager = new NetworkManager();
+        Handshake handshake = new Handshake(new NetworkDispatcher(manager));
+
+        INSTANCE.connectToServer(handshake);
+        manager.func_150718_a(new net.minecraft.util.IChatComponent() {
+        });
+
+        long cancelled = System.nanoTime();
+
+        handshake.thread.join(10000);
+
+        long held = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - cancelled);
+
+        return held < 1000 ? "let go" : "held " + (handshake.thread.isAlive() ? "over 10 s" : held + " ms");
     }
 
     // One join on the client thread: the connecting screen starts the connection, whose server answers at once, and the client thread's next network tick
@@ -106,6 +140,11 @@ public class FMLClientHandler {
 
         @Override
         public void run() {
+            if (dispatcher == null) {
+                result = "refused";
+                return;
+            }
+
             try {
                 dispatcher.handleLoginSuccessThenRegister();
 
