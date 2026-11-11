@@ -174,6 +174,17 @@ java.lang.ClassCastException: class java.util.HashMap$Node cannot be cast to cla
 [Render thread] [FATAL] Failed to complete lifecycle event CONSTRUCT, 1 errors found
 ```
 
+**Forge games and servers from 1.13.2, and NeoForge's up to 1.21.8, now and then lose a jar partway through a session**, when a thread reading it is interrupted, and every class they hadn't loaded from it fails:
+
+```text
+[Render thread] [WARN] java.nio.channels.ClosedChannelException
+	at java.base/sun.nio.ch.FileChannelImpl.ensureOpen(FileChannelImpl.java:160)
+	at jdk.zipfs/jdk.nio.zipfs.ZipFileSystem.readFullyAt(ZipFileSystem.java:1241)
+java.lang.NoClassDefFoundError: net/minecraft/client/Options$3
+Caused by: java.lang.ClassNotFoundException: net.minecraft.client.Options$3
+	at cpw.mods.securejarhandler/net.minecraftforge.securemodules.SecureModuleClassLoader.loadClass(SecureModuleClassLoader.java:454)
+```
+
 **Forge 1.14.2 and 1.14.3 clients sometimes hang at startup and never reach their menu.** A thread dump shows the client thread waiting in `EventListenerHelper.getListenerListInternal` while a `modloading-worker` thread holds EventBus's lock.
 
 **Forge, NeoForge and vanilla clients from 1.14 to 1.20.4 sometimes crash the JVM as they leave a world while a sound streams:**

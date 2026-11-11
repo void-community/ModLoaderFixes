@@ -23,7 +23,7 @@ namespace ModLoaderFixes;
 /// Minecraft clients from 1.12 hang on when patchy can't read it to its end, and the reload of the sound system that Minecraft 1.7 to 1.13.2 clients start a second
 /// sound system with while the first still loads, and the tick cache of a dimension's environment attributes that world generation reads as null on servers from
 /// 1.21.11 when the server thread clears it in between, and the children of EventBus's listener lists, which Forge 1.13.2 to 1.16.4 add to while a mod's
-/// registration iterates them.
+/// registration iterates them, and the channel of the JDK's zip file system, which an interrupted read closes for the jars that Forge and NeoForge load from.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -119,6 +119,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.SoundLoaders,
         JavaClasses.Modloaderfixes.AttributeValues,
         JavaClasses.Modloaderfixes.ListenerChildren,
+        JavaClasses.Modloaderfixes.ZipChannels,
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
@@ -152,6 +153,7 @@ public sealed class PatcherAgent : JavaAgent
         .. SoundSystemLoads.Patches,
         .. AttributeSamplers.Patches,
         ListenerListChildren.Patch,
+        ZipFileChannels.Patch,
     ];
 
     /// <inheritdoc/>
@@ -170,6 +172,6 @@ public sealed class PatcherAgent : JavaAgent
 
     private static bool IsBootstrapHelper(JavaClassDefinition helper)
     {
-        return helper == JavaClasses.Modloaderfixes.Collections || helper == JavaClasses.Modloaderfixes.ClassHierarchyCache;
+        return helper == JavaClasses.Modloaderfixes.Collections || helper == JavaClasses.Modloaderfixes.ClassHierarchyCache || helper == JavaClasses.Modloaderfixes.ZipChannels;
     }
 }
