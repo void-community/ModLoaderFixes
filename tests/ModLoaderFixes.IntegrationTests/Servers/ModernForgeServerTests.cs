@@ -17,8 +17,6 @@ public sealed class ModernForgeServerTests
     // The handshake's builder of reply handlers is NetworkInitialization in 1.13.2 and the handler from 1.14, so the line is matched without the class.
     private const string RepliesPatched = " (indexed replies handled before they are marked answered (1 change))";
 
-    private const string ZipChannelPatched = "ZipFileSystem (<init>: 1 invocation of java/nio/file/Files.newByteChannel redirected)";
-
     /// <summary>
     /// One build of each Forge branch whose handshake handler keeps <c>sentMessages</c> in an ArrayList, the ones seen dropping players among them, with the itzg image
     /// that runs it, the protocol version of its Minecraft and FML's network version. Forge from 1.17 runs on the Java 17 image, whose Ubuntu 20.04 has glibc 2.31, so
@@ -136,8 +134,10 @@ public sealed class ModernForgeServerTests
             ForgeServer.AssertNotLogged(logs, ListenerChildrenPatched);
 
         // Every one reads its jars through the JDK's zip file system, mod jars from 1.13.2 and the whole module layer from 1.17, on Java 8's com.sun.nio.zipfs and
-        // later releases' jdk.nio.zipfs, whose channel the agent opens again after an interrupt.
-        ForgeServer.AssertLogged(logs, ZipChannelPatched);
+        // later releases' jdk.nio.zipfs, whose channel the agent opens again after an interrupt on Java 8 and makes uninterruptible on later releases, where Forge
+        // 1.20.1 and NeoForge's SecureJarHandler cast it to the JDK's FileChannelImpl.
+        ForgeServer.AssertLogged(logs, ForgeServer.ZipChannelPatched);
+        ForgeServer.AssertNotLogged(logs, unexpected: "ClassCastException");
 
         // The client reports a login that skipped FML's handshake separately, so this also says every player went through it.
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);

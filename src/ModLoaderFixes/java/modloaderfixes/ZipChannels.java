@@ -3,7 +3,6 @@ package modloaderfixes;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
@@ -18,12 +17,16 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import sun.nio.ch.FileChannelImpl;
+
 /**
  * Keeps a zip file system's jar readable when a thread reading it is interrupted. The JDK's ZipFileSystem reads every entry through one FileChannel, which an
  * interrupt during a read closes for every thread, so Forge's module loader, which reads each jar through one, finds nothing more in it and fails each class it
- * hadn't loaded with NoClassDefFoundError. The zip file system's constructor opens its channel here instead: a FileChannel of the default file system comes
- * back wrapped, and a read that finds the channel closed by an interrupt opens it again and reads again, except on the interrupted thread, which gets its
- * ClosedByInterruptException as before. Channels of other file systems, such as a jar inside another jar, come back as they are. It names no game type.
+ * hadn't loaded with NoClassDefFoundError. The zip file system's constructor opens its channel here instead. On Java 9 and later the JDK's own channel comes back
+ * uninterruptible, as SecureJarHandler from 2.1.9 makes it itself, casting it to FileChannelImpl, so its cast still holds; the agent exports sun.nio.ch to this
+ * class for it. Java 8 has no such switch, and there a FileChannel of the default file system comes back wrapped: a read that finds the channel closed by an
+ * interrupt opens it again and reads again, except on the interrupted thread, which gets its ClosedByInterruptException as before. Channels of other file
+ * systems, such as a jar inside another jar, come back as they are. It names no game type.
  */
 public final class ZipChannels {
     private ZipChannels() {
@@ -33,7 +36,22 @@ public final class ZipChannels {
     public static SeekableByteChannel newByteChannel(Path path, OpenOption... options) throws IOException {
         SeekableByteChannel channel = Files.newByteChannel(path, options);
 
-        return channel instanceof FileChannel ? new Reopening(path, options, (FileChannel) channel) : channel;
+        if (!(channel instanceof FileChannel))
+            return channel;
+
+        try {
+            if (channel instanceof FileChannelImpl) {
+                ((FileChannelImpl) channel).setUninterruptible();
+                return channel;
+            }
+        } catch (NoSuchMethodError java8) {
+            return new Reopening(path, options, (FileChannel) channel);
+        } catch (IllegalAccessError unexported) {
+            // Without the export the JDK's channel stays as it is, which the loaders that cast it expect.
+            return channel;
+        }
+
+        return new Reopening(path, options, (FileChannel) channel);
     }
 
     /** A FileChannel that opens its file again when an interrupt on another thread closed it, and keeps its own position for the reads that use one. */

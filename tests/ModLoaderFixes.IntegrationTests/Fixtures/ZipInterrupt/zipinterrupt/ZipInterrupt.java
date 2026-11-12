@@ -1,6 +1,7 @@
 package zipinterrupt;
 
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -11,7 +12,9 @@ import java.util.zip.ZipOutputStream;
 /**
  * Reads a jar through the JDK's zip file system, as Forge's module loader reads each jar of its layer: one thread reads entries until it is interrupted, as a
  * worker that an executor stops does while it loads a class, and then another thread reads an entry it hadn't read yet, as the render thread's next class load
- * does.
+ * does. The interrupted thread stops after the first entry it began reading interrupted, which reaches the channel whether the interrupt came during a read or
+ * between two, unless an exception stops it first. It also prints the class of the zip file system's channel, which SecureJarHandler from 2.1.9 reads and casts
+ * to the JDK's FileChannelImpl; on Java 9 and later the run opens the zip file system's package for it.
  */
 public final class ZipInterrupt {
     private static final int ENTRIES = 64;
@@ -33,15 +36,27 @@ public final class ZipInterrupt {
         }
 
         final FileSystem zip = FileSystems.newFileSystem(jar, (ClassLoader) null);
+        Field channel = zip.getClass().getDeclaredField("ch");
+
+        channel.setAccessible(true);
+
+        String channelClass = channel.get(zip).getClass().getName();
         final StringBuilder interrupted = new StringBuilder();
         Thread reader = new Thread(() -> {
             byte[] buffer = new byte[8192];
 
             try {
                 for (int round = 0; ; round++) {
+                    boolean wasInterrupted = Thread.currentThread().isInterrupted();
+
                     try (InputStream in = Files.newInputStream(zip.getPath("e" + (round % (ENTRIES - 1))))) {
                         while (in.read(buffer) >= 0) {
                         }
+                    }
+
+                    if (wasInterrupted) {
+                        interrupted.append("read past its interrupt");
+                        break;
                     }
                 }
             } catch (Exception exception) {
@@ -62,7 +77,7 @@ public final class ZipInterrupt {
             next = exception.toString();
         }
 
-        System.out.println("interrupted reader: " + interrupted + "; next entry: " + next);
+        System.out.println("channel: " + channelClass + "; interrupted reader: " + interrupted + "; next entry: " + next);
         System.exit(next.equals("read") ? 0 : 1);
     }
 }

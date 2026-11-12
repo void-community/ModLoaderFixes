@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
@@ -10,7 +11,7 @@ using Xunit;
 namespace ModLoaderFixes.IntegrationTests.Servers;
 
 /// <summary>Starts Forge servers as itzg installs them, with the agent loaded, and logs players in to them.</summary>
-internal static class ForgeServer
+internal static partial class ForgeServer
 {
     /// <summary>
     /// The xUnit collection of the server tests, which xUnit runs one at a time: each installs its server from Mojang's and Forge's servers, and installs that run side by
@@ -30,6 +31,12 @@ internal static class ForgeServer
 
     /// <summary>The line a server logs when it is ready for players.</summary>
     internal const string ReadyLine = "Done (";
+
+    /// <summary>
+    /// The end of the line the agent logs when it points the JDK's zip file system at the helper that keeps its channel readable after an interrupt, in Java 8's
+    /// com/sun/nio/zipfs and in later releases' jdk/nio/zipfs.
+    /// </summary>
+    internal const string ZipChannelPatched = "ZipFileSystem (<init>: 1 invocation of java/nio/file/Files.newByteChannel redirected)";
 
     private const string AgentDirectory = "/patcher/";
     private const int InstallAttempts = 3;
@@ -115,7 +122,18 @@ internal static class ForgeServer
         }
     }
 
-    /// <summary>Reads the server's log, both streams.</summary>
+    /// <summary>Removes terminal escape sequences, then every other control character but line breaks and tabs.</summary>
+    /// <param name="text">The text as a terminal would show it.</param>
+    /// <returns>The text without them.</returns>
+    internal static string Printable(string text)
+    {
+        return ControlCharacter().Replace(EscapeSequence().Replace(text, string.Empty), string.Empty);
+    }
+
+    /// <summary>
+    /// Reads the server's log, both streams, without the terminal's colors and other control characters. Forge colors its log, and xUnit drops the result of a test
+    /// whose failure message has an escape character, without counting it as failed, so a server that exits would pass unseen once its log is in the message.
+    /// </summary>
     /// <param name="server">The container whose output is the server's log.</param>
     /// <param name="cancellationToken">Stops the read.</param>
     /// <returns>The log.</returns>
@@ -123,7 +141,7 @@ internal static class ForgeServer
     {
         (string standardOutput, string standardError) = await server.GetLogsAsync(ct: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        return standardOutput + standardError;
+        return Printable(standardOutput + standardError);
     }
 
     /// <summary>
@@ -157,11 +175,17 @@ internal static class ForgeServer
             .WithResourceMapping(new DirectoryInfo(loginLoad), LoaderDirectory);
     }
 
+    [GeneratedRegex(pattern: @"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")]
+    private static partial Regex ControlCharacter();
+
     // itzg logs "[init] [ERROR] Failed to install Forge" (or NeoForge) once per failed install.
     private static int CountInstallFailures(string logs)
     {
         return logs.Split(separator: '\n').Count(static line => line.Contains(value: "[ERROR] Failed to install", StringComparison.Ordinal));
     }
+
+    [GeneratedRegex(pattern: @"\x1B\[[0-?]*[ -/]*[@-~]")]
+    private static partial Regex EscapeSequence();
 
     private static async Task<string> StartUntilReadyAsync(IContainer server, CancellationToken cancellationToken)
     {

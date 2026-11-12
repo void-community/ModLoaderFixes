@@ -174,7 +174,7 @@ java.lang.ClassCastException: class java.util.HashMap$Node cannot be cast to cla
 [Render thread] [FATAL] Failed to complete lifecycle event CONSTRUCT, 1 errors found
 ```
 
-**Forge games and servers from 1.13.2, and NeoForge's up to 1.21.8, now and then lose a jar partway through a session**, when a thread reading it is interrupted, and every class they hadn't loaded from it fails:
+**Forge games and servers from 1.13.2 now and then lose a jar partway through a session**, when a thread reading it is interrupted, and every class they hadn't loaded from it fails. Forge 1.20.1 from 47.0.2, Forge 1.20.2 and NeoForge up to 1.21.8 keep their jars open across an interrupt themselves, as the agent now does for every loader on Java 9 and later:
 
 ```text
 [Render thread] [WARN] java.nio.channels.ClosedChannelException

@@ -166,6 +166,9 @@ public sealed class PatcherAgent : JavaAgent
         foreach (JavaClassDefinition helper in Helpers)
             context.DefineClass(helper, IsBootstrapHelper(helper) ? ClassLoaderTarget.Bootstrap : ClassLoaderTarget.PatchedClassLoader);
 
+        // ZipChannels makes the JDK's own zip channel uninterruptible through FileChannelImpl, as SecureJarHandler does, which java.base doesn't export.
+        context.ExportPackage(module: "java.base", package: "sun/nio/ch", JavaClasses.Modloaderfixes.ZipChannels);
+
         foreach (ClassPatch patch in Patches)
             context.Patch(patch);
     }
