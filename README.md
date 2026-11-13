@@ -187,6 +187,19 @@ Caused by: java.lang.ClassNotFoundException: net.minecraft.client.Options$3
 
 **Forge 1.14.2 and 1.14.3 clients sometimes hang at startup and never reach their menu.** A thread dump shows the client thread waiting in `EventListenerHelper.getListenerListInternal` while a `modloading-worker` thread holds EventBus's lock.
 
+**Forge and vanilla 1.14 to 1.14.4 clients now and then crash as they join a server**, when the player picks up an item in the new level's first frames:
+
+```text
+[Client thread] [FATAL] Post-rendering entity in world
+java.lang.NullPointerException: Post-rendering entity in world
+	at dpi.b(SourceFile:520)
+	at dpj.c(SourceFile:309)
+	at dpi.a(SourceFile:392)
+	at dip.a(SourceFile:67)
+-- Entity being rendered --
+	Entity Type: minecraft:item (atp)
+```
+
 **Forge, NeoForge and vanilla clients from 1.14 to 1.20.4 sometimes crash the JVM as they leave a world while a sound streams:**
 
 ```text

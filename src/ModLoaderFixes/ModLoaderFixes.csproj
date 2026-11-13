@@ -36,6 +36,13 @@
     <MappedClass Include="AttributeSampler" Class="net/minecraft/world/attribute/EnvironmentAttributeSystem$ValueSampler" From="1.21.11" To="1.21.11" />
     <MappedClass Include="SimpleReloadInstance" Class="net/minecraft/server/packs/resources/SimpleReloadInstance" From="1.17" To="1.18.2" />
     <MappedClass
+      Include="EntityRendererManager"
+      Class="net/minecraft/client/renderer/entity/EntityRendererManager"
+      From="1.14"
+      To="1.14.4"
+      Methods="func_188391_a(Lnet/minecraft/entity/Entity;DDDFFZ)V func_78717_a(Lnet/minecraft/world/World;)V"
+    />
+    <MappedClass
       Include="PlayClientHandler"
       Class="net/minecraft/client/network/NetHandlerPlayClient"
       From="1.13"

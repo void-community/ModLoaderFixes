@@ -162,7 +162,8 @@ public sealed class RealJarTests
     /// startup reloads on the main thread. ChannelAccess, whose clear moves to the sound thread, at the edges of MCP's and Mojang's names from 1.14 to
     /// 1.20.4, and 1.20.5 and the unobfuscated 26.1, which decode with JOrbis. From 1.13 the packet listener whose Disconnect waits for the client thread:
     /// NetHandlerPlayClient up to 1.13.2, whose client is no executor, at each 1.13 release, ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
-    /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer.
+    /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer. The entity render dispatcher of 1.14 to 1.14.4, which draws an entity only once it
+    /// has a camera, under each of its four namings, 1.14.1 sharing its with 1.14.2.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -182,9 +183,10 @@ public sealed class RealJarTests
         { "1.13", "c0b970952cdd279912da384cdbfc0c26e6c6090b", "d807a5ed9428b6c16b64888fd2b7fa76dcf5c55d06f96f7c0c47762c3fc3e26e", ["cqs +0", "dgh +0", "hw +0"] },
         { "1.13.1", "8de235e5ec3a7fce168056ea395d21cbdec18d7c", "f0b4cf6d1a87ae150f87a535651138ca7b82bdad8853f76e7ddbff1dd610ac87", ["crc +0", "dgq +0", "hw +0"] },
         { "1.13.2", "30bfe37a8db404db11c7edf02cb5165817afb4d9", "3410887ba652f25792c7675bfaf9140e73b60e93cfbf113a803f8a98cb05c0f9", ["crd +0", "dgr +0", "hw +0"] },
-        { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dho +0", "dxv +0", "jb +0"] },
-        { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dhi +0", "dxo +0", "ja +0"] },
-        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "eaj +0"] },
+        { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dho +0", "dpm +0", "dxv +0", "jb +0"] },
+        { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dhi +0", "dpf +0", "dxo +0", "ja +0"] },
+        { "1.14.1", "55ba86ddcbc3579397f41910463ffd4056e1e523", "7194d1326cf796f62ac55f3cb56f851c232895639ae27510f3207d5a73f91814", ["dhk +0", "dpi +0", "dxr +0", "ja +0"] },
+        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "dsa +0", "eaj +0"] },
         { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["acl +0", "dwu +0", "enn +0"] },
         { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["ady +0", "eji +0", "fav +0"] },
         { "1.18", "d49eb6caed53d23927648c97451503442f9e26fd", "381e090ef22584526113bcccf26ae38a310a22094d14c2d0dec72b71fdf65aaa", ["afp +0", "elm +0", "fdb +0"] },
@@ -221,7 +223,7 @@ public sealed class RealJarTests
     /// <summary>
     /// The patches change only the connection, the sound system and the reload of each vanilla client, under each release's names: its NetworkManager up to
     /// 1.14.3, in 1.7 its initializers and its PlayerControllerMP, its SoundManager from 1.7 to 1.13.2, its ChannelAccess from 1.14 to 1.20.4, its packet listener
-    /// from 1.14.4, its reload from 1.16 to 1.18.2, from 1.21.11 the sampler of its environment attributes, which the integrated server's world generation reads,
+    /// from 1.14.4, its entity render dispatcher from 1.14 to 1.14.4, its reload from 1.16 to 1.18.2, from 1.21.11 the sampler of its environment attributes, which the integrated server's world generation reads,
     /// and from 26.1 its ClientPacketListener's chunk batch answer.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
