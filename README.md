@@ -28,6 +28,17 @@ java.util.ConcurrentModificationException
 [Netty IO #0/DEBUG] [net.minecraft.util.MessageDeserializer]:  IN: [LOGIN:0] net.minecraft.network.login.client.C00PacketLoginStart[]
 ```
 
+**Forge 1.7.2, 1.7.10 and 1.8, PaperSpigot 1.7.10 and vanilla 1.7.2 to 1.8 servers on Java 8 now and then kick a player without the reason reaching the player.** The server logs the kick, and the player, or the proxy in front of the server, sees the connection reset instead:
+
+```text
+[Server thread/INFO]: Kicked Steve from the game
+[Server thread/INFO]: Steve lost connection: TextComponent{text='Kicked by an operator.', siblings=[], style=Style{hasParent=false, color=null, bold=null, italic=null, underlined=null, obfuscated=null, clickEvent=null, hoverEvent=null}}
+```
+
+```text
+Internal Exception: java.io.IOException: Connection reset by peer
+```
+
 **Forge 1.7.2 and 1.7.10 clients sometimes drop their connection as they join, while the game is busy:**
 
 ```text

@@ -83,7 +83,9 @@ public sealed class ForgeServerTests
 
     /// <summary>
     /// With the jar loaded, a Forge 1.7 server ticks its connections through the agent's helper and lets every player of a burst of logins reach the play state. The
-    /// tick that drops a connection only now and then lands before its channel is active, so <see cref="PendingConnectionTests"/> runs it at that moment.
+    /// tick that drops a connection only now and then lands before its channel is active, so <see cref="PendingConnectionTests"/> runs it at that moment. Every
+    /// player it then kicks, a Forge client that went through FML's handshake, gets the reason and the end of its connection: Forge's closeChannel closes the
+    /// channel through the agent's helper, which sends what Nagle's algorithm holds back first.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="forgeVersion">The Forge build.</param>
@@ -110,6 +112,7 @@ public sealed class ForgeServerTests
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
 
         ExecResult logins = await ForgeServer.LogInPlayersAsync(server, protocol, fmlVersion: null, timeout.Token);
+        ExecResult kicks = await ForgeServer.KickPlayersAsync(server, protocol, timeout.Token);
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token);
 
@@ -119,11 +122,13 @@ public sealed class ForgeServerTests
             + "func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_74428_b redirected)"
         );
         ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
+        ForgeServer.AssertLogged(logs, ForgeServer.ClosePatched);
         ForgeServer.AssertNotLogged(logs, unexpected: "Failed to handle packet");
         // FML 1.7 scans the jar for mods with ASM 4, which reads class files up to Java 7, so the jar's launcher must be one.
         ForgeServer.AssertNotLogged(logs, unexpected: "probably a corrupt zip");
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);
         Assert.Contains(expectedSubstring: "LOGINS {logged in=200}", logins.Stdout, StringComparison.Ordinal);
+        ForgeServer.AssertKicked(kicks);
     }
 
     private static async Task AssertForge172StartsAsync(string option, FileInfo agent)

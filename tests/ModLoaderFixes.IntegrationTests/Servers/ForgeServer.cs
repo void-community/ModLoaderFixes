@@ -14,6 +14,13 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 internal static partial class ForgeServer
 {
     /// <summary>
+    /// The line the agent logs when it points the close of a connection's channel at the helper that sends what is unsent first, under FML's names, in Forge for
+    /// Minecraft 1.7.2 to 1.8.9.
+    /// </summary>
+    internal const string ClosePatched =
+        "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
+
+    /// <summary>
     /// The xUnit collection of the server tests, which xUnit runs one at a time: each installs its server from Mojang's and Forge's servers, and installs that run side by
     /// side fail their downloads more often.
     /// </summary>
@@ -40,10 +47,24 @@ internal static partial class ForgeServer
 
     private const string AgentDirectory = "/patcher/";
     private const int InstallAttempts = 3;
+    private const string Kicks = "40";
     private const string LoaderDirectory = "/loader/";
+    private const string RemoteConsolePassword = "modloaderfixes";
+    private const string RemoteConsolePort = "25575";
 
     /// <summary>Gets how long installing and starting a server may take.</summary>
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
+
+    /// <summary>
+    /// Checks that every player the kick client had the server kick got the reason and then the end of its connection: none lost the reason, and none saw its
+    /// connection reset, which is how a server that closes with the player's packets unread ends it without the agent.
+    /// </summary>
+    /// <param name="kicks">The kick client's result, from <see cref="KickPlayersAsync"/>.</param>
+    internal static void AssertKicked(ExecResult kicks)
+    {
+        Assert.True(kicks.ExitCode is 0, kicks.Stdout + kicks.Stderr);
+        Assert.Contains("KICKS {received=" + Kicks + "}", kicks.Stdout, StringComparison.Ordinal);
+    }
 
     /// <summary>Checks that the server's log has a line, and shows the end of the log when it hasn't: the start, which is all a failed Contains prints, is itzg's setup.</summary>
     /// <param name="logs">The server's log.</param>
@@ -69,7 +90,7 @@ internal static partial class ForgeServer
         );
     }
 
-    /// <summary>Compiles the login client for Java 8, which every server image runs.</summary>
+    /// <summary>Compiles the login client and the kick client for Java 8, which every server image runs.</summary>
     /// <param name="cancellationToken">Stops the compilation.</param>
     /// <returns>The directory of its classes.</returns>
     internal static Task<string> CompileLoginLoadAsync(CancellationToken cancellationToken)
@@ -94,6 +115,30 @@ internal static partial class ForgeServer
             .WithEnvironment(name: "MEMORY", memory)
             .WithEnvironment(name: "JVM_OPTS", option + AgentDirectory + agent.Name)
             .WithResourceMapping(agent, AgentDirectory);
+    }
+
+    /// <summary>
+    /// Has the server kick 40 players, one after another, from inside its container: each logs in, as a Forge client when the server is Forge 1.7, and sends several
+    /// thousand Player packets a second, so the server often has one unread when it closes the connection, and the server's remote console then kicks the player
+    /// with a reason of its own.
+    /// </summary>
+    /// <param name="server">The started server, built with <see cref="WithLoginLoad"/>.</param>
+    /// <param name="protocol">The protocol version of the server's Minecraft, 1.7's or 1.8's.</param>
+    /// <param name="cancellationToken">Stops the kicks.</param>
+    /// <returns>The kick client's result; it prints <c>KICKS {received=40}</c> and exits with 0 when every player got the reason and then the end of its connection.</returns>
+    internal static async Task<ExecResult> KickPlayersAsync(IContainer server, int protocol, CancellationToken cancellationToken)
+    {
+        string[] address = ["127.0.0.1", "25565", protocol.ToString(CultureInfo.InvariantCulture)];
+        List<string> command = ["java", "-cp", LoaderDirectory, "loginload.KickLoad", .. address, Kicks, RemoteConsolePort, RemoteConsolePassword];
+
+        try
+        {
+            return await server.ExecAsync(command, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw await TimedOutAsync(server, phase: "The kicks didn't finish", exception).ConfigureAwait(continueOnCapturedContext: false);
+        }
     }
 
     /// <summary>
@@ -163,15 +208,19 @@ internal static partial class ForgeServer
         }
     }
 
-    /// <summary>Lets players in without accounts, as many as a burst of logins brings, and puts the login client beside the server.</summary>
+    /// <summary>
+    /// Lets players in without accounts, as many as a burst of logins brings, puts the login client and the kick client beside the server, and gives the server's
+    /// remote console, which itzg turns on, the password that the kick client logs in to it with.
+    /// </summary>
     /// <param name="server">The server's builder.</param>
-    /// <param name="loginLoad">The compiled login client, from <see cref="CompileLoginLoadAsync"/>.</param>
+    /// <param name="loginLoad">The compiled clients, from <see cref="CompileLoginLoadAsync"/>.</param>
     /// <returns>The builder.</returns>
     internal static ContainerBuilder WithLoginLoad(this ContainerBuilder server, string loginLoad)
     {
         return server
             .WithEnvironment(name: "ONLINE_MODE", value: "FALSE")
             .WithEnvironment(name: "MAX_PLAYERS", value: "1000")
+            .WithEnvironment(name: "RCON_PASSWORD", RemoteConsolePassword)
             .WithResourceMapping(new DirectoryInfo(loginLoad), LoaderDirectory);
     }
 

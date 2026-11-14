@@ -42,6 +42,26 @@ public sealed class HelperLinkTests
         },
     };
 
+    /// <summary>
+    /// The helper that closes a channel links against the Netty that vanilla servers bundle, 4.0.10 in 1.7.2 and 1.7.10 and 4.0.15 in 1.8, whose TCP channel has the
+    /// output shutdown and the options it reads. PaperSpigot's helper names the package that CraftBukkit relocates Netty to, which no pinned jar holds, so its
+    /// server covers it.
+    /// </summary>
+    /// <param name="version">The Minecraft version.</param>
+    /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
+    /// <param name="sha256">Its pinned checksum.</param>
+    [Theory]
+    [InlineData("1.7.2", "3716cac82982e7c2eb09f83028b555e9ea606002", "b4139899700c1bdbf72880eec4bdb9e46c2cf22d1724a48a018ee0330035462e")]
+    [InlineData("1.7.10", "952438ac4e01b4d115c5fc38f891710c4941df29", "c70870f00c4024d829e154f7e5f4e885b02dd87991726a3308d81f513972f3fc")]
+    [InlineData("1.8", "a028f00e678ee5c6aef0e29656dca091b5df11c7", "40e23f3823d6f0e3cbadc491cedb55b8ba53f8ab516b68182ddd1536babeb291")]
+    public async Task ChannelCloseHelperLinks(string version, string sha1, string sha256)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        string server = await RealJarTests.VanillaServer(version, sha1, sha256).GetPathAsync(cancellationToken);
+
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.ChannelCloses, [server], PatcherAgent.Patches, cancellationToken);
+    }
+
     /// <summary>The FML config helper, which serves Forge and NeoForge, links against both loaders that the patches changed.</summary>
     /// <param name="forgeCoordinates">Forge's FML loader.</param>
     /// <param name="forgeSha256">Its pinned checksum.</param>

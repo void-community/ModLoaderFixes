@@ -26,6 +26,13 @@
   -->
   <ItemGroup>
     <MappedClass Include="NetworkManager" Class="net/minecraft/network/NetworkManager" From="1.7.2" To="1.14.3" Methods="func_150733_h()V" />
+    <MappedClass
+      Include="ClosingNetworkManager"
+      Class="net/minecraft/network/NetworkManager"
+      From="1.7.2"
+      To="1.8"
+      Methods="func_150718_a(Lnet/minecraft/util/IChatComponent;)V"
+    />
     <MappedClass Include="NetworkInitializer" Class="net/minecraft/network/NetworkSystem$1" From="1.7.2" To="1.7.10" />
     <MappedClass Include="MemoryInitializer" Class="net/minecraft/network/NetworkSystem$2" From="1.7.2" To="1.7.10" />
     <MappedClass Include="PlayerController" Class="net/minecraft/client/multiplayer/PlayerControllerMP" From="1.7.2" To="1.7.10" Methods="func_78765_e()V" />

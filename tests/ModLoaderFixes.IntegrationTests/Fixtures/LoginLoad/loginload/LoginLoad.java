@@ -302,7 +302,7 @@ public final class LoginLoad {
             writeString(output, readString(input));
     }
 
-    private static String readString(DataInputStream input) throws IOException {
+    static String readString(DataInputStream input) throws IOException {
         byte[] text = new byte[readVarInt(input)];
 
         input.readFully(text);
@@ -310,7 +310,7 @@ public final class LoginLoad {
         return new String(text, StandardCharsets.UTF_8);
     }
 
-    private static void writeVarInt(OutputStream output, int value) throws IOException {
+    static void writeVarInt(OutputStream output, int value) throws IOException {
         int remaining = value;
 
         do {
@@ -321,7 +321,7 @@ public final class LoginLoad {
         } while (remaining != 0);
     }
 
-    private static void writeString(OutputStream output, String value) throws IOException {
+    static void writeString(OutputStream output, String value) throws IOException {
         byte[] text = value.getBytes(StandardCharsets.UTF_8);
 
         writeVarInt(output, text.length);
@@ -329,7 +329,7 @@ public final class LoginLoad {
     }
 
     // Once compression is set, a data length comes first; zero says the rest isn't compressed, which every packet sent here is small enough for.
-    private static void writePacket(OutputStream output, int threshold, int id, byte[] fields) throws IOException {
+    static void writePacket(OutputStream output, int threshold, int id, byte[] fields) throws IOException {
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         ByteArrayOutputStream frame = new ByteArrayOutputStream();
 
@@ -344,7 +344,7 @@ public final class LoginLoad {
         output.flush();
     }
 
-    private static int readVarInt(DataInputStream input) throws IOException {
+    static int readVarInt(DataInputStream input) throws IOException {
         int value = 0;
 
         for (int index = 0; index < 5; index++) {
@@ -361,7 +361,7 @@ public final class LoginLoad {
 
     // Returns the packet's id, which fits in one byte for every packet read here, followed by its data. Before compression is set a packet is its id and
     // data; after, a data length comes first, and the id and data are zlib-compressed when it isn't zero.
-    private static byte[] readPacket(DataInputStream input, int threshold) throws IOException, DataFormatException {
+    static byte[] readPacket(DataInputStream input, int threshold) throws IOException, DataFormatException {
         byte[] frame = new byte[readVarInt(input)];
 
         input.readFully(frame);

@@ -25,7 +25,8 @@ namespace ModLoaderFixes;
 /// sound system with while the first still loads, and the tick cache of a dimension's environment attributes that world generation reads as null on servers from
 /// 1.21.11 when the server thread clears it in between, and the children of EventBus's listener lists, which Forge 1.13.2 to 1.16.4 add to while a mod's
 /// registration iterates them, and the channel of the JDK's zip file system, which an interrupted read closes for the jars that Forge loads from, and the camera that the entity render
-/// dispatcher of Minecraft 1.14 clients has none of in a new level's first frames, when an item pickup particle draws its item through it.
+/// dispatcher of Minecraft 1.14 clients has none of in a new level's first frames, when an item pickup particle draws its item through it, and the close of a
+/// Minecraft 1.7.2 to 1.8 connection, which on Java before 11 throws away the kick's reason that Nagle's algorithm still holds back.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -121,6 +122,8 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.SoundLoaders,
         JavaClasses.Modloaderfixes.AttributeValues,
         JavaClasses.Modloaderfixes.EntityRenders,
+        JavaClasses.Modloaderfixes.ChannelCloses,
+        JavaClasses.Modloaderfixes.PaperChannelCloses,
         JavaClasses.Modloaderfixes.ListenerChildren,
         JavaClasses.Modloaderfixes.ZipChannels,
         JavaClasses.Modloaderfixes.NewConnections,
@@ -158,6 +161,7 @@ public sealed class PatcherAgent : JavaAgent
         ListenerListChildren.Patch,
         ZipFileChannels.Patch,
         .. EntityRenderCameras.Patches,
+        .. ChannelCloses.Patches,
     ];
 
     /// <inheritdoc/>

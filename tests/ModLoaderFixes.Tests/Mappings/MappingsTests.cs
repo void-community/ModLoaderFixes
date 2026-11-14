@@ -69,7 +69,8 @@ public sealed class MappingsTests
 
         IReadOnlyList<ClassRequest> requests = ClassRequest.Parse(ProjectRequests());
         IReadOnlyList<ResolvedClass> classes = await Generator.ResolveAsync(requests, sources, cancellationToken);
-        Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, requests.Single(static request => request.Name == Manager), version: "1.7.5", cancellationToken);
+        ClassRequest manager = requests.Single(static request => request.Property == "NetworkManager");
+        Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, manager, version: "1.7.5", cancellationToken);
 
         Assert.Equal(["Forge's 1.7.2 to Ornithe's 1.7.2 to Ornithe's 1.7.5"], resolution.Routes);
         Assert.Equal(
@@ -89,16 +90,15 @@ public sealed class MappingsTests
                 "1.14 to 1.14.2: ja o()V",
                 "1.14.3: jb o()V",
             ],
-            Namings(classes, Manager)
+            Namings(classes, property: "NetworkManager")
         );
+        // A second item names the same class for its closeChannel, whose descriptor carries the chat component's name, which changes more often than the class's.
         Assert.Equal(
-            ["1.7.2: mt ", "1.7.3 and 1.7.4: mw ", "1.7.5 to 1.7.9: nc ", "1.7.10: nd "],
-            Namings(classes, name: "net/minecraft/network/NetworkSystem$1")
+            ["1.7.2 to 1.7.4: ef a(Lfa;)V", "1.7.5: eg a(Lfg;)V", "1.7.6 to 1.7.10: ej a(Lfj;)V", "1.8: gr a(Lho;)V"],
+            Namings(classes, property: "ClosingNetworkManager")
         );
-        Assert.Equal(
-            ["1.7.2: mu ", "1.7.3 and 1.7.4: mx ", "1.7.5 to 1.7.9: nd ", "1.7.10: ne "],
-            Namings(classes, name: "net/minecraft/network/NetworkSystem$2")
-        );
+        Assert.Equal(["1.7.2: mt ", "1.7.3 and 1.7.4: mw ", "1.7.5 to 1.7.9: nc ", "1.7.10: nd "], Namings(classes, property: "NetworkInitializer"));
+        Assert.Equal(["1.7.2: mu ", "1.7.3 and 1.7.4: mx ", "1.7.5 to 1.7.9: nd ", "1.7.10: ne "], Namings(classes, property: "MemoryInitializer"));
     }
 
     /// <summary>Runs of consecutive releases are named by their ends, and two by both.</summary>
@@ -219,9 +219,10 @@ public sealed class MappingsTests
             );
     }
 
-    private static List<string> Namings(IReadOnlyList<ResolvedClass> classes, string name)
+    // The namings of one MappedClass item, which its property names; two items may name the same class.
+    private static List<string> Namings(IReadOnlyList<ResolvedClass> classes, string property)
     {
-        return [.. classes.Single(resolved => resolved.Request.Name == name).Namings.Select(static naming => naming.Versions + ": " + naming.Naming.Key)];
+        return [.. classes.Single(resolved => resolved.Request.Property == property).Namings.Select(static naming => naming.Versions + ": " + naming.Naming.Key)];
     }
 
     // The agent's MappedClass items as its build writes them out for the generator.
