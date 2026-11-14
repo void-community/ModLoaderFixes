@@ -92,8 +92,7 @@ public final class KickLoad {
 
         // The server has sent the world by then, and the kick comes at another moment of the player's packets each time.
         Thread.sleep(250 + index % 7 * 13);
-        console.command("say before-" + reason);
-        console.command("kick " + player.getName() + " " + reason);
+        console.run("say before-" + reason, "kick " + player.getName() + " " + reason);
         player.join(TIMEOUT_MILLISECONDS);
         player.end();
         player.join();
@@ -305,35 +304,59 @@ public final class KickLoad {
         }
     }
 
-    // The server's remote console, which runs one command for each packet and answers it.
+    // The server's remote console, which runs one command for each packet and answers it. A server now and then ends a connection it has only just accepted
+    // before it answers the login: it starts the connection's thread before it marks it running. So each run of commands logs in anew, and again when the
+    // connection ends before the last answer.
     private static final class RemoteConsole {
         private static final int LOGIN = 3;
         private static final int COMMAND = 2;
+        private static final int ATTEMPTS = 20;
+        private static final int PAUSE_MILLISECONDS = 50;
 
-        private final DataInputStream input;
-        private final OutputStream output;
+        private final String host;
+        private final int port;
+        private final String password;
         private int requests;
 
-        RemoteConsole(String host, int port, String password) throws IOException {
-            Socket socket = new Socket();
-
-            socket.connect(new InetSocketAddress(host, port), TIMEOUT_MILLISECONDS);
-            socket.setSoTimeout(TIMEOUT_MILLISECONDS);
-            socket.setTcpNoDelay(true);
-            input = new DataInputStream(socket.getInputStream());
-            output = socket.getOutputStream();
-
-            if (request(LOGIN, password) < 0)
-                throw new IOException("The remote console refused the password");
+        RemoteConsole(String host, int port, String password) {
+            this.host = host;
+            this.port = port;
+            this.password = password;
         }
 
-        void command(String command) throws IOException {
-            request(COMMAND, command);
+        // Runs the commands one after another over one connection. A command that ran before the connection ended runs again with the next connection, which
+        // the say and the kick of a player that has left by then both take.
+        void run(String... commands) throws IOException, InterruptedException {
+            IOException ended = null;
+
+            for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+                try (Socket socket = new Socket()) {
+                    socket.connect(new InetSocketAddress(host, port), TIMEOUT_MILLISECONDS);
+                    socket.setSoTimeout(TIMEOUT_MILLISECONDS);
+                    socket.setTcpNoDelay(true);
+
+                    DataInputStream input = new DataInputStream(socket.getInputStream());
+                    OutputStream output = socket.getOutputStream();
+
+                    if (request(input, output, LOGIN, password) < 0)
+                        throw new IllegalStateException("The remote console refused the password");
+
+                    for (String command : commands)
+                        request(input, output, COMMAND, command);
+
+                    return;
+                } catch (IOException exception) {
+                    ended = exception;
+                    Thread.sleep(PAUSE_MILLISECONDS);
+                }
+            }
+
+            throw ended;
         }
 
         // Sends one request in one write, as the server reads each with one read, and returns the id that the server answers it with, which is -1 for a refused
         // password.
-        private int request(int type, String text) throws IOException {
+        private int request(DataInputStream input, OutputStream output, int type, String text) throws IOException {
             byte[] payload = text.getBytes(StandardCharsets.UTF_8);
             ByteBuffer request = ByteBuffer.allocate(14 + payload.length).order(ByteOrder.LITTLE_ENDIAN);
 
