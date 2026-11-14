@@ -99,6 +99,16 @@ public sealed class MappingsTests
         );
         Assert.Equal(["1.7.2: mt ", "1.7.3 and 1.7.4: mw ", "1.7.5 to 1.7.9: nc ", "1.7.10: nd "], Namings(classes, property: "NetworkInitializer"));
         Assert.Equal(["1.7.2: mu ", "1.7.3 and 1.7.4: mx ", "1.7.5 to 1.7.9: nd ", "1.7.10: ne "], Namings(classes, property: "MemoryInitializer"));
+        // The region that 1.16 generates through, whose setter takes the position and the block state, and the base of block states, a nested class whose
+        // getBlock the region calls on the state.
+        Assert.Equal(
+            ["1.16 and 1.16.1: zj a(Lfu;Lcfj;II)Z", "1.16.2 and 1.16.3: aam a(Lfx;Lcee;II)Z", "1.16.4 and 1.16.5: aam a(Lfx;Lceh;II)Z"],
+            Namings(classes, property: "GenerationRegion16")
+        );
+        Assert.Equal(
+            ["1.16 and 1.16.1: cfi$a b()Lbvr;", "1.16.2 and 1.16.3: ced$a b()Lbul;", "1.16.4 and 1.16.5: ceg$a b()Lbuo;"],
+            Namings(classes, property: "BlockState16")
+        );
     }
 
     /// <summary>Runs of consecutive releases are named by their ends, and two by both.</summary>

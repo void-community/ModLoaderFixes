@@ -32,6 +32,12 @@ internal static partial class ForgeServer
     /// </summary>
     internal const string FlushPatched = "ModLoaderFixes: patched net/minecraft/network/NetworkManager (outbound queue flushed by one thread at a time (1 change))";
 
+    /// <summary>
+    /// The end of the line the agent logs when it makes the region that Minecraft 1.13 to 1.16.5 generates through remove the block entity of a block that
+    /// another block replaces, after the region's name: MCP's under Forge, CraftBukkit's under Paper and an obfuscated one in vanilla.
+    /// </summary>
+    internal const string GenerationPatched = " (block entity of another block removed where generation replaces the block (1 change))";
+
     /// <summary>The line the agent logs when it makes the class hierarchy cache of ModLauncher 2 to 5, which Forge for Minecraft 1.13.2 to 1.15.2 ships, safe to share.</summary>
     internal const string ModLauncherPatched =
         "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";

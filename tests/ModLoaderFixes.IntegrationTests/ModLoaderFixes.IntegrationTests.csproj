@@ -13,5 +13,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <None Include="Fixtures/**/*.java" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The data pack that a server test generates a world with. -->
+    <None Include="Fixtures/**/*.json;Fixtures/**/*.mcmeta" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

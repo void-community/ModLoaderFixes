@@ -133,6 +133,15 @@ public sealed class ModernForgeServerTests
         else
             ForgeServer.AssertNotLogged(logs, ListenerChildrenPatched);
 
+        // Forge up to 1.16.5 generates its spawn area through the region, by MCP's name, whose setter the agent makes remove the block entity of a block that
+        // another block replaces. Minecraft 1.17 no longer lets a dungeon set its spawner on a chest, and Forge runs it under Mojang's names.
+        if (type == "FORGE" && string.CompareOrdinal(version, strB: "1.17") < 0)
+            ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/world/gen/WorldGenRegion" + ForgeServer.GenerationPatched);
+        else
+            ForgeServer.AssertNotLogged(logs, ForgeServer.GenerationPatched);
+
+        ForgeServer.AssertNotLogged(logs, unexpected: "Exception generating new chunk");
+
         // Every one reads its jars through the JDK's zip file system, mod jars from 1.13.2 and the whole module layer from 1.17, on Java 8's com.sun.nio.zipfs and
         // later releases' jdk.nio.zipfs, whose channel the agent opens again after an interrupt on Java 8 and makes uninterruptible on later releases, where Forge
         // 1.20.1 and NeoForge's SecureJarHandler cast it to the JDK's FileChannelImpl.

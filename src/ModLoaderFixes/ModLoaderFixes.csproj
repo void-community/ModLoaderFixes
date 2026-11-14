@@ -50,6 +50,50 @@
       Methods="func_188391_a(Lnet/minecraft/entity/Entity;DDDFFZ)V func_78717_a(Lnet/minecraft/world/World;)V"
     />
     <MappedClass
+      Include="GenerationRegion13"
+      Class="net/minecraft/world/gen/WorldGenRegion"
+      From="1.13"
+      To="1.13.2"
+      Methods="func_180501_a(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/state/IBlockState;I)Z"
+    />
+    <MappedClass
+      Include="GenerationRegion14"
+      Class="net/minecraft/world/gen/WorldGenRegion"
+      From="1.14"
+      To="1.15.2"
+      Methods="func_180501_a(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;I)Z"
+    />
+    <MappedClass
+      Include="GenerationRegion16"
+      Class="net/minecraft/world/gen/WorldGenRegion"
+      From="1.16"
+      To="1.16.5"
+      Methods="func_241211_a_(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;II)Z"
+    />
+    <MappedClass
+      Include="GenerationChunk13"
+      Class="net/minecraft/world/chunk/IChunk"
+      From="1.13"
+      To="1.13.2"
+      Methods="func_177436_a(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/state/IBlockState;Z)Lnet/minecraft/block/state/IBlockState; func_177425_e(Lnet/minecraft/util/math/BlockPos;)V"
+    />
+    <MappedClass
+      Include="GenerationChunk14"
+      Class="net/minecraft/world/chunk/IChunk"
+      From="1.14"
+      To="1.16.5"
+      Methods="func_177436_a(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;Z)Lnet/minecraft/block/BlockState; func_177425_e(Lnet/minecraft/util/math/BlockPos;)V"
+    />
+    <MappedClass Include="BlockState13" Class="net/minecraft/block/state/IBlockState" From="1.13" To="1.13.2" Methods="func_177230_c()Lnet/minecraft/block/Block;" />
+    <MappedClass Include="BlockState14" Class="net/minecraft/block/BlockState" From="1.14" To="1.15.2" Methods="func_177230_c()Lnet/minecraft/block/Block;" />
+    <MappedClass
+      Include="BlockState16"
+      Class="net/minecraft/block/AbstractBlock$AbstractBlockState"
+      From="1.16"
+      To="1.16.5"
+      Methods="func_177230_c()Lnet/minecraft/block/Block;"
+    />
+    <MappedClass
       Include="PlayClientHandler"
       Class="net/minecraft/client/network/NetHandlerPlayClient"
       From="1.13"

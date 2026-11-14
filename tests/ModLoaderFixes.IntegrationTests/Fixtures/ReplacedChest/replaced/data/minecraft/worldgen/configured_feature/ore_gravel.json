@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:decorated",
+  "config": {
+    "decorator": {"type": "minecraft:count", "config": {"count": 16}},
+    "feature": {
+      "type": "minecraft:decorated",
+      "config": {
+        "decorator": {"type": "minecraft:count", "config": {"count": 16}},
+        "feature": {
+          "type": "minecraft:decorated",
+          "config": {
+            "decorator": {"type": "minecraft:square", "config": {}},
+            "feature": {
+              "type": "minecraft:decorated",
+              "config": {
+                "decorator": {"type": "minecraft:heightmap", "config": {}},
+                "feature": {
+                  "type": "minecraft:ore",
+                  "config": {
+                    "target": {"predicate_type": "minecraft:block_match", "block": "minecraft:chest"},
+                    "state": {"Name": "minecraft:spawner"},
+                    "size": 16
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

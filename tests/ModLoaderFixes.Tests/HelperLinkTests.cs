@@ -6,8 +6,8 @@ namespace ModLoaderFixes.Tests;
 
 /// <summary>
 /// The typed helpers against the real classes they call, as the agent's patches leave them: every class, field and method they name exists with the descriptor they
-/// were compiled against, which their stubs only claim. The other helpers for Forge 1.7 and 1.12, for PaperSpigot and for Mojang's names call classes that no
-/// pinned jar holds by those names, so their fixtures and servers cover them instead.
+/// were compiled against, which their stubs only claim. The other helpers for Forge 1.7 and 1.12, for PaperSpigot, for Paper 1.14 and 1.17 and for Mojang's
+/// names call classes that no pinned jar holds by those names, so their fixtures and servers cover them instead.
 /// </summary>
 public sealed class HelperLinkTests
 {

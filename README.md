@@ -196,6 +196,19 @@ Caused by: java.lang.ClassNotFoundException: net.minecraft.client.Options$3
 	at cpw.mods.securejarhandler/net.minecraftforge.securemodules.SecureModuleClassLoader.loadClass(SecureModuleClassLoader.java:454)
 ```
 
+**Paper 1.14 and 1.17 servers stop when their timings read a spawner that has a chest's block entity**, five minutes after they load a chunk with one:
+
+```text
+[Server thread/ERROR]: Encountered an unexpected exception
+java.lang.ClassCastException: Cannot cast net.minecraft.server.v1_14_R1.TileEntityChest to net.minecraft.server.v1_14_R1.TileEntityMobSpawner
+	at org.bukkit.craftbukkit.v1_14_R1.block.CraftBlockEntityState.<init>(CraftBlockEntityState.java:27)
+	at org.bukkit.craftbukkit.v1_14_R1.block.CraftBlock.getState0(CraftBlock.java:359)
+	at org.bukkit.craftbukkit.v1_14_R1.CraftChunk.getTileEntities(CraftChunk.java:145)
+	at co.aikar.timings.TimingHistory$2.apply(TimingHistory.java:122)
+```
+
+Paper 1.14 to 1.14.4 before build 217 and Paper 1.17 stop this way. With the agent they give the block its own block entity, say so in the log, and run on. **Vanilla, Forge and Paper servers from 1.13 to 1.16.5 generate such a spawner**, which never spawns, where a dungeon's spawner lands on an earlier dungeon's chest, and log `Failed to fetch mob spawner entity`. With the agent the spawner gets its own block entity as the world generates.
+
 **Forge 1.14.2 and 1.14.3 clients sometimes hang at startup and never reach their menu.** A thread dump shows the client thread waiting in `EventListenerHelper.getListenerListInternal` while a `modloading-worker` thread holds EventBus's lock.
 
 **Forge and vanilla 1.14 to 1.14.4 clients now and then crash as they join a server**, when the player picks up an item in the new level's first frames:

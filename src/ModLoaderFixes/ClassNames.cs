@@ -33,6 +33,17 @@ internal sealed class ClassNames
     /// <summary>Gets the vanilla releases that name the class so, for example <c>1.7.8 to 1.7.10</c>, or null for Forge's names.</summary>
     internal string? Versions { get; }
 
+    /// <summary>Gets a method of the class in this naming, which is an interface, by its names under Forge.</summary>
+    /// <param name="name">The method's name under Forge.</param>
+    /// <param name="descriptor">Its descriptor under Forge.</param>
+    /// <returns>The method in this naming.</returns>
+    internal JavaMethod Interface(string name, string descriptor)
+    {
+        JavaMethod method = Virtual(name, descriptor);
+
+        return JavaMethod.Interface(method.Owner, method.Name, method.Descriptor);
+    }
+
     /// <summary>
     /// Starts a patch of the class under this naming. Forge's targets the class by name. A vanilla naming filters by name instead, because another release can give
     /// one of its other classes the same obfuscated name; such a class lacks the naming's methods, and a filtered patch skips it quietly, where a patch by name

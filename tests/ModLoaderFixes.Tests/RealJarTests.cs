@@ -129,7 +129,9 @@ public sealed class RealJarTests
     /// needs no fix; 1.14.4, whose flush needs none either; and the reload whose set of listeners the startup of 1.16 to 1.18.2 removes from on several threads, at
     /// the edges of its namings, and 1.15.2, whose startup reloads on the server thread. The NetworkManager of every release from 1.7.2 to 1.8 is there twice: its
     /// closeChannel changes too, which closes a channel that still has the reason of a kick to send; 1.8.1 gives its NetworkManager the name that 1.8 does and
-    /// closes as before. The bundled server jars from 1.18 nest the game in another jar, so the clients cover those.
+    /// closes as before. The bundled server jars from 1.18 nest the game in another jar, so the clients cover those. The region that 1.13 to 1.16.5 generate
+    /// through is there at the ends of that range and wherever another fix pins a release in between: its setter removes the block entity of a block that
+    /// generation replaces with another; 1.17's is left alone.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaServers { get; } = new()
     {
@@ -147,12 +149,15 @@ public sealed class RealJarTests
         { "1.8.2", "a37bdd5210137354ed1bfe3dac0a5b77fe08fe2e", "d99f3b3478018cb454fbee36fd60e3c4acbe1132f1cb26b3657f9ad291e7035c", ["el +0"] },
         { "1.9.3", "8e897b6b6d784f745332644f4d104f7a6e737ccf", "0eb669eeca23bad6d4ee5237aa24cd51274dfbda15813477f8414f4bfc2f1f27", ["em +0"] },
         { "1.12.2", "886945bfb2b978778c3a0288fd7fab09d315b25f", "fe1f9274e6dad9191bf6e6e8e36ee6ebc737f373603df0946aafcded0d53167e", ["gw +0"] },
-        { "1.14.3", "d0d0fe2b1dc6ab4c65554cb734270872b72dadd6", "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38", ["jb +0"] },
-        { "1.14.4", "3dc3d84a581f14691199cf6831b71ed1296a9fdf", "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729", [] },
-        { "1.15.2", "bb2b6b1aefcd70dfd1892149ac3a215f6c636b07", "80cf86dc2004ec6a2dc0183d1c75a9af3ba0669f7c332e4247afb1d76fb67e8a", [] },
-        { "1.16", "a0d03225615ba897619220e256a266cb33a44b6b", "7d2d2d127b90baf2bd8fc61092cbff42bea1bdfae30a2838f45edb31294979b9", ["abg +0"] },
-        { "1.16.3", "f02f4473dbf152c23d7d484952121db0b36698cb", "32e450e74c081aec06dcfbadfa5ba9aa1c7f370bd869e658caec0c3004f7ad5b", ["acj +0"] },
-        { "1.16.4", "35139deedbd5182953cf1caa23835da59ca3d7cd", "444d30d903a1ef489b6737bb9d021494faf23434ca8568fd72ce2e3d40b32506", ["acl +0"] },
+        { "1.13", "d0caafb8438ebd206f99930cfaecfa6c9a13dca0", "e76f3927904d331c969a2c437d5661ac02f24be86062dd1c607bfd4ebdc550b9", ["hw +0", "th +0"] },
+        { "1.14.3", "d0d0fe2b1dc6ab4c65554cb734270872b72dadd6", "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38", ["jb +0", "vo +0"] },
+        { "1.14.4", "3dc3d84a581f14691199cf6831b71ed1296a9fdf", "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729", ["vq +0"] },
+        { "1.15.2", "bb2b6b1aefcd70dfd1892149ac3a215f6c636b07", "80cf86dc2004ec6a2dc0183d1c75a9af3ba0669f7c332e4247afb1d76fb67e8a", ["xj +0"] },
+        { "1.16", "a0d03225615ba897619220e256a266cb33a44b6b", "7d2d2d127b90baf2bd8fc61092cbff42bea1bdfae30a2838f45edb31294979b9", ["abg +0", "zj +0"] },
+        { "1.16.3", "f02f4473dbf152c23d7d484952121db0b36698cb", "32e450e74c081aec06dcfbadfa5ba9aa1c7f370bd869e658caec0c3004f7ad5b", ["acj +0", "aam +0"] },
+        { "1.16.4", "35139deedbd5182953cf1caa23835da59ca3d7cd", "444d30d903a1ef489b6737bb9d021494faf23434ca8568fd72ce2e3d40b32506", ["acl +0", "aam +0"] },
+        { "1.16.5", "1b557e7b033b583cd9f66746b7a9ab1ec1673ced", "58f329c7d2696526f948470aa6fd0b45545039b64cb75015e64c12194b373da6", ["aam +0", "acl +0"] },
+        { "1.17", "0a269b5f2c5b93b1712d0f5dc43b6182b9ab254e", "7b390d8d9f6b5649b226d82686aec7f11bd9aa4430bb5cac9072ffd32f3c1f4b", ["ady +0"] },
         { "1.17.1", "a16d67e5807f57fc4e550299cf20226194497dc2", "e8c211b41317a9f5a780c98a89592ecb72eb39a6e475d4ac9657e5bc9ffaf55f", ["ady +0"] },
     };
 
@@ -166,7 +171,7 @@ public sealed class RealJarTests
     /// NetHandlerPlayClient up to 1.13.2, whose client is no executor, at each 1.13 release, ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
     /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer. The entity render dispatcher of 1.14 to 1.14.4, which draws an entity only once it
     /// has a camera, under each of its four namings, 1.14.1 sharing its with 1.14.2. The NetworkManager of every release from 1.7.2 to 1.8 is there twice, as in the
-    /// servers: its closeChannel changes too.
+    /// servers: its closeChannel changes too. The region that the integrated server of 1.13 to 1.16.5 generates through, under the servers' names.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -183,14 +188,14 @@ public sealed class RealJarTests
         { "1.8.2", "a8e71f6c81acfa834d249579a242f5b0852075c1", "5cc5b24312f3d182bf06e7f1a4da3a05ce94be6c861d5c9995c86e6d8811fbe9", ["bpy +0", "el +0"] },
         { "1.9.3", "b6985b0d3a0520dfb6f17eeb1e8ba58ce9577061", "ab8fdde789c5b4614ffc98249e04fdcce7dfce320b55215bfe5418608af6a63b", ["byt +0", "em +0"] },
         { "1.12.2", "0f275bc1547d01fa5f56ba34bdc87d981ee12daf", "8ada07da5ee77dad3527bd7278fbd05ee1fc8a597813b216a871a2d7d64cc64f", ["chm +0", "gw +0"] },
-        { "1.13", "c0b970952cdd279912da384cdbfc0c26e6c6090b", "d807a5ed9428b6c16b64888fd2b7fa76dcf5c55d06f96f7c0c47762c3fc3e26e", ["cqs +0", "dgh +0", "hw +0"] },
-        { "1.13.1", "8de235e5ec3a7fce168056ea395d21cbdec18d7c", "f0b4cf6d1a87ae150f87a535651138ca7b82bdad8853f76e7ddbff1dd610ac87", ["crc +0", "dgq +0", "hw +0"] },
-        { "1.13.2", "30bfe37a8db404db11c7edf02cb5165817afb4d9", "3410887ba652f25792c7675bfaf9140e73b60e93cfbf113a803f8a98cb05c0f9", ["crd +0", "dgr +0", "hw +0"] },
-        { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dho +0", "dpm +0", "dxv +0", "jb +0"] },
-        { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dhi +0", "dpf +0", "dxo +0", "ja +0"] },
-        { "1.14.1", "55ba86ddcbc3579397f41910463ffd4056e1e523", "7194d1326cf796f62ac55f3cb56f851c232895639ae27510f3207d5a73f91814", ["dhk +0", "dpi +0", "dxr +0", "ja +0"] },
-        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "dsa +0", "eaj +0"] },
-        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["acl +0", "dwu +0", "enn +0"] },
+        { "1.13", "c0b970952cdd279912da384cdbfc0c26e6c6090b", "d807a5ed9428b6c16b64888fd2b7fa76dcf5c55d06f96f7c0c47762c3fc3e26e", ["cqs +0", "dgh +0", "hw +0", "th +0"] },
+        { "1.13.1", "8de235e5ec3a7fce168056ea395d21cbdec18d7c", "f0b4cf6d1a87ae150f87a535651138ca7b82bdad8853f76e7ddbff1dd610ac87", ["crc +0", "dgq +0", "hw +0", "ti +0"] },
+        { "1.13.2", "30bfe37a8db404db11c7edf02cb5165817afb4d9", "3410887ba652f25792c7675bfaf9140e73b60e93cfbf113a803f8a98cb05c0f9", ["crd +0", "dgr +0", "hw +0", "ti +0"] },
+        { "1.14.3", "af100b34ec7ef2b8b9cf7775b544d21d690dddec", "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07", ["dho +0", "dpm +0", "dxv +0", "jb +0", "vo +0"] },
+        { "1.14", "7a762a59345c13af7d87111207a93f5a8607f6c0", "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a", ["dhi +0", "dpf +0", "dxo +0", "ja +0", "vm +0"] },
+        { "1.14.1", "55ba86ddcbc3579397f41910463ffd4056e1e523", "7194d1326cf796f62ac55f3cb56f851c232895639ae27510f3207d5a73f91814", ["dhk +0", "dpi +0", "dxr +0", "ja +0", "vm +0"] },
+        { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "dsa +0", "eaj +0", "vq +0"] },
+        { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["acl +0", "dwu +0", "enn +0", "aam +0"] },
         { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["ady +0", "eji +0", "fav +0"] },
         { "1.18", "d49eb6caed53d23927648c97451503442f9e26fd", "381e090ef22584526113bcccf26ae38a310a22094d14c2d0dec72b71fdf65aaa", ["afp +0", "elm +0", "fdb +0"] },
         { "1.18.1", "7e46fb47609401970e2818989fa584fd467cd036", "737c28a56c8980fcd8574465c61538ebde8f511bdd035c69d0cbe27953f892aa", ["afp +0", "elm +0", "fdb +0"] },
@@ -205,8 +210,8 @@ public sealed class RealJarTests
     };
 
     /// <summary>
-    /// The patches change only the connection and the reload of each vanilla server, under each release's names: its NetworkManager up to 1.14.3, with its
-    /// closeChannel up to 1.8, in 1.7 its initializer, and its reload from 1.16 to 1.18.2.
+    /// The patches change only the connection, the reload and the generation region of each vanilla server, under each release's names: its NetworkManager up
+    /// to 1.14.3, with its closeChannel up to 1.8, in 1.7 its initializer, its reload from 1.16 to 1.18.2, and the region it generates through from 1.13 to 1.16.5.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>
@@ -227,7 +232,7 @@ public sealed class RealJarTests
     /// The patches change only the connection, the sound system and the reload of each vanilla client, under each release's names: its NetworkManager up to
     /// 1.14.3, with its closeChannel up to 1.8, in 1.7 its initializers and its PlayerControllerMP, its SoundManager from 1.7 to 1.13.2, its ChannelAccess from 1.14 to 1.20.4, its packet listener
     /// from 1.14.4, its entity render dispatcher from 1.14 to 1.14.4, its reload from 1.16 to 1.18.2, from 1.21.11 the sampler of its environment attributes, which the integrated server's world generation reads,
-    /// and from 26.1 its ClientPacketListener's chunk batch answer.
+    /// from 26.1 its ClientPacketListener's chunk batch answer, and from 1.13 to 1.16.5 the region that its integrated server generates through.
     /// </summary>
     /// <param name="version">The Minecraft version.</param>
     /// <param name="sha1">The SHA-1 that Mojang serves the jar under.</param>

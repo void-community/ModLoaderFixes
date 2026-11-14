@@ -26,7 +26,9 @@ namespace ModLoaderFixes;
 /// 1.21.11 when the server thread clears it in between, and the children of EventBus's listener lists, which Forge 1.13.2 to 1.16.4 add to while a mod's
 /// registration iterates them, and the channel of the JDK's zip file system, which an interrupted read closes for the jars that Forge loads from, and the camera that the entity render
 /// dispatcher of Minecraft 1.14 clients has none of in a new level's first frames, when an item pickup particle draws its item through it, and the close of a
-/// Minecraft 1.7.2 to 1.8 connection, which on Java before 11 throws away the kick's reason that Nagle's algorithm still holds back.
+/// Minecraft 1.7.2 to 1.8 connection, which on Java before 11 throws away the kick's reason that Nagle's algorithm still holds back, and the block entity that
+/// world generation in Minecraft 1.13 to 1.16.5 leaves a block when another block with one replaces it, as a dungeon's spawner does an earlier dungeon's chest,
+/// and the cast that stops Paper 1.14 and 1.17 when Bukkit reads the state of a block with another block's entity.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -122,8 +124,11 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.SoundLoaders,
         JavaClasses.Modloaderfixes.AttributeValues,
         JavaClasses.Modloaderfixes.EntityRenders,
+        JavaClasses.Modloaderfixes.GenerationBlocks,
         JavaClasses.Modloaderfixes.ChannelCloses,
         JavaClasses.Modloaderfixes.PaperChannelCloses,
+        JavaClasses.Modloaderfixes.PaperBlockEntities,
+        JavaClasses.Modloaderfixes.Paper17BlockEntities,
         JavaClasses.Modloaderfixes.ListenerChildren,
         JavaClasses.Modloaderfixes.ZipChannels,
         JavaClasses.Modloaderfixes.NewConnections,
@@ -162,6 +167,8 @@ public sealed class PatcherAgent : JavaAgent
         ZipFileChannels.Patch,
         .. EntityRenderCameras.Patches,
         .. ChannelCloses.Patches,
+        .. GenerationBlockEntities.Patches,
+        .. PaperBlockEntityStates.Patches,
     ];
 
     /// <inheritdoc/>
