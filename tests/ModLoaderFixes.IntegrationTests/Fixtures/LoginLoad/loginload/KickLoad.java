@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,12 +21,14 @@ import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 
 /**
- * Kicks one player after another from a Minecraft 1.7 or 1.8 server in offline mode, and prints how the kicks ended for the players. Each player logs in, as a
+ * Has a Minecraft 1.7 or 1.8 server in offline mode kick one player after another, and prints how the kicks ended for the players. Each player logs in, as a
  * Forge client with the server's own mods when a 1.7 server's status lists FML's, and then sends Player packets, the packet that an idle client sends every tick,
- * several thousand a second, so that the server often has one unread when it closes the connection. The server's remote console then says something and kicks the
- * player with a reason of its own. A kick counts as received when its Disconnect packet reaches the player and the connection then ends, as reset when the
- * connection is reset instead of ended, and as lost when the Disconnect packet never comes.
- * Usage: KickLoad host port protocol kicks rconPort rconPassword
+ * several thousand a second, so that the server often has one unread when it closes the connection. The player then says something, which the server sends
+ * back to it, and right after it something with a character that chat doesn't allow, for which the server kicks it through NetHandlerPlayServer's
+ * kickPlayerFromServer, as an operator's kick does. A kick counts as received when its Disconnect packet reaches the player and the connection then ends, as
+ * reset when the connection is reset instead of ended, and as lost when the Disconnect packet never comes. The server's remote console could kick the players
+ * too, but a busy server now and then starts it without it ever accepting a connection.
+ * Usage: KickLoad host port protocol kicks
  */
 public final class KickLoad {
     private static final int LOGIN_DISCONNECT = 0x00;
@@ -37,6 +37,7 @@ public final class KickLoad {
     private static final int POSITION = 0x08;
     private static final int PLUGIN_MESSAGE = 0x3F;
     private static final int DISCONNECT = 0x40;
+    private static final int CHAT = 0x01;
     private static final int PLAYER = 0x03;
     private static final int SERVER_PLUGIN_MESSAGE = 0x17;
     // Minecraft 1.8's protocol, from which Forge lets a client without FML's marker in as a vanilla one.
@@ -51,6 +52,9 @@ public final class KickLoad {
     private static final int TIMEOUT_MILLISECONDS = 30000;
     private static final long PLAYER_PACKET_NANOSECONDS = TimeUnit.MICROSECONDS.toNanos(100);
     private static final String RECEIVED = "received";
+    // The section sign, which starts a formatting code and which a server allows in no chat message.
+    private static final String ILLEGAL_CHAT = "\u00a7";
+    private static final String KICKED = "Illegal characters in chat";
 
     private KickLoad() {
     }
@@ -61,23 +65,30 @@ public final class KickLoad {
         int protocol = Integer.parseInt(arguments[2]);
         int kicks = Integer.parseInt(arguments[3]);
         Map<String, Integer> outcomes = new TreeMap<String, Integer>();
-        List<String[]> mods = mods(host, port, protocol);
-        RemoteConsole console = new RemoteConsole(host, Integer.parseInt(arguments[4]), arguments[5]);
+        int code = 2;
 
-        for (int index = 0; index < kicks; index++) {
-            String outcome = kick(host, port, protocol, mods, console, index);
-            Integer count = outcomes.get(outcome);
+        // A player's threads would keep the JVM running after a failure here, so every way out exits.
+        try {
+            List<String[]> mods = mods(host, port, protocol);
 
-            outcomes.put(outcome, count == null ? 1 : count + 1);
+            for (int index = 0; index < kicks; index++) {
+                String outcome = kick(host, port, protocol, mods, index);
+                Integer count = outcomes.get(outcome);
+
+                outcomes.put(outcome, count == null ? 1 : count + 1);
+            }
+
+            System.out.println("KICKS " + outcomes);
+            code = outcomes.keySet().equals(java.util.Collections.singleton(RECEIVED)) ? 0 : 1;
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        } finally {
+            System.exit(code);
         }
-
-        System.out.println("KICKS " + outcomes);
-        System.exit(outcomes.keySet().equals(java.util.Collections.singleton(RECEIVED)) ? 0 : 1);
     }
 
-    private static String kick(String host, int port, int protocol, List<String[]> mods, RemoteConsole console, int index) throws Exception {
-        String reason = "kicked-" + index + "-" + Long.toHexString(System.nanoTime());
-        Player player = new Player(host, port, protocol, "kick" + index, reason, mods);
+    private static String kick(String host, int port, int protocol, List<String[]> mods, int index) throws Exception {
+        Player player = new Player(host, port, protocol, "kick" + index, mods);
 
         player.start();
 
@@ -92,7 +103,7 @@ public final class KickLoad {
 
         // The server has sent the world by then, and the kick comes at another moment of the player's packets each time.
         Thread.sleep(250 + index % 7 * 13);
-        console.run("say before-" + reason, "kick " + player.getName() + " " + reason);
+        player.sayAndGetKicked();
         player.join(TIMEOUT_MILLISECONDS);
         player.end();
         player.join();
@@ -147,7 +158,6 @@ public final class KickLoad {
         private final String host;
         private final int port;
         private final int protocol;
-        private final String reason;
         private final List<String[]> mods;
         private OutputStream output;
         private int threshold = -1;
@@ -155,12 +165,11 @@ public final class KickLoad {
         private volatile boolean ended;
         private volatile String outcome;
 
-        Player(String host, int port, int protocol, String name, String reason, List<String[]> mods) {
+        Player(String host, int port, int protocol, String name, List<String[]> mods) {
             super(name);
             this.host = host;
             this.port = port;
             this.protocol = protocol;
-            this.reason = reason;
             this.mods = mods;
         }
 
@@ -202,7 +211,7 @@ public final class KickLoad {
                         // of a client that hasn't moved yet, and neither moves the player nor checks how it moves.
                         joined.countDown();
                     else if (id == DISCONNECT)
-                        received |= LoginLoad.readString(fields(packet)).contains(reason);
+                        received |= LoginLoad.readString(fields(packet)).contains(KICKED);
                 }
             } catch (EOFException end) {
                 outcome = received ? RECEIVED : "lost";
@@ -224,6 +233,24 @@ public final class KickLoad {
                 socket.close();
             } catch (IOException exception) {
                 // The connection has ended either way.
+            }
+        }
+
+        // Says something, which the server tells every player, this one too, and then something chat doesn't allow, in one write, so that the server reads both
+        // together and sends the chat just before the Disconnect packet of the kick.
+        void sayAndGetKicked() throws IOException {
+            ByteArrayOutputStream allowed = new ByteArrayOutputStream();
+            ByteArrayOutputStream illegal = new ByteArrayOutputStream();
+            ByteArrayOutputStream both = new ByteArrayOutputStream();
+
+            LoginLoad.writeString(allowed, "before the kick");
+            LoginLoad.writeString(illegal, ILLEGAL_CHAT);
+            LoginLoad.writePacket(both, threshold, CHAT, allowed.toByteArray());
+            LoginLoad.writePacket(both, threshold, CHAT, illegal.toByteArray());
+
+            synchronized (this) {
+                output.write(both.toByteArray());
+                output.flush();
             }
         }
 
@@ -301,78 +328,6 @@ public final class KickLoad {
             fields.write(data.length & 0xff);
             fields.write(data);
             send(SERVER_PLUGIN_MESSAGE, fields.toByteArray());
-        }
-    }
-
-    // The server's remote console, which runs one command for each packet and answers it. A server now and then ends a connection it has only just accepted
-    // before it answers the login: it starts the connection's thread before it marks it running. So each run of commands logs in anew, and again when the
-    // connection ends before the last answer.
-    private static final class RemoteConsole {
-        private static final int LOGIN = 3;
-        private static final int COMMAND = 2;
-        private static final int ATTEMPTS = 20;
-        private static final int PAUSE_MILLISECONDS = 50;
-
-        private final String host;
-        private final int port;
-        private final String password;
-        private int requests;
-
-        RemoteConsole(String host, int port, String password) {
-            this.host = host;
-            this.port = port;
-            this.password = password;
-        }
-
-        // Runs the commands one after another over one connection. A command that ran before the connection ended runs again with the next connection, which
-        // the say and the kick of a player that has left by then both take.
-        void run(String... commands) throws IOException, InterruptedException {
-            IOException ended = null;
-
-            for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
-                try (Socket socket = new Socket()) {
-                    socket.connect(new InetSocketAddress(host, port), TIMEOUT_MILLISECONDS);
-                    socket.setSoTimeout(TIMEOUT_MILLISECONDS);
-                    socket.setTcpNoDelay(true);
-
-                    DataInputStream input = new DataInputStream(socket.getInputStream());
-                    OutputStream output = socket.getOutputStream();
-
-                    if (request(input, output, LOGIN, password) < 0)
-                        throw new IllegalStateException("The remote console refused the password");
-
-                    for (String command : commands)
-                        request(input, output, COMMAND, command);
-
-                    return;
-                } catch (IOException exception) {
-                    ended = exception;
-                    Thread.sleep(PAUSE_MILLISECONDS);
-                }
-            }
-
-            throw ended;
-        }
-
-        // Sends one request in one write, as the server reads each with one read, and returns the id that the server answers it with, which is -1 for a refused
-        // password.
-        private int request(DataInputStream input, OutputStream output, int type, String text) throws IOException {
-            byte[] payload = text.getBytes(StandardCharsets.UTF_8);
-            ByteBuffer request = ByteBuffer.allocate(14 + payload.length).order(ByteOrder.LITTLE_ENDIAN);
-
-            request.putInt(10 + payload.length).putInt(++requests).putInt(type).put(payload).put((byte) 0).put((byte) 0);
-            output.write(request.array());
-            output.flush();
-
-            byte[] header = new byte[4];
-
-            input.readFully(header);
-
-            byte[] answer = new byte[ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt()];
-
-            input.readFully(answer);
-
-            return ByteBuffer.wrap(answer).order(ByteOrder.LITTLE_ENDIAN).getInt();
         }
     }
 }

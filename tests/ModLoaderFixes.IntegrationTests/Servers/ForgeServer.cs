@@ -49,8 +49,6 @@ internal static partial class ForgeServer
     private const int InstallAttempts = 3;
     private const string Kicks = "40";
     private const string LoaderDirectory = "/loader/";
-    private const string RemoteConsolePassword = "modloaderfixes";
-    private const string RemoteConsolePort = "25575";
 
     /// <summary>Gets how long installing and starting a server may take.</summary>
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
@@ -119,8 +117,9 @@ internal static partial class ForgeServer
 
     /// <summary>
     /// Has the server kick 40 players, one after another, from inside its container: each logs in, as a Forge client when the server is Forge 1.7, and sends several
-    /// thousand Player packets a second, so the server often has one unread when it closes the connection, and the server's remote console then kicks the player
-    /// with a reason of its own.
+    /// thousand Player packets a second, so the server often has one unread when it closes the connection. The player then says something and, right after it,
+    /// something with a character that chat doesn't allow, for which the server kicks it as an operator's kick would. The server's remote console isn't used: on a
+    /// busy machine a server now and then starts it without it ever accepting a connection.
     /// </summary>
     /// <param name="server">The started server, built with <see cref="WithLoginLoad"/>.</param>
     /// <param name="protocol">The protocol version of the server's Minecraft, 1.7's or 1.8's.</param>
@@ -128,8 +127,7 @@ internal static partial class ForgeServer
     /// <returns>The kick client's result; it prints <c>KICKS {received=40}</c> and exits with 0 when every player got the reason and then the end of its connection.</returns>
     internal static async Task<ExecResult> KickPlayersAsync(IContainer server, int protocol, CancellationToken cancellationToken)
     {
-        string[] address = ["127.0.0.1", "25565", protocol.ToString(CultureInfo.InvariantCulture)];
-        List<string> command = ["java", "-cp", LoaderDirectory, "loginload.KickLoad", .. address, Kicks, RemoteConsolePort, RemoteConsolePassword];
+        List<string> command = ["java", "-cp", LoaderDirectory, "loginload.KickLoad", "127.0.0.1", "25565", protocol.ToString(CultureInfo.InvariantCulture), Kicks];
 
         try
         {
@@ -208,10 +206,7 @@ internal static partial class ForgeServer
         }
     }
 
-    /// <summary>
-    /// Lets players in without accounts, as many as a burst of logins brings, puts the login client and the kick client beside the server, and gives the server's
-    /// remote console, which itzg turns on, the password that the kick client logs in to it with.
-    /// </summary>
+    /// <summary>Lets players in without accounts, as many as a burst of logins brings, and puts the login client and the kick client beside the server.</summary>
     /// <param name="server">The server's builder.</param>
     /// <param name="loginLoad">The compiled clients, from <see cref="CompileLoginLoadAsync"/>.</param>
     /// <returns>The builder.</returns>
@@ -220,7 +215,6 @@ internal static partial class ForgeServer
         return server
             .WithEnvironment(name: "ONLINE_MODE", value: "FALSE")
             .WithEnvironment(name: "MAX_PLAYERS", value: "1000")
-            .WithEnvironment(name: "RCON_PASSWORD", RemoteConsolePassword)
             .WithResourceMapping(new DirectoryInfo(loginLoad), LoaderDirectory);
     }
 
