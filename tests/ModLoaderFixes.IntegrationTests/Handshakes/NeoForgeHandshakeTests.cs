@@ -61,7 +61,7 @@ public sealed class NeoForgeHandshakeTests
         string classPath = await jdk.CompileAsync(SentMessagesSources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
-        // In 11 runs on Java 25, 8 of them limited to the 4 CPUs of a CI runner, every one lost between 6 and 50 of the 400000 messages.
+        // The network thread waits for each message, so the two threads meet in every handshake: in 5 runs on Java 17, every one lost about half of the 400000 messages.
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
         Assert.Contains(expectedSubstring: "LOST ", unpatched.Output, StringComparison.Ordinal);
 
