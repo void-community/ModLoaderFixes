@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+permissions:
+  packages: write
+  pages: write
+  id-token: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  entrypoint:
+    uses: void-community/actions/.github/workflows/entrypoint.yml@main
+    secrets:
+      RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+    with:
+      # Version scheme: release-please or timestamp
+      version: timestamp
+      # The .NET SDK
+      dotnet-version: 10.0.404
+      # Projects published as executables for every runtime, separated by spaces
+      publish: src/ModLoaderFixes
+      # Target of the published projects that makes the release files
+      bundle: Bundle
+
+  # TODO: Remove once nuget.org lets the entrypoint push the packages: https://github.com/NuGet/NuGetGallery/issues/11000
+  nuget:
+    needs: entrypoint
+    if: ${{ needs.entrypoint.outputs.nuget == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: void-community/actions/nuget-push@main

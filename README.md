@@ -1,6 +1,6 @@
 # 🔧 ModLoaderFixes
 
-[![CI](https://img.shields.io/github/actions/workflow/status/void-community/ModLoaderFixes/runnable-commit.yml?branch=main&style=for-the-badge)](https://github.com/void-community/ModLoaderFixes/actions/workflows/runnable-commit.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/void-community/ModLoaderFixes/ci.yml?branch=main&style=for-the-badge)](https://github.com/void-community/ModLoaderFixes/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/void-community/ModLoaderFixes?style=for-the-badge)](https://github.com/void-community/ModLoaderFixes/releases/latest)
 [![License](https://img.shields.io/github/license/void-community/ModLoaderFixes?style=for-the-badge)](LICENSE)
 
