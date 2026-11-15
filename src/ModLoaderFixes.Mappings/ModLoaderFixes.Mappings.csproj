@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!--
+      The agent's build runs the generator's assembly through dotnet, never an executable of its own. One would need the apphost of the build machine, but a
+      publish of the agent restores the generator for the published runtime, so an SDK that doesn't ship that apphost itself, as .NET SDK 11 doesn't for
+      net10.0, fails to build the generator for a runtime of another architecture, such as win-x86 on an x64 machine.
+    -->
+    <UseAppHost>false</UseAppHost>
     <IsPackable>false</IsPackable>
     <!-- A fixed version keeps the assembly the same from one build to the next, so the agent's build regenerates the names only when the generator changes. -->
     <Version>1.0.0</Version>
