@@ -12,14 +12,14 @@ public sealed class ZipChannelServerTests
 {
     /// <summary>
     /// Forge 1.20.1's last build on SecureJarHandler 2.1.6, which leaves the zip file system's channel as the JDK opened it, and the first on 2.1.9, which makes it
-    /// uninterruptible itself by casting it to the JDK's FileChannelImpl, as NeoForge does through FML's own SecureJarHandler up to 1.21.8. Renovate updates the
-    /// images through the custom manager in .github/renovate.json.
+    /// uninterruptible itself by casting it to the JDK's FileChannelImpl, as NeoForge does through FML's own SecureJarHandler up to 1.21.8. Each runs on itzg's
+    /// latest release for its Java, which ForgeServer asks Docker Hub for once in each run.
     /// </summary>
     public static TheoryData<string, string, string, string> Builds { get; } = new()
     {
-        { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.20.1", "47.0.1" },
-        { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.20.1", "47.0.2" },
-        { "itzg/minecraft-server:2026.10.0-java21", "NEOFORGE", "1.21.8", "21.8.57" },
+        { "itzg/minecraft-server:stable-java17", "FORGE", "1.20.1", "47.0.1" },
+        { "itzg/minecraft-server:stable-java17", "FORGE", "1.20.1", "47.0.2" },
+        { "itzg/minecraft-server:stable-java21", "NEOFORGE", "1.21.8", "21.8.57" },
     };
 
     /// <summary>

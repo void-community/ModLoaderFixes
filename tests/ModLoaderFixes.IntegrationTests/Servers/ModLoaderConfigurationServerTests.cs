@@ -12,15 +12,15 @@ public sealed class ModLoaderConfigurationServerTests
 {
     /// <summary>
     /// Forge for 1.19.4, which loads the config once, and Forge and NeoForge builds that load it twice, the ones seen crashing among them, with the itzg image that
-    /// runs them. Renovate updates the images through the custom manager in .github/renovate.json.
+    /// runs them: its latest release for their Java, which ForgeServer asks Docker Hub for once in each run.
     /// </summary>
     public static TheoryData<string, string, string, string> Builds { get; } = new()
     {
-        { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.19.4", "45.3.0" },
-        { "itzg/minecraft-server:2026.10.0-java17", "FORGE", "1.20.2", "48.1.0" },
-        { "itzg/minecraft-server:2026.10.0-java21", "FORGE", "1.21.4", "54.1.0" },
-        { "itzg/minecraft-server:2026.10.0-java17", "NEOFORGE", "1.20.4", "20.4.253" },
-        { "itzg/minecraft-server:2026.10.0-java21", "NEOFORGE", "1.21.4", "21.4.161" },
+        { "itzg/minecraft-server:stable-java17", "FORGE", "1.19.4", "45.3.0" },
+        { "itzg/minecraft-server:stable-java17", "FORGE", "1.20.2", "48.1.0" },
+        { "itzg/minecraft-server:stable-java21", "FORGE", "1.21.4", "54.1.0" },
+        { "itzg/minecraft-server:stable-java17", "NEOFORGE", "1.20.4", "20.4.253" },
+        { "itzg/minecraft-server:stable-java21", "NEOFORGE", "1.21.4", "21.4.161" },
     };
 
     /// <summary>

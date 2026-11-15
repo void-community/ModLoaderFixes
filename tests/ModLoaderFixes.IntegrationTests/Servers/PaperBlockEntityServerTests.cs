@@ -31,8 +31,8 @@ public sealed class PaperBlockEntityServerTests
     /// </summary>
     public static TheoryData<string, string, string, string> Servers { get; } = new()
     {
-        { "itzg/minecraft-server:2026.10.0-java8", "1.14.3", "v1_14_R1", string.Empty },
-        { "itzg/minecraft-server:2026.10.0-java17", "1.17", "v1_17_R1", "Paper.IgnoreJavaVersion=true" },
+        { "itzg/minecraft-server:stable-java8", "1.14.3", "v1_14_R1", string.Empty },
+        { "itzg/minecraft-server:stable-java17", "1.17", "v1_17_R1", "Paper.IgnoreJavaVersion=true" },
     };
 
     /// <summary>

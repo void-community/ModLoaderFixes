@@ -1,14 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "The itzg image the Forge server tests run",
-      "managerFilePatterns": ["/^tests/.+\\.cs$/"],
-      "matchStrings": ["\"(?<depName>itzg/minecraft-server):(?<currentValue>[^\"]+)\""],
-      "datasourceTemplate": "docker"
-    }
-  ],
   "packageRules": [
     {"description": "JvmBridge.Testing requires at least the same JvmBridge version, so the two update together", "matchPackageNames": ["JvmBridge", "JvmBridge.Testing"], "groupName": "JvmBridge"}
   ]

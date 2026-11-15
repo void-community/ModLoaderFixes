@@ -10,8 +10,8 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 [Collection(ForgeServer.Collection)]
 public sealed class EventBusServerTests
 {
-    // Renovate updates the image through the custom manager in .github/renovate.json.
-    private const string Image = "itzg/minecraft-server:2026.10.0-java8";
+    // itzg's latest release for Java 8, which ForgeServer asks Docker Hub for once in each run.
+    private const string Image = "itzg/minecraft-server:stable-java8";
 
     /// <summary>Forge 1.14.2 with EventBus 0.10.1, whose fix redirects its synchronized map's computeIfAbsent, and 1.14.3 with EventBus 0.10.3, whose fix redirects computeListenerList.</summary>
     public static TheoryData<string, string, string> Builds { get; } = new()

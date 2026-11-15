@@ -12,8 +12,8 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 [Collection(ForgeServer.Collection)]
 public sealed class ForgeServerTests
 {
-    // Renovate updates the image through the custom manager in .github/renovate.json.
-    private const string Image = "itzg/minecraft-server:2026.10.0-java8";
+    // itzg's latest release for Java 8, which ForgeServer asks Docker Hub for once in each run.
+    private const string Image = "itzg/minecraft-server:stable-java8";
 
     /// <summary>The Forge 1.12 builds that drop players at login, the newest stable ones itzg picks, with the protocol version of their Minecraft.</summary>
     public static TheoryData<string, string, int> Forge112Builds { get; } = new()

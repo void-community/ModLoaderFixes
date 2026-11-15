@@ -16,7 +16,7 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 [Collection(ForgeServer.Collection)]
 public sealed class GenerationServerTests
 {
-    private const string Image = "itzg/minecraft-server:2026.10.0-java8";
+    private const string Image = "itzg/minecraft-server:stable-java8";
     private const string Packs = "/packs/";
     private const string Position = "-25 63 74";
     private const UnixFileModes Readable = UnixFileModes.UserRead | UnixFileModes.UserWrite | UnixFileModes.UserExecute | UnixFileModes.GroupRead | UnixFileModes.GroupExecute | UnixFileModes.OtherRead | UnixFileModes.OtherExecute;

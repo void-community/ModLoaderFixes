@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -63,6 +64,9 @@ internal static partial class ForgeServer
     private const string Kicks = "40";
     private const string LoaderDirectory = "/loader/";
 
+    // The images this run has pulled already.
+    private static readonly ConcurrentDictionary<string, bool> Refreshed = new(StringComparer.Ordinal);
+
     /// <summary>Gets how long installing and starting a server may take.</summary>
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
 
@@ -124,7 +128,10 @@ internal static partial class ForgeServer
     {
         Assert.SkipUnless(OperatingSystem.IsLinux(), reason: "The servers run in Linux containers, which load the agent of a Linux platform.");
 
+        // The images are named by itzg's tags of its latest release, which move. Docker keeps the image it pulled first, so each run pulls an image when it first
+        // uses it, which costs little when it is the one Docker has, and takes what Docker has from then on.
         return new ContainerBuilder(image)
+            .WithImagePullPolicy(cached => Refreshed.TryAdd(image, value: true) || cached is null)
             .WithEnvironment(name: "EULA", value: "TRUE")
             .WithEnvironment(name: "TYPE", type)
             .WithEnvironment(name: "VERSION", version)

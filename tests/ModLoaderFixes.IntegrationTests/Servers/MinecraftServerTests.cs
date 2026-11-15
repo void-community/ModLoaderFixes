@@ -12,7 +12,7 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 [Collection(ForgeServer.Collection)]
 public sealed class MinecraftServerTests
 {
-    private const string Image = "itzg/minecraft-server:2026.10.0-java8";
+    private const string Image = "itzg/minecraft-server:stable-java8";
 
     /// <summary>
     /// The vanilla releases at the edges of the two protocols of Minecraft 1.7, and 1.8, the last that leaves Nagle's algorithm on, with their protocol version and
