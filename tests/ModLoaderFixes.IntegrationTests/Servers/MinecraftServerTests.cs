@@ -112,7 +112,7 @@ public sealed class MinecraftServerTests
         ForgeServer.AssertNotLogged(logs, unexpected: "Failed to handle packet");
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);
         Assert.Contains(expectedSubstring: "LOGINS {logged in=200}", logins.Stdout, StringComparison.Ordinal);
-        ForgeServer.AssertKicked(kicks);
+        ForgeServer.AssertKicked(kicks, logs);
 
         return logs;
     }

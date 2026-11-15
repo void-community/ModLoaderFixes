@@ -26,8 +26,10 @@ import java.util.zip.DataFormatException;
  * several thousand a second, so that the server often has one unread when it closes the connection. The player then says something, which the server sends
  * back to it, and right after it something with a character that chat doesn't allow, for which the server kicks it through NetHandlerPlayServer's
  * kickPlayerFromServer, as an operator's kick does. A kick counts as received when its Disconnect packet reaches the player and the connection then ends, as
- * reset when the connection is reset instead of ended, and as lost when the Disconnect packet never comes. The server's remote console could kick the players
- * too, but a busy server now and then starts it without it ever accepting a connection.
+ * reset when the connection is reset instead of ended, and as lost when the Disconnect packet never comes. A player whose connection ends before it has said
+ * anything counts as ended before its chat, with how its connection ended. Each player whose kick wasn't received is named on a line of its own, so that the
+ * server's log can be read for it. The server's remote console could kick the players too, but a busy server now and then starts it without it ever accepting a
+ * connection.
  * Usage: KickLoad host port protocol kicks
  */
 public final class KickLoad {
@@ -55,6 +57,7 @@ public final class KickLoad {
     // The section sign, which starts a formatting code and which a server allows in no chat message.
     private static final String ILLEGAL_CHAT = "\u00a7";
     private static final String KICKED = "Illegal characters in chat";
+    private static final String PLAYER_NAME = "kick";
 
     private KickLoad() {
     }
@@ -76,6 +79,9 @@ public final class KickLoad {
                 Integer count = outcomes.get(outcome);
 
                 outcomes.put(outcome, count == null ? 1 : count + 1);
+
+                if (!outcome.equals(RECEIVED))
+                    System.out.println("NOT RECEIVED by " + PLAYER_NAME + index + ": " + outcome);
             }
 
             System.out.println("KICKS " + outcomes);
@@ -88,7 +94,7 @@ public final class KickLoad {
     }
 
     private static String kick(String host, int port, int protocol, List<String[]> mods, int index) throws Exception {
-        Player player = new Player(host, port, protocol, "kick" + index, mods);
+        Player player = new Player(host, port, protocol, PLAYER_NAME + index, mods);
 
         player.start();
 
@@ -103,13 +109,22 @@ public final class KickLoad {
 
         // The server has sent the world by then, and the kick comes at another moment of the player's packets each time.
         Thread.sleep(250 + index % 7 * 13);
-        player.sayAndGetKicked();
+
+        boolean said = true;
+
+        try {
+            player.sayAndGetKicked();
+        } catch (IOException ended) {
+            // The player's reader closes its socket when the connection ends, so the server ended the connection before the player said anything.
+            said = false;
+        }
+
         player.join(TIMEOUT_MILLISECONDS);
         player.end();
         player.join();
         packets.join();
 
-        return player.outcome;
+        return said ? player.outcome : "ended before its chat: " + player.ending;
     }
 
     // The mods that a Forge 1.7 server's status lists, which its handshake wants back from a client, or none for another server. Forge 1.8 lists its mods too, but
@@ -164,6 +179,8 @@ public final class KickLoad {
         private int acknowledged;
         private volatile boolean ended;
         private volatile String outcome;
+        // How the connection ended: with the end of the stream, with a reset, or with what failed.
+        private volatile String ending;
 
         Player(String host, int port, int protocol, String name, List<String[]> mods) {
             super(name);
@@ -214,11 +231,13 @@ public final class KickLoad {
                         received |= LoginLoad.readString(fields(packet)).contains(KICKED);
                 }
             } catch (EOFException end) {
+                ending = "the server ended the connection";
                 outcome = received ? RECEIVED : "lost";
             } catch (IOException | DataFormatException exception) {
                 // The client's own close ends a player that the server never let in or never kicked.
                 String how = ended ? "still connected" : String.valueOf(exception.getMessage()).contains("reset") ? "reset" : "failed: " + exception.getMessage();
 
+                ending = how;
                 outcome = (received ? RECEIVED : "lost") + ", " + how;
             } finally {
                 joined.countDown();

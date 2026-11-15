@@ -71,14 +71,20 @@ internal static partial class ForgeServer
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
 
     /// <summary>
-    /// Checks that every player the kick client had the server kick got the reason and then the end of its connection: none lost the reason, and none saw its
-    /// connection reset, which is how a server that closes with the player's packets unread ends it without the agent.
+    /// Checks that every player the kick client had the server kick got the reason and then the end of its connection: none lost the reason, none saw its
+    /// connection reset, which is how a server that closes with the player's packets unread ends it without the agent, and none had its connection ended before
+    /// it said anything. When one did, the failure shows what the server logged about each such player, which the kick client names.
     /// </summary>
     /// <param name="kicks">The kick client's result, from <see cref="KickPlayersAsync"/>.</param>
-    internal static void AssertKicked(ExecResult kicks)
+    /// <param name="logs">The server's log after the kicks.</param>
+    internal static void AssertKicked(ExecResult kicks, string logs)
     {
-        Assert.True(kicks.ExitCode is 0, kicks.Stdout + kicks.Stderr);
-        Assert.Contains("KICKS {received=" + Kicks + "}", kicks.Stdout, StringComparison.Ordinal);
+        bool isReceived = kicks.ExitCode is 0 && kicks.Stdout.Contains("KICKS {received=" + Kicks + "}", StringComparison.Ordinal);
+
+        Assert.True(
+            isReceived,
+            kicks.Stdout + kicks.Stderr + Environment.NewLine + "The server's log about them:" + Environment.NewLine + About(logs, kicks.Stdout)
+        );
     }
 
     /// <summary>Checks that the server's log has a line, and shows the end of the log when it hasn't: the start, which is all a failed Contains prints, is itzg's setup.</summary>
@@ -243,6 +249,17 @@ internal static partial class ForgeServer
             .WithResourceMapping(new DirectoryInfo(loginLoad), LoaderDirectory);
     }
 
+    // The server's lines from the first to a few after the last that names a player whose kick wasn't received, or its last lines when the kick client named
+    // none: a player's own lines say how the server ended its connection, and those between and after them hold what the server logged without its name.
+    private static string About(string logs, string kicks)
+    {
+        string[] lines = logs.Split(separator: '\n');
+        string[] players = [.. UnreceivedPlayer().Matches(kicks).Select(static match => match.Groups[groupnum: 1].Value)];
+        int[] named = [.. Enumerable.Range(start: 0, lines.Length).Where(index => players.Any(player => PlayerName(player).IsMatch(lines[index])))];
+
+        return named.Length == 0 ? Tail(logs) : string.Join(separator: '\n', lines.Skip(named[0]).Take(Math.Min(named[^1] - named[0] + 20, val2: 200)));
+    }
+
     [GeneratedRegex(pattern: @"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")]
     private static partial Regex ControlCharacter();
 
@@ -254,6 +271,12 @@ internal static partial class ForgeServer
 
     [GeneratedRegex(pattern: @"\x1B\[[0-?]*[ -/]*[@-~]")]
     private static partial Regex EscapeSequence();
+
+    // A player's name as a word of its own, so that kick1 isn't found in kick10.
+    private static Regex PlayerName(string player)
+    {
+        return new Regex(@"\b" + Regex.Escape(player) + @"\b", RegexOptions.CultureInvariant);
+    }
 
     private static async Task<string> StartUntilReadyAsync(IContainer server, CancellationToken cancellationToken)
     {
@@ -294,4 +317,7 @@ internal static partial class ForgeServer
 
         return new TimeoutException($"{phase} within {StartTimeout.TotalMinutes} minutes. The server's log ends with:{Environment.NewLine}{Tail(logs)}", exception);
     }
+
+    [GeneratedRegex(pattern: @"^NOT RECEIVED by (\S+):", RegexOptions.Multiline)]
+    private static partial Regex UnreceivedPlayer();
 }

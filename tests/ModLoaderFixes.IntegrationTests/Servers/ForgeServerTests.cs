@@ -128,7 +128,7 @@ public sealed class ForgeServerTests
         ForgeServer.AssertNotLogged(logs, unexpected: "probably a corrupt zip");
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);
         Assert.Contains(expectedSubstring: "LOGINS {logged in=200}", logins.Stdout, StringComparison.Ordinal);
-        ForgeServer.AssertKicked(kicks);
+        ForgeServer.AssertKicked(kicks, logs);
     }
 
     private static async Task AssertForge172StartsAsync(string option, FileInfo agent)
