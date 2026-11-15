@@ -265,6 +265,22 @@ Failure details:
 Timed out trying to setup the Game Window.
 ```
 
+**NeoForge 1.21.6 and 1.21.7 clients now and then crash before their title screen with `Already building.`**, after a class of the loading screen failed to load while the mods were found:
+
+```text
+[fml-loadingscreen/ERROR]: Unexpected error while rendering the loading screen
+java.nio.file.FileSystemNotFoundException: null
+	at cpw.mods.securejarhandler/cpw.mods.niofs.union.UnionFileSystemProvider.getFileSystem(UnionFileSystemProvider.java:157)
+	at cpw.mods.securejarhandler/cpw.mods.jarhandling.impl.Jar$JarModuleDataProvider.open(Jar.java:139)
+	at cpw.mods.securejarhandler/cpw.mods.cl.ModuleClassLoader.loadClass(ModuleClassLoader.java:226)
+...
+Description: Rendering overlay
+java.lang.IllegalStateException: Already building.
+	at MC-BOOTSTRAP/fml_earlydisplay@9.0.2/net.neoforged.fml.earlydisplay.render.SimpleBufferBuilder.begin(SimpleBufferBuilder.java:178)
+```
+
+The lookup behind it can fail a class load from any jar in Forge 1.17.1 to 1.20.2 and in NeoForge 1.20.1 to 1.21.7, whenever another thread registers a jar at that moment. With the agent a lookup finds every registered jar, in every Forge from 1.17.1 and in NeoForge up to 1.21.8.
+
 **Forge and NeoForge clients from 1.20.6, and vanilla clients from 26.1, sometimes drop their connection as they join or as a proxy moves them to another server:**
 
 ```text

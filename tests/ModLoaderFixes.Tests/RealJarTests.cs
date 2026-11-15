@@ -26,6 +26,7 @@ public sealed class RealJarTests
     private const string NetworkDispatcher = "cpw/mods/fml/common/network/handshake/NetworkDispatcher";
     private const string ObjectHolderRegistry = "net/minecraftforge/registries/ObjectHolderRegistry";
     private const string TransformerClassWriter = "cpw/mods/modlauncher/TransformerClassWriter";
+    private const string UnionFileSystemProvider = "cpw/mods/niofs/union/UnionFileSystemProvider";
 
     /// <summary>
     /// Each pinned jar with what the patches change in it: one entry per class a patch changes, with the number of members that patch adds, so that a class two patches
@@ -116,6 +117,14 @@ public sealed class RealJarTests
         { Forge, "net.minecraftforge:eventbus:3.0.3", "443c886b7ccf8d229036db900be2effe8a82f3b62360c0e0edc3a3ae5146398e", [ListenerListInst + " +0"] },
         { Forge, "net.minecraftforge:eventbus:3.0.5", "63bf74fe61d57d1147d41ee4f7262a5c15cc248a60b18e5eb5e67c12f86027f6", [ListenerListInst + " +0"] },
         { Forge, "net.minecraftforge:eventbus:4.0.0", "8754a57ff4d15dffcab15f50b691f4a9c1108b057fbcfff5c915ce928c41f84e", [] },
+        // securejarhandler's provider of union file systems, whose map every release with the class reads without a lock: Forge's and NeoForge's builds of
+        // cpw.mods:securejarhandler, FancyModLoader's own up to 10.0.2, after which it has no union file systems, and Forge's securemodules.
+        { Forge, "cpw.mods:securejarhandler:0.9.54", "823c9ff565c3f29013ab17d20a03e5ba178675f1f0d0a0e2b7b8355bbadb07db", [UnionFileSystemProvider + " +0"] },
+        { Forge, "cpw.mods:securejarhandler:2.1.10", "7ec9207f47bc8847a16566b9a3b4ced8d073c49592897eb30ce2aaf643fdfcab", [UnionFileSystemProvider + " +0"] },
+        { NeoForged, "cpw.mods:securejarhandler:3.0.7", "3822fd6daad43a623152c32fe296889c4bee3957f71dab7038e13d2e5db01395", [UnionFileSystemProvider + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:securejarhandler:9.0.2", "ad74df789a53a8110f14070ebab00a562879708520ac764bd65d3b73a856e327", [UnionFileSystemProvider + " +0"] },
+        { NeoForged, "net.neoforged.fancymodloader:securejarhandler:10.0.3", "1477820b254b3c6341fb0a015963cd1196065a3adff52e1be30dc65cf85e05fd", [] },
+        { Forge, "net.minecraftforge:securemodules:2.2.24", "40cb1fa55f48e3812eb3f823019cf906d9995bc4c9015f3f8f28471315c2a656", [UnionFileSystemProvider + " +0"] },
         // ModLauncher's class hierarchy cache: shared plain HashMaps in 2 to 5, which Forge for 1.13.2 to 1.15.2 ships, and ConcurrentHashMaps from 8.
         { Forge, "cpw.mods:modlauncher:2.1.5", "d00219b4f85ee3355e630751fef05df9c1dd64b1f33b07834c22c9d6adbef616", [TransformerClassWriter + " +0"] },
         { Forge, "cpw.mods:modlauncher:4.1.0", "a8f8a7f3f45b2077bf5408ec5a35c7fac6fd51a9f81c15354dfff7a1a732a865", [TransformerClassWriter + " +0"] },

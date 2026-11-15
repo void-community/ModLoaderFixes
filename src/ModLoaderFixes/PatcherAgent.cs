@@ -28,7 +28,8 @@ namespace ModLoaderFixes;
 /// dispatcher of Minecraft 1.14 clients has none of in a new level's first frames, when an item pickup particle draws its item through it, and the close of a
 /// Minecraft 1.7.2 to 1.8 connection, which on Java before 11 throws away the kick's reason that Nagle's algorithm still holds back, and the block entity that
 /// world generation in Minecraft 1.13 to 1.16.5 leaves a block when another block with one replaces it, as a dungeon's spawner does an earlier dungeon's chest,
-/// and the cast that stops Paper 1.14 and 1.17 when Bukkit reads the state of a block with another block's entity.
+/// and the cast that stops Paper 1.14 and 1.17 when Bukkit reads the state of a block with another block's entity, and the map of union file systems that
+/// securejarhandler reads without a lock in Forge from 1.17.1 and NeoForge up to 1.21.8, where a class load misses its jar while another is registered.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -169,6 +170,7 @@ public sealed class PatcherAgent : JavaAgent
         .. ChannelCloses.Patches,
         .. GenerationBlockEntities.Patches,
         .. PaperBlockEntityStates.Patches,
+        UnionFileSystems.Patch,
     ];
 
     /// <inheritdoc/>

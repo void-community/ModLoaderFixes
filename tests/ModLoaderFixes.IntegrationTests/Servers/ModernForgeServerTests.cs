@@ -142,6 +142,15 @@ public sealed class ModernForgeServerTests
 
         ForgeServer.AssertNotLogged(logs, unexpected: "Exception generating new chunk");
 
+        // Forge from 1.17 and NeoForge read every jar through securejarhandler's union file systems, whose provider looks one up without the lock that
+        // registering one takes; the agent makes its map a concurrent one. Forge up to 1.16.5 has no such provider.
+        if (string.CompareOrdinal(version, strB: "1.17") < 0)
+            ForgeServer.AssertNotLogged(logs, ForgeServer.UnionFileSystemsPatched);
+        else
+            ForgeServer.AssertLogged(logs, ForgeServer.UnionFileSystemsPatched);
+
+        ForgeServer.AssertNotLogged(logs, unexpected: "FileSystemNotFoundException");
+
         // Every one reads its jars through the JDK's zip file system, mod jars from 1.13.2 and the whole module layer from 1.17, on Java 8's com.sun.nio.zipfs and
         // later releases' jdk.nio.zipfs, whose channel the agent opens again after an interrupt on Java 8 and makes uninterruptible on later releases, where Forge
         // 1.20.1 and NeoForge's SecureJarHandler cast it to the JDK's FileChannelImpl.

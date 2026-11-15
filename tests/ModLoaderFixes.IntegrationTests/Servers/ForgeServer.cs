@@ -46,6 +46,13 @@ internal static partial class ForgeServer
     internal const string ReadyLine = "Done (";
 
     /// <summary>
+    /// The line the agent logs when it makes the map of union file systems of securejarhandler's provider a concurrent one, in Forge from 1.17.1 and in
+    /// NeoForge up to 21.8, which read their jars through it.
+    /// </summary>
+    internal const string UnionFileSystemsPatched =
+        "ModLoaderFixes: patched cpw/mods/niofs/union/UnionFileSystemProvider (<init>()V: 1 new java/util/HashMap replaced by new java/util/concurrent/ConcurrentHashMap stored in fileSystems)";
+
+    /// <summary>
     /// The end of the line the agent logs when it points the JDK's zip file system at the helper that keeps its channel readable after an interrupt, in Java 8's
     /// com/sun/nio/zipfs and in later releases' jdk/nio/zipfs.
     /// </summary>
