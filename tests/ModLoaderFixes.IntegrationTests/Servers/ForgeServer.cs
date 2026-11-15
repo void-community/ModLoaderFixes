@@ -15,6 +15,13 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 internal static partial class ForgeServer
 {
     /// <summary>
+    /// The line the agent logs when it makes the synchronous chunk load of Forge 1.7.2 to 1.9 return the chunk that its provider has, also when Forge
+    /// generated it because the read found nothing.
+    /// </summary>
+    internal const string ChunkLoadPatched =
+        "ModLoaderFixes: patched net/minecraftforge/common/chunkio/ChunkIOExecutor (synchronous chunk loads return the chunk the provider has (1 change))";
+
+    /// <summary>
     /// The line the agent logs when it points the close of a connection's channel at the helper that sends what is unsent first, under FML's names, in Forge for
     /// Minecraft 1.7.2 to 1.8.9.
     /// </summary>

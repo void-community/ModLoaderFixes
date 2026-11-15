@@ -39,6 +39,19 @@ java.util.ConcurrentModificationException
 Internal Exception: java.io.IOException: Connection reset by peer
 ```
 
+**Forge 1.7.10 servers now and then crash as a player joins right after others have left**, while the chunks around them are saved for the first time:
+
+```text
+[Server thread/ERROR]: Encountered an unexpected exception
+net.minecraft.util.ReportedException: Exception ticking world
+Caused by: java.lang.NullPointerException
+	at net.minecraft.world.World.func_147467_a(World.java:2856)
+	at net.minecraft.world.WorldServer.func_147456_g(WorldServer.java:314)
+	at net.minecraft.world.WorldServer.func_72835_b(WorldServer.java:183)
+```
+
+Every Forge build from 1.7.2-10.12.2.1123 to 1.9-12.16.0.1884 returns no chunk there, where it should return the one it just generated.
+
 **Forge 1.7.2 and 1.7.10 clients sometimes drop their connection as they join, while the game is busy:**
 
 ```text

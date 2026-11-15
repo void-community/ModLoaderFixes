@@ -29,7 +29,8 @@ namespace ModLoaderFixes;
 /// Minecraft 1.7.2 to 1.8 connection, which on Java before 11 throws away the kick's reason that Nagle's algorithm still holds back, and the block entity that
 /// world generation in Minecraft 1.13 to 1.16.5 leaves a block when another block with one replaces it, as a dungeon's spawner does an earlier dungeon's chest,
 /// and the cast that stops Paper 1.14 and 1.17 when Bukkit reads the state of a block with another block's entity, and the map of union file systems that
-/// securejarhandler reads without a lock in Forge from 1.17.1 and NeoForge up to 1.21.8, where a class load misses its jar while another is registered.
+/// securejarhandler reads without a lock in Forge from 1.17.1 and NeoForge up to 1.21.8, where a class load misses its jar while another is registered, and
+/// the null that Forge 1.7.2 to 1.9 return for a chunk they generated because its read found nothing, which stops the server as its world ticks.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
@@ -171,6 +172,7 @@ public sealed class PatcherAgent : JavaAgent
         .. GenerationBlockEntities.Patches,
         .. PaperBlockEntityStates.Patches,
         UnionFileSystems.Patch,
+        ChunkLoads.Patch,
     ];
 
     /// <inheritdoc/>

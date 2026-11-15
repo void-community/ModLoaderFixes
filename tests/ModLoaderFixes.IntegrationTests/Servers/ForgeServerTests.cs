@@ -123,6 +123,10 @@ public sealed class ForgeServerTests
         );
         ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
         ForgeServer.AssertLogged(logs, ForgeServer.ClosePatched);
+        // The players that are kicked join a new world right after 200 others left it, so the chunks around its spawn point are loaded again while they are
+        // saved for the first time. Now and then a read then finds nothing, for which Forge's load returned null, and the server stopped as its world ticked.
+        ForgeServer.AssertLogged(logs, ForgeServer.ChunkLoadPatched);
+        ForgeServer.AssertNotLogged(logs, unexpected: "Exception ticking world");
         ForgeServer.AssertNotLogged(logs, unexpected: "Failed to handle packet");
         // FML 1.7 scans the jar for mods with ASM 4, which reads class files up to Java 7, so the jar's launcher must be one.
         ForgeServer.AssertNotLogged(logs, unexpected: "probably a corrupt zip");
