@@ -1,5 +1,6 @@
 package net.neoforged.neoforge.network;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -8,7 +9,8 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
  * Keeps the handshake messages that wait for the client's answer as NeoForge's handshake handler does for Minecraft 1.20.2: in an IntArrayList that the server
  * thread adds each message it sends to, in tickServer, while the network thread removes each one the client answers, in handleIndexedMessage. main runs many
  * handshakes whose client answers each message as soon as it is sent, and counts the answers whose index the list had lost, as a lost add makes NeoForge end the
- * handshake before the last answer.
+ * handshake before the last answer. The network thread already waits for the first message when the server thread sends it, as a connection's does, so the two
+ * meet on every system, however long it takes to start a thread.
  */
 public class HandshakeHandler {
     private static final int HANDSHAKES = 20000;
@@ -32,7 +34,10 @@ public class HandshakeHandler {
         for (int handshake = 0; handshake < HANDSHAKES; handshake++) {
             final HandshakeHandler handler = new HandshakeHandler();
             final int[] unexpected = new int[1];
+            final CountDownLatch waiting = new CountDownLatch(1);
             Thread network = new Thread(() -> {
+                waiting.countDown();
+
                 for (int index = 0; index < MESSAGES; index++) {
                     while (handler.sent.get() <= index)
                         Thread.onSpinWait();
@@ -43,6 +48,7 @@ public class HandshakeHandler {
             }, "Netty Server IO #4");
 
             network.start();
+            waiting.await();
 
             for (int position = 0; position < MESSAGES; position++)
                 handler.tickServer(position);
