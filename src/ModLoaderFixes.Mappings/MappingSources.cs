@@ -6,11 +6,20 @@ using System.Xml.Linq;
 
 namespace ModLoaderFixes.Mappings;
 
-/// <summary>Forge's, Ornithe's and Mojang's mappings, downloaded once into a cache that later builds read them from.</summary>
+/// <summary>
+/// Forge's, Ornithe's and Mojang's mappings, downloaded once into a cache that later builds read them from. A mapping holds every class and method of its
+/// release, up to 59 MB of them, and the requests reach 115 mappings, 2 GB together, which is more than a 32-bit process has on Windows, where the x86 .NET SDK
+/// runs the generator as one. So the sources keep only the mappings they were last asked for, as many as one release takes, and read another from the cache
+/// again when it is asked for later.
+/// </summary>
 internal sealed class MappingSources : IMappingSources
 {
     private const string FirstOfficial = "1.14.4";
+
     private const string Forge = "https://maven.minecraftforge.net/de/oceanlabs/mcp/";
+    // A release is resolved through its own mapping of the requested names and, for each of the two other kinds, through its mapping of that kind and both
+    // mappings of the nearest release that has both kinds.
+    private const int Kept = 1 + (2 * 3);
     private const string LastTsrg = "1.16.5";
     private const string Manifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     private const string Ornithe = "https://maven.ornithemc.net/releases/";
@@ -18,7 +27,7 @@ internal sealed class MappingSources : IMappingSources
 
     private readonly DirectoryInfo _cache;
     private readonly HttpClient _client;
-    private readonly Dictionary<string, Mapping> _mappings = new(StringComparer.Ordinal);
+    private readonly List<KeptMapping> _kept = [];
     private readonly IReadOnlyDictionary<string, string> _ornithe;
     private readonly Dictionary<string, int> _releaseIndices;
     private readonly IReadOnlySet<string> _srg;
@@ -53,6 +62,12 @@ internal sealed class MappingSources : IMappingSources
     /// <inheritdoc/>
     public IReadOnlyList<string> Releases { get; }
 
+    /// <summary>Gets how many mappings the sources hold now.</summary>
+    internal int Held => _kept.Count;
+
+    /// <summary>Gets how many times the sources have read a mapping, from the cache or the network.</summary>
+    internal int Loads { get; private set; }
+
     /// <inheritdoc/>
     public async Task<Mapping> GetAsync(Namespace names, string version, CancellationToken cancellationToken)
     {
@@ -61,13 +76,21 @@ internal sealed class MappingSources : IMappingSources
         if (!Has(names, version))
             throw new ArgumentException(version + " has no " + Describe(names) + " mapping.", nameof(version));
 
-        if (!_mappings.TryGetValue(key, out Mapping? mapping))
-        {
-            mapping = await LoadAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            _mappings[key] = mapping;
-        }
+        int index = _kept.FindIndex(kept => kept.Key == key);
+        KeptMapping used = index < 0 ? new KeptMapping(key, await LoadAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)) : _kept[index];
 
-        return mapping;
+        if (index < 0)
+            Loads++;
+        else
+            _kept.RemoveAt(index);
+
+        // The last used mapping goes to the end, and the one that was used longest ago, at the start, goes when there are too many.
+        _kept.Add(used);
+
+        if (_kept.Count > Kept)
+            _kept.RemoveAt(index: 0);
+
+        return used.Mapping;
     }
 
     /// <inheritdoc/>
@@ -250,4 +273,7 @@ internal sealed class MappingSources : IMappingSources
 
         return Encoding.UTF8.GetString(bytes);
     }
+
+    // A mapping that the sources hold, by the kind of names and the release it was asked for.
+    private sealed record KeptMapping(string Key, Mapping Mapping);
 }

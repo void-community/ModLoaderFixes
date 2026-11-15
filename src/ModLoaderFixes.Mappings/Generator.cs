@@ -46,7 +46,10 @@ internal static class Generator
         return string.Join(separator: ", ", runs);
     }
 
-    /// <summary>Resolves each requested class in every release it is requested in, by the names Forge runs those releases under.</summary>
+    /// <summary>
+    /// Resolves each requested class in every release it is requested in, by the names Forge runs those releases under. It goes release by release, and in each
+    /// resolves every class requested there, so that the sources need only the few mappings of one release at a time.
+    /// </summary>
     /// <param name="requests">The classes and the releases to find each in.</param>
     /// <param name="sources">The mappings of each release.</param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
@@ -57,24 +60,21 @@ internal static class Generator
         ArgumentNullException.ThrowIfNull(sources);
 
         Resolver resolver = new(sources);
-        List<ResolvedClass> classes = [];
+        IReadOnlyList<string> releases = sources.Releases;
+        RequestedClass[] classes = [.. requests.Select(request => Requested(request, releases))];
 
-        foreach (ClassRequest request in requests)
+        for (int index = 0; index < releases.Count; index++)
         {
-            int from = Resolver.IndexOf(sources.Releases, request.From);
-            int to = Resolver.IndexOf(sources.Releases, request.To);
-            string[] versions = [.. sources.Releases.Skip(from).Take(to - from + 1)];
+            foreach (RequestedClass requested in classes.Where(requested => requested.From <= index && index <= requested.To))
+            {
+                ClassRequest request = requested.Request;
+                Resolution resolution = await resolver.ResolveAsync(request.Names, request, releases[index], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-            if (versions.Length == 0)
-                throw new InvalidOperationException(request.Name + " is requested from " + request.From + ", which comes after " + request.To + ".");
-
-            if (ClassRequest.NamesOf(request.From) != ClassRequest.NamesOf(request.To))
-                throw new InvalidOperationException(request.Name + " is requested from " + request.From + " to " + request.To + ", across Forge's change of names in 1.17.");
-
-            classes.Add(await ResolveAsync(resolver, request, versions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+                requested.Add(releases[index], resolution.Naming);
+            }
         }
 
-        return classes;
+        return [.. classes.Select(static requested => requested.Resolved())];
     }
 
     /// <summary>Writes the table: one <c>MappedClass</c> property per requested class.</summary>
@@ -134,27 +134,48 @@ internal static class Generator
         return "\"" + value + "\"";
     }
 
-    private static async Task<ResolvedClass> ResolveAsync(Resolver resolver, ClassRequest request, string[] versions, CancellationToken cancellationToken)
+    private static RequestedClass Requested(ClassRequest request, IReadOnlyList<string> releases)
     {
-        List<List<string>> shared = [];
-        List<Naming> namings = [];
+        int from = Resolver.IndexOf(releases, request.From);
+        int to = Resolver.IndexOf(releases, request.To);
 
-        foreach (string version in versions)
+        return to < from
+            ? throw new InvalidOperationException(request.Name + " is requested from " + request.From + ", which comes after " + request.To + ".")
+            : ClassRequest.NamesOf(request.From) != ClassRequest.NamesOf(request.To)
+            ? throw new InvalidOperationException(request.Name + " is requested from " + request.From + " to " + request.To + ", across Forge's change of names in 1.17.")
+            : new RequestedClass(request, from, to, [.. releases.Skip(from).Take(to - from + 1)]);
+    }
+
+    // A request with the places of its first and last release among the releases, and the namings found for it so far, each with the releases that share it.
+    private sealed class RequestedClass(ClassRequest request, int from, int to, string[] versions)
+    {
+        private readonly List<Naming> _namings = [];
+        private readonly List<List<string>> _shared = [];
+
+        internal int From => from;
+
+        internal ClassRequest Request => request;
+
+        internal int To => to;
+
+        internal void Add(string version, Naming naming)
         {
-            Resolution resolution = await resolver.ResolveAsync(request.Names, request, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            int existing = namings.FindIndex(naming => naming.Key == resolution.Naming.Key);
+            int existing = _namings.FindIndex(other => other.Key == naming.Key);
 
             if (existing < 0)
             {
-                namings.Add(resolution.Naming);
-                shared.Add([version]);
+                _namings.Add(naming);
+                _shared.Add([version]);
             }
             else
             {
-                shared[existing].Add(version);
+                _shared[existing].Add(version);
             }
         }
 
-        return new ResolvedClass(request, [.. namings.Select((naming, index) => new ReleaseNaming(Label(shared[index], versions), naming))]);
+        internal ResolvedClass Resolved()
+        {
+            return new ResolvedClass(request, [.. _namings.Select((naming, index) => new ReleaseNaming(Label(_shared[index], versions), naming))]);
+        }
     }
 }

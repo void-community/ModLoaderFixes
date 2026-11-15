@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Xml.Linq;
 
 using ModLoaderFixes.Mappings;
@@ -69,6 +71,11 @@ public sealed class MappingsTests
 
         IReadOnlyList<ClassRequest> requests = ClassRequest.Parse(ProjectRequests());
         IReadOnlyList<ResolvedClass> classes = await Generator.ResolveAsync(requests, sources, cancellationToken);
+
+        // The sources held no more mappings at once than one release takes, and read few of them a second time.
+        Assert.InRange(sources.Held, low: 1, high: 7);
+        Assert.Equal(expected: 115, sources.Loads);
+
         ClassRequest manager = requests.Single(static request => request.Property == "NetworkManager");
         Resolution resolution = await new Resolver(sources).ResolveAsync(Namespace.Srg, manager, version: "1.7.5", cancellationToken);
 
@@ -109,6 +116,55 @@ public sealed class MappingsTests
             ["1.16 and 1.16.1: cfi$a b()Lbvr;", "1.16.2 and 1.16.3: ced$a b()Lbul;", "1.16.4 and 1.16.5: ceg$a b()Lbuo;"],
             Namings(classes, property: "BlockState16")
         );
+    }
+
+    /// <summary>
+    /// The generator resolves the agent's MappedClass items as a process whose heap may not grow past a gigabyte, half the address space of the 32-bit process
+    /// that the x86 .NET SDK runs it as on Windows. It needed more than two while it kept every mapping it had read.
+    /// </summary>
+    [Fact]
+    public async Task GeneratorRunsInAGigabyteOfHeap()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        DirectoryInfo directory = Directory.CreateTempSubdirectory(prefix: "modloaderfixes-mappings-");
+
+        try
+        {
+            string requests = Path.Combine(directory.FullName, path2: "MappedClasses.txt");
+            string table = Path.Combine(directory.FullName, path2: "Mappings.g.cs");
+
+            await File.WriteAllTextAsync(requests, ProjectRequests(), cancellationToken);
+
+            ProcessStartInfo start = new(Host()) { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false };
+
+            start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, path2: "ModLoaderFixes.Mappings.dll"));
+            start.ArgumentList.Add(requests);
+            start.ArgumentList.Add(table);
+            start.ArgumentList.Add(Cache());
+            start.Environment[key: "DOTNET_GCHeapHardLimit"] = "0x40000000";
+
+            using Process process = Process.Start(start) ?? throw new InvalidOperationException(message: "The generator didn't start.");
+
+            Task<string> output = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            Task<string> errors = process.StandardError.ReadToEndAsync(cancellationToken);
+
+            string[] written = await Task.WhenAll(output, errors);
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            Assert.True(process.ExitCode == 0, "The generator failed: " + string.Concat(written));
+
+            string generated = await File.ReadAllTextAsync(table, cancellationToken);
+
+            Assert.All(
+                ClassRequest.Parse(ProjectRequests()),
+                request => Assert.Contains("internal static MappedClass " + request.Property + " ", generated, StringComparison.Ordinal)
+            );
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
     }
 
     /// <summary>Runs of consecutive releases are named by their ends, and two by both.</summary>
@@ -205,6 +261,15 @@ public sealed class MappingsTests
     private static string Cache()
     {
         return Path.Combine(Repository(), path2: "artifacts", path3: "mappings");
+    }
+
+    // The dotnet that runs the tests, three directories above its runtime's, or the one on the path when the runtime is somewhere else.
+    private static string Host()
+    {
+        string name = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        string host = Path.GetFullPath(Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), path2: "../../..", name));
+
+        return File.Exists(host) ? host : name;
     }
 
     // Releases 1.0 to 1.2, which Ornithe maps and Forge maps except 1.1, with net/Manager and its packet under other names in each.
