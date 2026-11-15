@@ -6,10 +6,12 @@ namespace ModLoaderFixes.IntegrationTests.Connections;
 
 /// <summary>
 /// The published agent in a real JVM, against a fixture of Minecraft 1.7's connection that kicks players over real connections on the loopback interface: it
-/// writes a chat packet and the Disconnect packet and closes at once, with the player's next packet unread.
+/// writes a chat packet and the Disconnect packet and closes at once, with the player's next packet unread. What becomes of such a connection is up to the
+/// system: the fix is for Linux, which resets it and throws away what it still held back, so the tests are skipped on other systems.
 /// </summary>
 public sealed class ChannelCloseTests
 {
+    private const string Linux = "The fixture shows what Linux does to a connection that is closed with a packet unread; other systems end it differently.";
     private const string MainClass = "net.minecraft.network.NetworkManager";
     private const string Patched =
         "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
@@ -25,6 +27,8 @@ public sealed class ChannelCloseTests
     public async Task AgentLeavesAConnectionThatJavaClosesGracefullyAsItIs(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
+        Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
 
         const string graceful = "Nagle on: reason received 20 of 20, reset 0 times; Nagle off: reason received 20 of 20, reset 0 times";
 
@@ -57,6 +61,8 @@ public sealed class ChannelCloseTests
     {
         ArgumentNullException.ThrowIfNull(jdk);
 
+        Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
+
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
 
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
@@ -79,6 +85,8 @@ public sealed class ChannelCloseTests
     public async Task JavaAgentJarSendsTheKicksReasonBeforeItClosesTheConnection(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
+
+        Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
 
