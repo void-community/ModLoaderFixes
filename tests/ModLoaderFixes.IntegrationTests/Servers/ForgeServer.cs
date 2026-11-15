@@ -102,7 +102,10 @@ internal static partial class ForgeServer
         return new Jdk(major: 8).CompileAsync(sources: "Fixtures/LoginLoad/**/*.java", cancellationToken: cancellationToken);
     }
 
-    /// <summary>Describes a server of the given loader and version that loads the agent with <paramref name="option"/>.</summary>
+    /// <summary>
+    /// Describes a server of the given loader and version that loads the agent with <paramref name="option"/>. The test is skipped where the host isn't Linux: the
+    /// servers run in Linux containers, which load the agent of a Linux platform.
+    /// </summary>
     /// <param name="image">The itzg/minecraft-server image, which decides the Java version.</param>
     /// <param name="type">itzg's TYPE: FORGE or NEOFORGE.</param>
     /// <param name="version">The Minecraft version.</param>
@@ -112,6 +115,8 @@ internal static partial class ForgeServer
     /// <returns>The container's builder.</returns>
     internal static ContainerBuilder Create(string image, string type, string version, string memory, string option, FileInfo agent)
     {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), reason: "The servers run in Linux containers, which load the agent of a Linux platform.");
+
         return new ContainerBuilder(image)
             .WithEnvironment(name: "EULA", value: "TRUE")
             .WithEnvironment(name: "TYPE", type)
