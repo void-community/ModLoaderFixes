@@ -16,4 +16,19 @@
     <!-- The data pack that a server test generates a world with. -->
     <None Include="Fixtures/**/*.json;Fixtures/**/*.mcmeta" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!--
+    CI hands the tests what it published, in artifacts/publish-<runtime>, and what it releases, in artifacts/bundle. The tests look for the agent of their
+    platform in artifacts/agent, so its library goes there beside the release's jar, which holds the library of every platform.
+  -->
+  <Target Name="CopyPublishedAgent" AfterTargets="Build">
+    <PropertyGroup>
+      <PublishedAgentDirectory>../../artifacts/publish-$(NETCoreSdkRuntimeIdentifier)/ModLoaderFixes</PublishedAgentDirectory>
+      <AgentDirectory>../../artifacts/agent/$(NETCoreSdkRuntimeIdentifier)</AgentDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <PublishedAgentFile Include="$(PublishedAgentDirectory)/*" Exclude="$(PublishedAgentDirectory)/*.jar" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishedAgentFile)" DestinationFolder="$(AgentDirectory)" />
+    <Copy SourceFiles="../../artifacts/bundle/modloaderfixes.jar" DestinationFiles="$(AgentDirectory)/ModLoaderFixes.jar" Condition="'@(PublishedAgentFile)' != ''" />
+  </Target>
 </Project>

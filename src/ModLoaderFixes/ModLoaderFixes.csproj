@@ -148,4 +148,19 @@
       <FileWrites Include="$(MappingsRequests);$(MappingsTable)" />
     </ItemGroup>
   </Target>
+  <!--
+    The files of a release, which CI asks for once it has published every platform: RuntimesDirectory holds the publish of each in publish-<runtime>, and
+    BundleDirectory takes modloaderfixes.jar, which holds the library of every platform, and each library under the name of its platform.
+  -->
+  <Target Name="Bundle">
+    <ItemGroup>
+      <BundledLibrary Include="$(RuntimesDirectory)/publish-*/$(TargetName)/$(TargetName).so" />
+      <BundledLibrary Include="$(RuntimesDirectory)/publish-*/$(TargetName)/$(TargetName).dll" />
+      <BundledLibrary Include="$(RuntimesDirectory)/publish-*/$(TargetName)/$(TargetName).dylib" />
+      <!-- The directory above a library's is publish-<runtime>. -->
+      <BundledLibrary Runtime="$([System.IO.Directory]::GetParent('%(FullPath)').Parent.Name.Substring(8))" />
+    </ItemGroup>
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="JvmBridgeMergeAgentJars" Properties="JvmBridgeAgentJars=$(RuntimesDirectory)/publish-*/$(TargetName)/$(TargetName).jar;JvmBridgeAgentJarOutput=$(BundleDirectory)/modloaderfixes.jar" />
+    <Copy SourceFiles="@(BundledLibrary)" DestinationFiles="@(BundledLibrary->'$(BundleDirectory)/modloaderfixes-%(Runtime)%(Extension)')" />
+  </Target>
 </Project>

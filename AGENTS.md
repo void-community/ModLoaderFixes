@@ -8,13 +8,13 @@ ModLoaderFixes is a NativeAOT JVM agent, written in C# with JvmBridge, that fixe
 - `src/ModLoaderFixes.Mappings`: the generator that the agent's build runs to resolve the vanilla names of the classes and methods that the agent's `MappedClass` items list.
 - `tests/ModLoaderFixes.Tests`: xUnit unit tests of class file patching, referencing the agent project.
 - `tests/ModLoaderFixes.IntegrationTests`: xUnit tests that load the published agent into real JVMs, against Java fixtures (one folder per scenario under `Fixtures`) and real Forge servers.
-- `.github`: reusable CI, GitHub releases, dependency maintenance, and repository templates.
+- `.github`: the CI workflow, which runs the shared stages of void-community/Actions, this repository's own Renovate rules, and repository templates.
 
 ## Source conventions
 
 Use four-space C# indentation, descriptive identifiers, underscore-prefixed private fields, and camelCase parameters. Put braces on their own lines and omit braces for single-line statement bodies. Keep method signatures on a single line. Prefer pattern matching and nameof. Async methods use an Async suffix. Never silence nullable warnings with the null-forgiving operator. NetAgents formats sources on build; review what it rewrites.
 
-Don't add `global.json`, NuGet lock files, or other .NET JSON configuration. CI pins the SDK in its workflows.
+Don't add `global.json`, NuGet lock files, or other .NET JSON configuration. CI pins the SDK in `.github/workflows/ci.yml`.
 
 ## Native correctness
 
@@ -30,9 +30,9 @@ Don't add `global.json`, NuGet lock files, or other .NET JSON configuration. CI 
 
 ## Verification
 
-Install the .NET 10 SDK, Clang and zlib development headers. The build compiles the Java helper with the JDK in `JvmBridgeJdkHome` or `JAVA_HOME`, and downloads a pinned JDK when neither names one. The build of the agent downloads the mappings that its `MappedClass` items need from Mojang, Forge's Maven and Ornithe into `artifacts/mappings`, and later builds read them from there. Run `dotnet build ModLoaderFixes.slnx -c Release` and `dotnet test ModLoaderFixes.slnx -c Release --no-build`, which skips the native tests. Publish the agent with `dotnet publish src/ModLoaderFixes -c Release -r <RID> -o artifacts/agent/<RID>`, which writes the library and, through `JvmBridgeAgentJar`, `ModLoaderFixes.jar` for `java -javaagent` beside it. Then run `dotnet test tests/ModLoaderFixes.IntegrationTests -c Release` with `TARGET_RID=<RID>`. JvmBridge.Testing downloads a checksum-pinned Java 8 JDK, or uses the one `JVMBRIDGE_JDK_8` names. The Forge server test needs Docker. Record which platforms and Java versions actually executed.
+Install the .NET 10 SDK, Clang and zlib development headers. The build compiles the Java helper with the JDK in `JvmBridgeJdkHome` or `JAVA_HOME`, and downloads a pinned JDK when neither names one. The build of the agent downloads the mappings that its `MappedClass` items need from Mojang, Forge's Maven and Ornithe into `artifacts/mappings`, and later builds read them from there. Run `dotnet build ModLoaderFixes.slnx -c Release` and `dotnet test ModLoaderFixes.slnx -c Release --no-build`, which skips the native tests. Publish the agent with `dotnet publish src/ModLoaderFixes -c Release -r <RID> -o artifacts/agent/<RID>`, which writes the library and, through `JvmBridgeAgentJar`, `ModLoaderFixes.jar` for `java -javaagent` beside it. Then run `dotnet test tests/ModLoaderFixes.IntegrationTests -c Release` with `TARGET_RID=<RID>`. JvmBridge.Testing downloads a checksum-pinned Java 8 JDK, or uses the one `JVMBRIDGE_JDK_8` names. The Forge server tests need Docker on Linux and are skipped on other systems. Record which platforms and Java versions actually executed.
 
-The Linux agents must load on glibc 2.17, because Forge from 1.17 to 1.20.4 runs on itzg's Ubuntu 20.04 image. CI publishes them against .NET's Ubuntu 18.04 sysroot through `void-community/actions/glibc-sysroot` and fails when one asks for a newer glibc. A plain local publish links against the machine's own glibc; to reproduce CI's library, publish with `-p:SysRoot=/crossrootfs/<arch> -p:LinkerFlavor=lld` as JvmBridge's Publishing for Linux guide describes, and check it with `readelf -V`.
+The linux-x64 and linux-arm64 agents must load on glibc 2.17, because Forge from 1.17 to 1.20.4 runs on itzg's Ubuntu 20.04 image. CI publishes them against .NET's Ubuntu 18.04 sysroot, as void-community/Actions does for every repository, and `GlibcFloorTests` fails there when one asks for a newer glibc. A plain local publish links against the machine's own glibc; to reproduce CI's library, publish with `-p:SysRoot=/crossrootfs/<arch> -p:LinkerFlavor=lld` as JvmBridge's Publishing for Linux guide describes, and check it with `readelf -V`.
 
 CI must account for every configured platform. Never weaken tests or skip source, build or workflow changes to get green checks.
 
@@ -42,7 +42,7 @@ Use Conventional Commits with a scope, a gitmoji after the scope, and past-tense
 
 Examples: `fix(agent): 🐛 patched FML's tweak sort on Java 8u20 and later`, `ci(test): ✅ started Forge servers with the published agent`.
 
-Pull request descriptions use the repository template. Every validated main commit publishes the agents it tested as a GitHub release through `publish-github.yml`, tagged `vYY.M.D.B` with the `modloaderfixes.jar` for `-javaagent`, which holds the library of every platform, and one `modloaderfixes-<RID>.so` per platform for `-agentpath`. The build workflow combines the jars that each platform's publish writes with JvmBridge's `JvmBridgeMergeAgentJars` target, once, so the tests and the release use the same file. When main has changed a workflow since the commit a run tests, GitHub won't let the run's token create the release's tag, so that run skips publishing and the newer commit's run publishes. There are no release PRs or release-please workflows. Versions follow NetAgents' UTC `YY.M.D.B` scheme, with the timestamp frozen once per workflow run. Never rebuild agents in the publishing job, publish unvalidated artifacts, print tokens, or copy organization secrets into this repository.
+Pull request descriptions use the repository template. CI is `.github/workflows/ci.yml`, which runs the shared stages of void-community/Actions: it publishes the agent for every runtime, runs the agent project's `Bundle` target, and then runs the tests on Linux, macOS and Windows, on x64 and arm64, with what it published. Every validated main commit publishes the agents it tested as a GitHub release, tagged `vYY.M.D.B` with the `modloaderfixes.jar` for `-javaagent`, which holds the library of every platform, and one `modloaderfixes-<RID>` library per platform for `-agentpath`. The `Bundle` target combines the jars that each platform's publish writes with JvmBridge's `JvmBridgeMergeAgentJars` target, once, so the tests and the release use the same file. There are no release PRs or release-please workflows. Versions follow NetAgents' UTC `YY.M.D.B` scheme, which CI works out once per workflow run. Never rebuild agents in the publishing job, publish unvalidated artifacts, print tokens, or copy organization secrets into this repository.
 
 ## Documentation
 
