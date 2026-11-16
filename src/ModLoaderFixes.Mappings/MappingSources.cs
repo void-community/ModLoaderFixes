@@ -26,7 +26,7 @@ internal sealed class MappingSources : IMappingSources
     private const string OrnitheVersions = "https://meta.ornithemc.net/v3/versions/gen2/intermediary";
 
     private readonly DirectoryInfo _cache;
-    private readonly HttpClient _client;
+    private readonly Downloader _downloader;
     private readonly List<KeptMapping> _kept = [];
     private readonly IReadOnlyDictionary<string, string> _ornithe;
     private readonly Dictionary<string, int> _releaseIndices;
@@ -35,7 +35,7 @@ internal sealed class MappingSources : IMappingSources
     private readonly IReadOnlyDictionary<string, string> _versionFiles;
 
     private MappingSources(
-        HttpClient client,
+        Downloader downloader,
         DirectoryInfo cache,
         IReadOnlyList<string> releases,
         IReadOnlyDictionary<string, string> versionFiles,
@@ -49,7 +49,7 @@ internal sealed class MappingSources : IMappingSources
         for (int index = 0; index < releases.Count; index++)
             indices[releases[index]] = index;
 
-        _client = client;
+        _downloader = downloader;
         _cache = cache;
         Releases = releases;
         _releaseIndices = indices;
@@ -110,11 +110,23 @@ internal sealed class MappingSources : IMappingSources
     /// <param name="cache">The directory that keeps the mapping files between runs.</param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
     /// <returns>The sources.</returns>
-    internal static async Task<MappingSources> CreateAsync(HttpClient client, string cache, CancellationToken cancellationToken)
+    internal static Task<MappingSources> CreateAsync(HttpClient client, string cache, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        using JsonDocument manifest = JsonDocument.Parse(await client.GetStringAsync(new Uri(Manifest), cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+        return CreateAsync(new Downloader(client, Downloader.Pause), cache, cancellationToken);
+    }
+
+    /// <summary>Lists the releases and which mappings each has, as <see cref="CreateAsync(HttpClient, string, CancellationToken)"/> does, through a given downloader.</summary>
+    /// <param name="downloader">What downloads the lists and, later, the mappings.</param>
+    /// <param name="cache">The directory that keeps the mapping files between runs.</param>
+    /// <param name="cancellationToken">Cancels the downloads.</param>
+    /// <returns>The sources.</returns>
+    internal static async Task<MappingSources> CreateAsync(Downloader downloader, string cache, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(downloader);
+
+        using JsonDocument manifest = JsonDocument.Parse(await downloader.GetAsync(Manifest, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
 
         List<JsonElement> releases = [];
 
@@ -131,10 +143,10 @@ internal sealed class MappingSources : IMappingSources
         foreach (JsonElement release in releases)
             versionFiles[Text(release, property: "id")] = Text(release, property: "url");
 
-        HashSet<string> srg = await MavenVersionsAsync(client, Forge + "mcp/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        HashSet<string> tsrg = await MavenVersionsAsync(client, Forge + "mcp_config/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        HashSet<string> srg = await MavenVersionsAsync(downloader, Forge + "mcp/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        HashSet<string> tsrg = await MavenVersionsAsync(downloader, Forge + "mcp_config/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        using JsonDocument ornithe = JsonDocument.Parse(await client.GetStringAsync(new Uri(OrnitheVersions), cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+        using JsonDocument ornithe = JsonDocument.Parse(await downloader.GetAsync(OrnitheVersions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
 
         Dictionary<string, string> intermediary = new(StringComparer.Ordinal);
 
@@ -147,7 +159,7 @@ internal sealed class MappingSources : IMappingSources
 
         string[] ids = [.. releases.Select(static release => Text(release, property: "id"))];
 
-        return new MappingSources(client, new DirectoryInfo(cache), ids, versionFiles, srg, tsrg, intermediary);
+        return new MappingSources(downloader, new DirectoryInfo(cache), ids, versionFiles, srg, tsrg, intermediary);
     }
 
     private static string Describe(Namespace names)
@@ -160,11 +172,13 @@ internal sealed class MappingSources : IMappingSources
         };
     }
 
-    private static async Task<HashSet<string>> MavenVersionsAsync(HttpClient client, string address, CancellationToken cancellationToken)
+    private static async Task<HashSet<string>> MavenVersionsAsync(Downloader downloader, string address, CancellationToken cancellationToken)
     {
-        string metadata = await client.GetStringAsync(new Uri(address), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        byte[] metadata = await downloader.GetAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        return [.. XDocument.Parse(metadata).Descendants(name: "version").Select(static version => version.Value)];
+        using MemoryStream stream = new(metadata);
+
+        return [.. XDocument.Load(stream).Descendants(name: "version").Select(static version => version.Value)];
     }
 
     private static DateTimeOffset ReleaseTime(JsonElement version)
@@ -199,7 +213,7 @@ internal sealed class MappingSources : IMappingSources
         }
         else
         {
-            bytes = await _client.GetByteArrayAsync(new Uri(address), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            bytes = await _downloader.GetAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             _cache.Create();
             await File.WriteAllBytesAsync(path + ".part", bytes, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             File.Move(path + ".part", path, overwrite: true);
