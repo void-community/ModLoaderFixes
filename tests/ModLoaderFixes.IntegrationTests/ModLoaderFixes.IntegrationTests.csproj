@@ -18,17 +18,24 @@
   </ItemGroup>
   <!--
     CI hands the tests what it published, in artifacts/publish-<runtime>, and what it releases, in artifacts/bundle. The tests look for the agent of their
-    platform in artifacts/agent, so its library goes there beside the release's jar, which holds the library of every platform.
+    platform in artifacts/agent, so its library goes there beside the release's jar, which holds the library of every platform. The servers that tests start
+    in containers are 64-bit Linux with glibc whatever platform the tests run on, so the libraries of linux-x64 and linux-arm64 go there too.
   -->
   <Target Name="CopyPublishedAgent" AfterTargets="Build">
-    <PropertyGroup>
-      <PublishedAgentDirectory>../../artifacts/publish-$(NETCoreSdkRuntimeIdentifier)/ModLoaderFixes</PublishedAgentDirectory>
-      <AgentDirectory>../../artifacts/agent/$(NETCoreSdkRuntimeIdentifier)</AgentDirectory>
-    </PropertyGroup>
     <ItemGroup>
-      <PublishedAgentFile Include="$(PublishedAgentDirectory)/*" Exclude="$(PublishedAgentDirectory)/*.jar" />
+      <AgentRuntime Include="linux-x64;linux-arm64" />
+      <AgentRuntime Include="$(NETCoreSdkRuntimeIdentifier)" Exclude="@(AgentRuntime)" />
+      <PublishedAgentFile
+        Include="../../artifacts/publish-%(AgentRuntime.Identity)/ModLoaderFixes/*"
+        Exclude="../../artifacts/publish-%(AgentRuntime.Identity)/ModLoaderFixes/*.jar"
+        Runtime="%(AgentRuntime.Identity)"
+      />
     </ItemGroup>
-    <Copy SourceFiles="@(PublishedAgentFile)" DestinationFolder="$(AgentDirectory)" />
-    <Copy SourceFiles="../../artifacts/bundle/modloaderfixes.jar" DestinationFiles="$(AgentDirectory)/ModLoaderFixes.jar" Condition="'@(PublishedAgentFile)' != ''" />
+    <Copy SourceFiles="@(PublishedAgentFile)" DestinationFiles="@(PublishedAgentFile->'../../artifacts/agent/%(Runtime)/%(Filename)%(Extension)')" />
+    <Copy
+      SourceFiles="../../artifacts/bundle/modloaderfixes.jar"
+      DestinationFiles="../../artifacts/agent/%(AgentRuntime.Identity)/ModLoaderFixes.jar"
+      Condition="Exists('../../artifacts/publish-%(AgentRuntime.Identity)/ModLoaderFixes')"
+    />
   </Target>
 </Project>

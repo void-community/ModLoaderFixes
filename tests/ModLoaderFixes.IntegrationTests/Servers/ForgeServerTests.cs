@@ -67,11 +67,14 @@ public sealed class ForgeServerTests
         Assert.Contains(expectedSubstring: "LOGINS {logged in=200}", logins.Stdout, StringComparison.Ordinal);
     }
 
-    /// <summary>Forge for Minecraft 1.7.2 sorts its tweakers without crashing and the server becomes ready with the native library loaded by <c>-agentpath</c>.</summary>
+    /// <summary>
+    /// Forge for Minecraft 1.7.2 sorts its tweakers without crashing and the server becomes ready with the native library loaded by <c>-agentpath</c>. The library is
+    /// the one of the server container's platform, which isn't the tests' own when they run on Alpine or on 32-bit ARM.
+    /// </summary>
     [Fact]
     public async Task Forge172ServerStartsWithAgentPath()
     {
-        await AssertForge172StartsAsync(option: "-agentpath:", new FileInfo(PublishedAgent.Find(name: "ModLoaderFixes").FilePath));
+        await AssertForge172StartsAsync(option: "-agentpath:", new FileInfo(PublishedAgent.Find(name: "ModLoaderFixes", ForgeServer.Runtime).FilePath));
     }
 
     /// <summary>The same server becomes ready with the jar loaded by <c>-javaagent</c>.</summary>

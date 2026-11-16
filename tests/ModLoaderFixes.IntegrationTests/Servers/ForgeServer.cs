@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 using DotNet.Testcontainers.Builders;
@@ -73,6 +74,12 @@ internal static partial class ForgeServer
 
     // The images this run has pulled already.
     private static readonly ConcurrentDictionary<string, bool> Refreshed = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Gets the runtime whose library a server container loads: 64-bit Linux with glibc of the machine's architecture, as itzg's images are, whatever platform the
+    /// tests run on. Tests in an Alpine container, or in a 32-bit ARM one on an ARM64 machine, start the same server containers beside their own.
+    /// </summary>
+    internal static string Runtime => RuntimeInformation.ProcessArchitecture is Architecture.Arm or Architecture.Arm64 ? "linux-arm64" : "linux-x64";
 
     /// <summary>Gets how long installing and starting a server may take.</summary>
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
