@@ -350,7 +350,7 @@ One jar, `modloaderfixes.jar`, holds the library of every platform below and loa
 - 🪟 Windows x64, x86 or ARM64.
 - 🍎 macOS 12 or later, on Intel or Apple silicon.
 - To skip the jar, pass the library of your platform from the release, such as `modloaderfixes-linux-x64.so`, `modloaderfixes-win-x64.dll` or `modloaderfixes-osx-arm64.dylib`, to `-agentpath` with an absolute path.
-- 🧪 CI tests every commit on each of these platforms: the fixes run against reproductions of their bugs with that platform's library and with the jar, on every Java the platform has a JDK for. A real vanilla 1.18.2 server starts with that platform's library and with the jar on each of them, and a real Forge 1.7.2 server on each but Windows ARM64, which has no Java 8. The other real Forge, NeoForge, Paper and vanilla servers, many with 200 players logging in at once, start on Linux x64 and ARM64 only so far ([#89](https://github.com/void-community/ModLoaderFixes/issues/89)).
+- 🧪 CI tests every commit on each of these platforms: the fixes run against reproductions of their bugs with that platform's library and with the jar, on every Java the platform has a JDK for. Real vanilla 1.18.2 and Forge 1.20.2 servers start with that platform's library and with the jar on each of them, and a real Forge 1.7.2 server on each but Windows ARM64, which has no Java 8. The other real Forge, NeoForge, Paper and vanilla servers, many with 200 players logging in at once, start on Linux x64 and ARM64 only so far ([#89](https://github.com/void-community/ModLoaderFixes/issues/89)).
 
 ## 📄 License
 

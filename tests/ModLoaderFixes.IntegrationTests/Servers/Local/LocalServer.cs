@@ -4,23 +4,51 @@ using System.Net.Sockets;
 
 using JvmBridge.Testing;
 
-namespace ModLoaderFixes.IntegrationTests.Servers;
+using Xunit;
+
+namespace ModLoaderFixes.IntegrationTests.Servers.Local;
 
 /// <summary>
 /// A real server laid out in a directory, to run as a process of the platform the tests run on, with that platform's own JDK and agent. The servers in itzg's
 /// container are 64-bit Linux with glibc on every machine, so only these meet the library of Windows, macOS, Alpine and 32-bit ARM. Each file is pinned by its
-/// checksum and lies where the server's own installer puts it: Forge's installer asks a mirror it picks from a list, once, and fails when a connection does.
+/// checksum. A server before Forge 1.13 is its files, laid out where its installer would put them, and the installer isn't run: it asks a mirror it picks from a
+/// list, once, and fails when a connection does. A Forge from 1.13 can't be laid out that way, as its installer makes the server's jars from Minecraft's on the
+/// machine, so its one file is the installer, which is run, again when a download failed, and checks every file it downloads itself.
 /// </summary>
 /// <param name="Java">The Java the server runs on, which decides the platforms that can run it.</param>
-/// <param name="MainClass">The class that the server's jar starts, which a test starts by name with the jar as its class path.</param>
+/// <param name="MainClass">The class that the first file starts: the server, or the installer when the server has to be installed.</param>
 /// <param name="WorldType">
 /// How the server's properties name a flat world, which a slow machine generates in seconds; an Intel Mac of CI didn't generate 1.18.2's default world in five minutes.
 /// </param>
-/// <param name="Files">The server's files; the first is the jar that is its class path.</param>
-internal sealed record LocalServer(int Java, string MainClass, string WorldType, IReadOnlyList<LocalServerFile> Files)
+/// <param name="Files">The server's files; the first is the jar that <paramref name="MainClass"/> is started from.</param>
+/// <param name="ArgumentFiles">
+/// The directory, in the server's, where the installer leaves <c>unix_args.txt</c> and <c>win_args.txt</c>, which say how the server starts, or <see langword="null"/>
+/// for a server that needs no installer.
+/// </param>
+internal sealed record LocalServer(int Java, string MainClass, string WorldType, IReadOnlyList<LocalServerFile> Files, string? ArgumentFiles = null)
 {
     private const string ForgeMaven = "https://maven.minecraftforge.net/";
+    private const int InstallAttempts = 3;
     private const string Libraries = "https://libraries.minecraft.net/";
+
+    /// <summary>
+    /// Gets Forge 1.20.2-48.1.0, which runs on Java 17, so on every platform. Its installer downloads 75 libraries, Minecraft's server and Mojang's mappings, and
+    /// takes minutes to split, rename and patch Minecraft's jar. The server starts from the argument file the installer writes, by the launcher's class on a
+    /// module path.
+    /// </summary>
+    internal static LocalServer Forge1202 { get; } = new(
+        Java: 17,
+        MainClass: "net.minecraftforge.installer.SimpleInstaller",
+        WorldType: "flat",
+        [
+            new(
+                Path: "forge-1.20.2-48.1.0-installer.jar",
+                ForgeMaven + "net/minecraftforge/forge/1.20.2-48.1.0/forge-1.20.2-48.1.0-installer.jar",
+                Sha256: "10c3f124c8c6b9c2550e0003ebf014c8d24f8ef6b4b9d76fd4619cdc6013eef6"
+            ),
+        ],
+        ArgumentFiles: "libraries/net/minecraftforge/forge/1.20.2-48.1.0"
+    );
 
     /// <summary>
     /// Gets Forge 1.7.2-10.12.2.1161, which runs on Java 8, so everywhere but on Windows for ARM64. Forge's jar names the six libraries and the vanilla server in
@@ -90,14 +118,16 @@ internal sealed record LocalServer(int Java, string MainClass, string WorldType,
 
     /// <summary>
     /// Puts the server's files into a directory, with the agreement to Mojang's licence that servers from 1.7.10 ask for and properties that have the server listen
-    /// on a free port of this machine only and generate a flat world.
+    /// on a free port of this machine only and generate a flat world, and runs the installer when the server has one.
     /// </summary>
     /// <param name="directory">The empty directory to install into, which the server then runs in.</param>
-    /// <param name="cancellationToken">Cancels the downloads.</param>
-    /// <returns>The path of the server's jar, its class path.</returns>
-    internal async Task<string> InstallAsync(DirectoryInfo directory, CancellationToken cancellationToken)
+    /// <param name="jdk">The JDK that runs the installer.</param>
+    /// <param name="cancellationToken">Cancels the downloads and the installer.</param>
+    /// <returns>How the server starts.</returns>
+    internal async Task<LocalServerLaunch> InstallAsync(DirectoryInfo directory, Jdk jdk, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(directory);
+        ArgumentNullException.ThrowIfNull(jdk);
 
         foreach (LocalServerFile file in Files)
         {
@@ -113,7 +143,16 @@ internal sealed record LocalServer(int Java, string MainClass, string WorldType,
         await File.WriteAllLinesAsync(Path.Combine(directory.FullName, path2: "server.properties"), properties, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         await File.WriteAllTextAsync(Path.Combine(directory.FullName, path2: "eula.txt"), contents: "eula=true\n", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        return Path.Combine(directory.FullName, Files[index: 0].Path);
+        string jar = Path.Combine(directory.FullName, Files[index: 0].Path);
+
+        if (ArgumentFiles is null)
+            return new LocalServerLaunch(directory.FullName, MainClass, jar, [], []);
+
+        await RunInstallerAsync(jdk, jar, directory, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        string arguments = Path.Combine(directory.FullName, ArgumentFiles, OperatingSystem.IsWindows() ? "win_args.txt" : "unix_args.txt");
+
+        return LocalServerLaunch.Parse(await File.ReadAllTextAsync(arguments, cancellationToken).ConfigureAwait(continueOnCapturedContext: false), directory.FullName);
     }
 
     // A port that was free a moment ago: the system picks one for a listener that is closed again at once.
@@ -129,5 +168,23 @@ internal sealed record LocalServer(int Java, string MainClass, string WorldType,
     private static LocalServerFile Library(string repository, string path, string sha256)
     {
         return new LocalServerFile("libraries/" + path, repository + path, sha256);
+    }
+
+    // The installer downloads each library once, from a mirror it picks, and gives up when a download fails. Run again it keeps what it has, so a few runs get
+    // past a connection that broke, as itzg's image installs a server again when the container is started again.
+    private async Task RunInstallerAsync(Jdk jdk, string installer, DirectoryInfo directory, CancellationToken cancellationToken)
+    {
+        JavaRunOptions options = new() { WorkingDirectory = directory.FullName, Arguments = ["--installServer"], Timeout = TimeSpan.FromMinutes(minutes: 20) };
+        JavaRun installed = await jdk.RunAsync(MainClass, installer, options: options, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        for (int attempt = 2; attempt <= InstallAttempts && installed.ExitCode != 0; attempt++)
+            installed = await jdk.RunAsync(MainClass, installer, options: options, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        string[] lines = installed.Output.Split(separator: '\n');
+
+        Assert.True(
+            installed.ExitCode == 0,
+            $"The installer failed {InstallAttempts} times. Its last output ends with:\n{string.Join(separator: '\n', lines.Skip(Math.Max(val1: 0, lines.Length - 40)))}"
+        );
     }
 }

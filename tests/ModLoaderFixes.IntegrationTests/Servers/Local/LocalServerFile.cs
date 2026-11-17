@@ -1,4 +1,4 @@
-namespace ModLoaderFixes.IntegrationTests.Servers;
+namespace ModLoaderFixes.IntegrationTests.Servers.Local;
 
 /// <summary>One of the files a real server is made of, pinned by its checksum, with the place its installer would put it in the directory the server runs in.</summary>
 /// <param name="Path">Where the file lies in the server's directory.</param>
