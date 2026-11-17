@@ -13,6 +13,9 @@ public sealed class RegistryThreadTests
     private const string MainClass = "net.minecraftforge.fml.common.network.handshake.FMLHandshakeClientState";
     private const string Sources = "Fixtures/RegistryThread/**/*.java";
 
+    // How the lines start that the fixture prints for a revert, an injection and the injection's result.
+    private static readonly string[] ProgramLines = ["REVERT ", "INJECT ", "MISSING "];
+
     /// <summary>Without the agent the network thread rebuilds the registries; with it the client thread does, in order, and the handshake still gets the injection's result.</summary>
     [Theory]
     [JdkData(8)]
@@ -64,11 +67,12 @@ public sealed class RegistryThreadTests
             patched.Output,
             StringComparison.Ordinal
         );
-        // The revert is scheduled before the injection, so the client thread runs them in that order, and the network thread receives the injection's result.
-        Assert.Contains(
-            string.Join(Environment.NewLine, value: ["REVERT on main", "INJECT {minecraft:block=server} on main", "MISSING 1"]),
-            patched.Output.ReplaceLineEndings(),
-            StringComparison.Ordinal
+        // The revert is scheduled before the injection, so the client thread runs them in that order, and the network thread receives the injection's result. The
+        // agent and the JVM write on the standard error, whose lines land among the program's as the two streams are read, so only the program's three kinds of
+        // lines are compared.
+        Assert.Equal(
+            ["REVERT on main", "INJECT {minecraft:block=server} on main", "MISSING 1"],
+            patched.Output.ReplaceLineEndings().Split(Environment.NewLine).Where(static line => ProgramLines.Any(start => line.StartsWith(start, StringComparison.Ordinal)))
         );
     }
 
