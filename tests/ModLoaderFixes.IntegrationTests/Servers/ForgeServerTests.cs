@@ -153,5 +153,10 @@ public sealed class ForgeServerTests
         ForgeServer.AssertLogged(logs, expected: "ModLoaderFixes: patched cpw/mods/fml/relauncher/CoreModManager");
         ForgeServer.AssertNotLogged(logs, unexpected: "ConcurrentModificationException");
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
+
+        // A server that isn't ready in time is shown with the threads of its JVM, which this running one must give too, as long as itzg's image lets the test ask.
+        string threads = await ServerLogs.ThreadsAsync(server, timeout.Token).ConfigureAwait(continueOnCapturedContext: false);
+
+        Assert.Contains(expectedSubstring: "\"Server thread\"", threads, StringComparison.Ordinal);
     }
 }

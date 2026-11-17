@@ -219,7 +219,7 @@ internal static partial class ForgeServer
     }
 
     /// <summary>
-    /// Reads the server's log, both streams, without the terminal's colors and other control characters. Forge colors its log, and xUnit drops the result of a test
+    /// Reads the server's log, both streams in the order their lines were written, without the terminal's colors and other control characters. Forge colors its log, and xUnit drops the result of a test
     /// whose failure message has an escape character, without counting it as failed, so a server that exits would pass unseen once its log is in the message.
     /// </summary>
     /// <param name="server">The container whose output is the server's log.</param>
@@ -229,7 +229,7 @@ internal static partial class ForgeServer
     {
         (string standardOutput, string standardError) = await server.GetLogsAsync(ct: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        return Printable(standardOutput + standardError);
+        return Printable(ServerLogs.Chronological(standardOutput, standardError));
     }
 
     /// <summary>
@@ -324,12 +324,19 @@ internal static partial class ForgeServer
         return string.Join(separator: '\n', lines.Skip(Math.Max(val1: 0, lines.Length - 40)));
     }
 
-    // A timed-out wait would otherwise report only that a task was canceled; the end of the log says whether the install, the start or the logins took the time.
+    // A timed-out wait would otherwise report only that a task was canceled. The end of the log, without the health check's lines, says whether the install, the
+    // start or the logins took the time, and the JVM's threads say what each of them waited for.
     private static async Task<TimeoutException> TimedOutAsync(IContainer server, string phase, OperationCanceledException exception)
     {
         string logs = await ReadLogsAsync(server, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+        string threads = await ServerLogs.ThreadsAsync(server, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
 
-        return new TimeoutException($"{phase} within {StartTimeout.TotalMinutes} minutes. The server's log ends with:{Environment.NewLine}{Tail(logs)}", exception);
+        string message = string.Join(
+            Environment.NewLine,
+            value: [$"{phase} within {StartTimeout.TotalMinutes} minutes. The server's log, without the health check's lines, ends with:", Tail(ServerLogs.WithoutHealthChecks(logs)), "The threads of its JVM:", threads]
+        );
+
+        return new TimeoutException(message, exception);
     }
 
     [GeneratedRegex(pattern: @"^NOT RECEIVED by (\S+):", RegexOptions.Multiline)]
