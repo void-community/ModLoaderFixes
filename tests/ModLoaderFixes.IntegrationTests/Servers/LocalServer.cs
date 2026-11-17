@@ -13,8 +13,11 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 /// </summary>
 /// <param name="Java">The Java the server runs on, which decides the platforms that can run it.</param>
 /// <param name="MainClass">The class that the server's jar starts, which a test starts by name with the jar as its class path.</param>
+/// <param name="WorldType">
+/// How the server's properties name a flat world, which a slow machine generates in seconds; an Intel Mac of CI didn't generate 1.18.2's default world in five minutes.
+/// </param>
 /// <param name="Files">The server's files; the first is the jar that is its class path.</param>
-internal sealed record LocalServer(int Java, string MainClass, IReadOnlyList<LocalServerFile> Files)
+internal sealed record LocalServer(int Java, string MainClass, string WorldType, IReadOnlyList<LocalServerFile> Files)
 {
     private const string ForgeMaven = "https://maven.minecraftforge.net/";
     private const string Libraries = "https://libraries.minecraft.net/";
@@ -26,6 +29,7 @@ internal sealed record LocalServer(int Java, string MainClass, IReadOnlyList<Loc
     internal static LocalServer Forge172 { get; } = new(
         Java: 8,
         MainClass: "cpw.mods.fml.relauncher.ServerLaunchWrapper",
+        WorldType: "FLAT",
         [
             new(
                 Path: "forge-1.7.2-10.12.2.1161-mc172-universal.jar",
@@ -68,11 +72,13 @@ internal sealed record LocalServer(int Java, string MainClass, IReadOnlyList<Loc
 
     /// <summary>
     /// Gets vanilla Minecraft 1.18.2, which runs on Java 17, the oldest Java that every platform has, Windows for ARM64 among them. Its one jar holds its libraries
-    /// and unpacks them into the directory it runs in.
+    /// and unpacks them into the directory it runs in. It logs one error about the flat world's settings, which its properties can't give it, and generates the
+    /// default flat world.
     /// </summary>
     internal static LocalServer Vanilla1182 { get; } = new(
         Java: 17,
         MainClass: "net.minecraft.bundler.Main",
+        WorldType: "flat",
         [
             new(
                 Path: "server.jar",
@@ -84,7 +90,7 @@ internal sealed record LocalServer(int Java, string MainClass, IReadOnlyList<Loc
 
     /// <summary>
     /// Puts the server's files into a directory, with the agreement to Mojang's licence that servers from 1.7.10 ask for and properties that have the server listen
-    /// on a free port of this machine only.
+    /// on a free port of this machine only and generate a flat world.
     /// </summary>
     /// <param name="directory">The empty directory to install into, which the server then runs in.</param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
@@ -102,7 +108,7 @@ internal sealed record LocalServer(int Java, string MainClass, IReadOnlyList<Loc
             File.Copy(cached, installed.FullName);
         }
 
-        string[] properties = ["server-ip=127.0.0.1", "server-port=" + FreePort().ToString(CultureInfo.InvariantCulture), "online-mode=false"];
+        string[] properties = ["server-ip=127.0.0.1", "server-port=" + FreePort().ToString(CultureInfo.InvariantCulture), "online-mode=false", "level-type=" + WorldType];
 
         await File.WriteAllLinesAsync(Path.Combine(directory.FullName, path2: "server.properties"), properties, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         await File.WriteAllTextAsync(Path.Combine(directory.FullName, path2: "eula.txt"), contents: "eula=true\n", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
