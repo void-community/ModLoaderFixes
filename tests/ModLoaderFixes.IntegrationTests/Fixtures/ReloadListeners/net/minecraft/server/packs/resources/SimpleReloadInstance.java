@@ -64,6 +64,16 @@ public class SimpleReloadInstance {
         this.allDone = CompletableFuture.allOf(done.toArray(new CompletableFuture<?>[0]));
     }
 
+    /** Says what every thread does when a reload hangs: a worker that stands in a listener's task, or none, which tells a stalled worker from a lost removal. */
+    private static void printThreads() {
+        for (java.util.Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+            System.out.println("THREAD " + entry.getKey().getName() + " " + entry.getKey().getState());
+
+            for (StackTraceElement element : entry.getValue())
+                System.out.println("    at " + element);
+        }
+    }
+
     public static void main(String[] arguments) throws Exception {
         ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
 
@@ -80,6 +90,7 @@ public class SimpleReloadInstance {
                     instance.allDone.get(5, TimeUnit.SECONDS);
                 } catch (TimeoutException exception) {
                     System.out.println("HUNG at reload " + reload + " with " + instance.preparingListeners.size() + " listeners still preparing");
+                    printThreads();
                     System.exit(1);
                 }
 
