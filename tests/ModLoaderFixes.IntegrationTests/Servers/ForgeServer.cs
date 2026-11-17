@@ -157,7 +157,7 @@ internal static partial class ForgeServer
             .WithEnvironment(name: "VERSION", version)
             .WithEnvironment(name: "MEMORY", memory)
             .WithEnvironment(name: "JVM_OPTS", option + AgentDirectory + agent.Name)
-            .WithResourceMapping(agent, AgentDirectory);
+            .WithResourceMapping(FilePath.Of(agent.FullName), DirectoryPath.Of(AgentDirectory));
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ internal static partial class ForgeServer
         return server
             .WithEnvironment(name: "ONLINE_MODE", value: "FALSE")
             .WithEnvironment(name: "MAX_PLAYERS", value: "1000")
-            .WithResourceMapping(new DirectoryInfo(loginLoad), LoaderDirectory);
+            .WithResourceMapping(DirectoryPath.Of(loginLoad), DirectoryPath.Of(LoaderDirectory));
     }
 
     // The server's lines from the first to a few after the last that names a player whose kick wasn't received, or its last lines when the kick client named

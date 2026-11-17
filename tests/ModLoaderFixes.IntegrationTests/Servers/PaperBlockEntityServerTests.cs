@@ -1,6 +1,7 @@
 using System.Text;
 
 using DotNet.Testcontainers.Configurations;
+using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 
 using JvmBridge.Testing;
@@ -61,7 +62,13 @@ public sealed class PaperBlockEntityServerTests
             .WithEnvironment(name: "LEVEL_TYPE", value: "FLAT")
             .WithEnvironment(name: "CREATE_CONSOLE_IN_PIPE", value: "true")
             .WithEnvironment(name: "JVM_DD_OPTS", properties)
-            .WithResourceMapping(Encoding.UTF8.GetBytes(s: "timings:\n  history-interval: 60\n"), filePath: "/data/paper.yml", Minecraft, Minecraft, Writable)
+            .WithResourceMapping(
+                Encoding.UTF8.GetBytes(s: "timings:\n  history-interval: 60\n"),
+                FilePath.Of(path: "/data/paper.yml"),
+                Minecraft,
+                Minecraft,
+                Writable
+            )
             .Build();
 
         string logs = await ForgeServer.StartAsync(server, timeout.Token);

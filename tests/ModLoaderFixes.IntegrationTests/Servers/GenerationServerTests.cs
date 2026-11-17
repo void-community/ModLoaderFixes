@@ -1,6 +1,7 @@
 using System.IO.Compression;
 
 using DotNet.Testcontainers.Configurations;
+using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 
 using JvmBridge.Testing;
@@ -59,7 +60,7 @@ public sealed class GenerationServerTests
             .WithEnvironment(name: "FORGE_VERSION", loaderVersion)
             .WithEnvironment(name: "SEED", Seed)
             .WithEnvironment(name: "DATAPACKS", Packs)
-            .WithResourceMapping(pack, Packs + "replaced.zip", fileMode: Readable)
+            .WithResourceMapping(pack, FilePath.Of(Packs + "replaced.zip"), fileMode: Readable)
             .Build();
 
         string logs = await ForgeServer.StartAsync(server, timeout.Token);
