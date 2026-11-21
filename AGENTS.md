@@ -7,7 +7,7 @@ ModLoaderFixes is a NativeAOT JVM agent, written in C# with JvmBridge, that fixe
 - `src/ModLoaderFixes`: the agent, its class patches and the Java helpers those patches call.
 - `src/ModLoaderFixes.Mappings`: the generator that the agent's build runs to resolve the vanilla names of the classes and methods that the agent's `MappedClass` items list.
 - `tests/ModLoaderFixes.Tests`: xUnit unit tests of class file patching, referencing the agent project.
-- `tests/ModLoaderFixes.IntegrationTests`: xUnit tests that load the published agent into real JVMs, against Java fixtures (one folder per scenario under `Fixtures`) and real Forge servers.
+- `tests/ModLoaderFixes.IntegrationTests`: xUnit tests that load the published agent into real JVMs, against Java fixtures (one folder per scenario under `Fixtures`) and real Forge servers. A fixture of a race makes its threads meet, with a latch they start from or wait for and in rounds when one meeting isn't enough, and never leaves the meeting to how fast a thread starts: without that the half of a test that expects the race without the agent fails on a busy runner. A fixture that waits for something tells apart what the patched code can cause from what the JVM causes, as the reload fixture reports a reload HUNG when the set kept a listener and STALLED when a stage of a future never ran.
 - `.github`: the CI workflow, which runs the shared stages of void-community/Actions, this repository's own Renovate rules, and repository templates.
 
 ## Source conventions

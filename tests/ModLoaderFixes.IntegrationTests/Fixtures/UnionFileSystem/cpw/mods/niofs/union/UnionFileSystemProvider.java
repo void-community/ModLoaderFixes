@@ -3,6 +3,7 @@ package cpw.mods.niofs.union;
 import java.nio.file.FileSystemNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -51,10 +52,15 @@ public class UnionFileSystemProvider {
             UnionFileSystemProvider provider = new UnionFileSystemProvider();
             Object registered = provider.newFileSystem("/mods/first.jar");
             AtomicBoolean done = new AtomicBoolean();
+            // The registrations wait for the loader's first lookup: a thread takes longer to start than 250 registrations take, on Windows much longer, so
+            // without the wait the loader may look nothing up while the map grows in any of the rounds.
+            CountDownLatch looking = new CountDownLatch(1);
             long[] failures = new long[2];
 
             Thread loader = new Thread(() -> {
                 while (!done.get()) {
+                    looking.countDown();
+
                     try {
                         if (provider.getFileSystem("/mods/first.jar%230") != registered)
                             failures[1]++;
@@ -65,6 +71,7 @@ public class UnionFileSystemProvider {
             });
 
             loader.start();
+            looking.await();
 
             for (int added = 0; added < FILE_SYSTEMS; added++)
                 provider.newFileSystem("/mods/next.jar");

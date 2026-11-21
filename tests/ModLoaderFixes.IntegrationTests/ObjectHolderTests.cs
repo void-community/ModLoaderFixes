@@ -26,7 +26,8 @@ public sealed class ObjectHolderTests
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
-        // Which way the set breaks varies from run to run, but it breaks: in many runs on Java 8 and 25 every one did.
+        // Which way the set breaks varies from run to run, but it breaks in the first round in which the workers meet: in many runs on Java 8 and 25 every one did.
+        // The fixture adds in 20 rounds, as a machine that is busy elsewhere can run the workers of one round one after another.
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
         Assert.DoesNotContain(expectedSubstring: "HANDLERS", unpatched.Output, StringComparison.Ordinal);
 

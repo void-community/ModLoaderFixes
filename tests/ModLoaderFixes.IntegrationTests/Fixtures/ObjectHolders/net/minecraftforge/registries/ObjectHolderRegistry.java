@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -19,17 +20,38 @@ public class ObjectHolderRegistry {
     private static final Map<String, Object> namedHandlers = new HashMap<>();
     private static final int THREADS = 8;
     private static final int HANDLERS_PER_THREAD = 50000;
+    private static final int ROUNDS = 20;
 
     public static void addHandler(Consumer<Predicate<String>> handler) {
         objectHolders.add(handler);
     }
 
     public static void main(String[] arguments) throws InterruptedException {
+        // A machine that is busy elsewhere can run the workers of a round one after another, and a set that one thread changes at a time keeps every handler. So
+        // the workers add in rounds, and the first round in which they meet breaks a set without a lock; a machine with one processor may never have them meet.
+        for (int round = 1; round <= ROUNDS; round++) {
+            objectHolders.clear();
+            addFromEveryWorker(round);
+        }
+
+        System.out.println("HANDLERS " + objectHolders.size() + " in " + objectHolders.getClass().getSimpleName() + ", NAMED " + namedHandlers.getClass().getSimpleName()
+            + ", in each of " + ROUNDS + " rounds");
+    }
+
+    private static void addFromEveryWorker(int round) throws InterruptedException {
         final AtomicReference<Throwable> crashed = new AtomicReference<>();
+        // The workers add together from one moment on: started one after another, the first can be done before the last begins.
+        final CountDownLatch together = new CountDownLatch(1);
         List<Thread> workers = new ArrayList<>();
 
         for (int worker = 0; worker < THREADS; worker++) {
             Thread thread = new Thread(() -> {
+                try {
+                    together.await();
+                } catch (InterruptedException interrupted) {
+                    return;
+                }
+
                 // Each handler captures its own name, so each is a distinct object, as the handlers of different fields are.
                 for (int handler = 0; handler < HANDLERS_PER_THREAD; handler++) {
                     String name = Thread.currentThread().getName() + "/" + handler;
@@ -45,6 +67,8 @@ public class ObjectHolderRegistry {
         for (Thread thread : workers)
             thread.start();
 
+        together.countDown();
+
         // A hash map that two threads change at once can also loop forever, so a worker that hasn't finished in time counts as broken too.
         long deadline = System.currentTimeMillis() + 10000;
 
@@ -52,7 +76,7 @@ public class ObjectHolderRegistry {
             thread.join(Math.max(1, deadline - System.currentTimeMillis()));
 
             if (thread.isAlive()) {
-                System.out.println("HUNG in addHandler");
+                System.out.println("HUNG in addHandler in round " + round);
                 System.exit(1);
             }
         }
@@ -60,15 +84,13 @@ public class ObjectHolderRegistry {
         int expected = THREADS * HANDLERS_PER_THREAD;
 
         if (crashed.get() != null) {
-            System.out.println("CRASHED " + crashed.get());
+            System.out.println("CRASHED " + crashed.get() + " in round " + round);
             System.exit(1);
         }
 
         if (objectHolders.size() != expected) {
-            System.out.println("LOST " + (expected - objectHolders.size()) + " of " + expected + " handlers");
+            System.out.println("LOST " + (expected - objectHolders.size()) + " of " + expected + " handlers in round " + round);
             System.exit(1);
         }
-
-        System.out.println("HANDLERS " + objectHolders.size() + " in " + objectHolders.getClass().getSimpleName() + ", NAMED " + namedHandlers.getClass().getSimpleName());
     }
 }

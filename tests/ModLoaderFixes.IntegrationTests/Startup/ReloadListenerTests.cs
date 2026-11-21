@@ -65,7 +65,10 @@ public sealed class ReloadListenerTests
             StringComparison.Ordinal
         );
         Assert.Contains(expectedSubstring: "SET modloaderfixes.ReloadListeners$LockedSet", patched.Output, StringComparison.Ordinal);
+        // A reload that the JVM stalled, by never running a stage of a future, is counted in this line and is none of the set's doing; one in which the set kept
+        // a listener after every removal ran ends the run with HUNG, as without the agent.
         Assert.Contains(expectedSubstring: "RELOADED 20000 times", patched.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(expectedSubstring: "HUNG at reload", patched.Output, StringComparison.Ordinal);
     }
 
     // The patched constructor goes through the full verifier.
