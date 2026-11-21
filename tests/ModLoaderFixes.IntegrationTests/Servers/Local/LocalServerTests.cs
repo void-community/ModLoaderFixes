@@ -17,33 +17,42 @@ public sealed class LocalServerTests
     // Forge from 1.20.1 loads its config twice when a client's loading window reads it; the agent points the load at its helper, on a server as on a client.
     private const string ConfigurationLoaded = "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (load()V: 1 invocation of net/minecraftforge/fml/loading/FMLConfig.loadFrom redirected";
 
+    // The container of a chunk section's blocks, from 1.18, by Mojang's name, which Forge runs it under; its read is made again while a palette entry is on its way.
+    private const string PaletteRead = "ModLoaderFixes: patched net/minecraft/world/level/chunk/PalettedContainer" + ForgeServer.PaletteReadsPatched;
+
+    // That container by the name that 1.18.2 gives it.
+    private const string PaletteReadOf1182 = "ModLoaderFixes: patched crh" + ForgeServer.PaletteReadsPatched;
+
     // The reload of 1.18.2, SimpleReloadInstance, by the name that release gives it; it waits for its data packs forever when its listener set loses a removal.
     private const string ReloadLocked = "ModLoaderFixes: patched agf (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)";
 
     private const string TweakersSorted = "ModLoaderFixes: patched cpw/mods/fml/relauncher/CoreModManager";
 
-    /// <summary>Forge 1.20.2, which its own installer installs, becomes ready with FML's config loaded through the agent.</summary>
+    /// <summary>
+    /// Forge 1.20.2, which its own installer installs, becomes ready with FML's config loaded through the agent and with its chunks' blocks read through the
+    /// patched container.
+    /// </summary>
     [Fact]
     public async Task Forge1202ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Forge1202, ConfigurationLoaded);
+        await AssertStartsAsync(LocalServer.Forge1202, [ConfigurationLoaded, PaletteRead]);
     }
 
     /// <summary>Forge 1.7.2 sorts its tweakers without crashing and becomes ready.</summary>
     [Fact]
     public async Task Forge172ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Forge172, TweakersSorted);
+        await AssertStartsAsync(LocalServer.Forge172, [TweakersSorted]);
     }
 
-    /// <summary>Vanilla 1.18.2 becomes ready with its reload's listener set locked.</summary>
+    /// <summary>Vanilla 1.18.2 becomes ready with its reload's listener set locked and with its chunks' blocks read through the patched container.</summary>
     [Fact]
     public async Task Vanilla1182ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Vanilla1182, ReloadLocked);
+        await AssertStartsAsync(LocalServer.Vanilla1182, [ReloadLocked, PaletteReadOf1182]);
     }
 
-    private static async Task AssertStartsAsync(LocalServer server, string patched)
+    private static async Task AssertStartsAsync(LocalServer server, string[] patched)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         Jdk jdk = new(server.Java);
@@ -67,7 +76,7 @@ public sealed class LocalServerTests
     }
 
     // Starts the server, waits until it says it is ready, tells it to stop, as its operator does at its console, and checks what it wrote until it ended.
-    private static async Task AssertStartsWithAsync(PublishedAgent agent, Jdk jdk, LocalServerLaunch launch, string patched, CancellationToken cancellationToken)
+    private static async Task AssertStartsWithAsync(PublishedAgent agent, Jdk jdk, LocalServerLaunch launch, string[] patched, CancellationToken cancellationToken)
     {
         // A gigabyte is what a 32-bit JVM can still be given, and enough for a server without players.
         JavaRunOptions options = new()
@@ -91,11 +100,16 @@ public sealed class LocalServerTests
         JavaRun run = await server.WaitForExitAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         string loaded = agent.IsJar ? "the jar" : "the library";
 
-        Assert.True(
-            run.Output.Contains(patched, StringComparison.Ordinal),
-            $"With {loaded} the server didn't log \"{patched}\". It logged:{Environment.NewLine}{run.Output}"
-        );
+        foreach (string line in patched)
+        {
+            Assert.True(
+                run.Output.Contains(line, StringComparison.Ordinal),
+                $"With {loaded} the server didn't log \"{line}\". It logged:{Environment.NewLine}{run.Output}"
+            );
+        }
+
         ForgeServer.AssertNotLogged(run.Output, unexpected: "ConcurrentModificationException");
+        ForgeServer.AssertNotLogged(run.Output, unexpected: "MissingPaletteEntryException");
         ForgeServer.AssertLogged(run.Output, expected: "Stopping server");
     }
 }

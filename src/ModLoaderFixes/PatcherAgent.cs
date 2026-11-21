@@ -136,6 +136,7 @@ public sealed class PatcherAgent : JavaAgent
         JavaClasses.Modloaderfixes.NewConnections,
         JavaClasses.Modloaderfixes.QueuedPackets,
         JavaClasses.Modloaderfixes.ReloadListeners,
+        JavaClasses.Modloaderfixes.Palettes,
     ];
 
     /// <summary>Gets every patch the agent registers.</summary>
@@ -173,6 +174,7 @@ public sealed class PatcherAgent : JavaAgent
         .. PaperBlockEntityStates.Patches,
         UnionFileSystems.Patch,
         ChunkLoads.Patch,
+        .. PaletteReads.Patches,
     ];
 
     /// <inheritdoc/>

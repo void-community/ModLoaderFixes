@@ -51,6 +51,12 @@ internal static partial class ForgeServer
     internal const string ModLauncherPatched =
         "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";
 
+    /// <summary>
+    /// What the agent logs, after the container's name, when it has the container of a chunk section's blocks, in Minecraft from 1.18, read a block again
+    /// while the block's palette entry is on its way.
+    /// </summary>
+    internal const string PaletteReadsPatched = " (blocks read again while their palette entry is on its way (1 change))";
+
     /// <summary>The line a server logs when it is ready for players.</summary>
     internal const string ReadyLine = "Done (";
 

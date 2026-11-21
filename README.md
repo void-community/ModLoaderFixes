@@ -311,6 +311,21 @@ java.lang.NullPointerException: Cannot invoke "net.minecraft.world.level.MoonPha
 	at net.minecraft.world.level.NaturalSpawner.spawnMobsForChunkGeneration(NaturalSpawner.java:404)
 ```
 
+**Minecraft, Forge, NeoForge and Paper servers from 1.18 on ARM processors now and then never finish a chunk**, and a server that starts stays at `Preparing spawn area` forever:
+
+```text
+[Worker-Main-1/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 80%
+[Worker-Main-2/ERROR] [minecraft/Util]: Caught exception in thread Thread[Worker-Main-2,5,main]
+net.minecraft.world.level.chunk.MissingPaletteEntryException: Missing Palette entry for index 7.
+	at net.minecraft.world.level.chunk.LinearPalette.m_5795_(LinearPalette.java:75)
+	at net.minecraft.world.level.chunk.PalettedContainer.m_63085_(PalettedContainer.java:146)
+	at net.minecraft.world.level.chunk.LevelChunkSection.m_62982_(LevelChunkSection.java:51)
+	at net.minecraft.world.level.lighting.BlockLightEngine.m_75508_(BlockLightEngine.java:28)
+[Worker-Main-2/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 83%
+```
+
+The light engine reads the blocks of a chunk that world generation still writes to, and an ARM processor can show it a block of a new kind before the kind itself, which an x86 processor never does. The chunk then never gets its light. Paper from 1.21.3 to 26.2 reports `IllegalArgumentException: Palette index out of bounds` for it. With the agent such a read is made again and gets the block, in Minecraft, Forge and NeoForge from 1.18 to 26.3 and in Paper from 1.18.
+
 ## 🚀 Usage
 
 Download the agent from the [**latest release**](https://github.com/void-community/ModLoaderFixes/releases/latest):

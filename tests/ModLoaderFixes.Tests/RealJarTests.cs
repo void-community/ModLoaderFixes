@@ -180,7 +180,8 @@ public sealed class RealJarTests
     /// NetHandlerPlayClient up to 1.13.2, whose client is no executor, at each 1.13 release, ClientPlayNetHandler up to 1.16.5, ClientPacketListener up to 1.20.1 and
     /// ClientCommonPacketListenerImpl from 1.20.2, and 26.1's chunk batch answer. The entity render dispatcher of 1.14 to 1.14.4, which draws an entity only once it
     /// has a camera, under each of its four namings, 1.14.1 sharing its with 1.14.2. The NetworkManager of every release from 1.7.2 to 1.8 is there twice, as in the
-    /// servers: its closeChannel changes too. The region that the integrated server of 1.13 to 1.16.5 generates through, under the servers' names.
+    /// servers: its closeChannel changes too. The region that the integrated server of 1.13 to 1.16.5 generates through, under the servers' names. From 1.18 the
+    /// container of a chunk section's blocks, PalettedContainer, whose read is made again while the block's palette entry is on its way, under each release's name.
     /// </summary>
     public static TheoryData<string, string, string, string[]> VanillaClients { get; } = new()
     {
@@ -206,16 +207,16 @@ public sealed class RealJarTests
         { "1.14.4", "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9", "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a", ["dkc +0", "dsa +0", "eaj +0", "vq +0"] },
         { "1.16.5", "37fd3c903861eeff3bc24b71eed48f828b5269c8", "00b5ebbc33e95ea88c1ab80601599c9827e9aa861d93ccc2cfcbbfd996e86263", ["acl +0", "dwu +0", "enn +0", "aam +0"] },
         { "1.17", "1cf89c77ed5e72401b869f66410934804f3d6f52", "14122287d4e4256c2d65ec8c0ccfa3b56448495fa3ccabc87d0f0eeb4fa1c30f", ["ady +0", "eji +0", "fav +0"] },
-        { "1.18", "d49eb6caed53d23927648c97451503442f9e26fd", "381e090ef22584526113bcccf26ae38a310a22094d14c2d0dec72b71fdf65aaa", ["afp +0", "elm +0", "fdb +0"] },
-        { "1.18.1", "7e46fb47609401970e2818989fa584fd467cd036", "737c28a56c8980fcd8574465c61538ebde8f511bdd035c69d0cbe27953f892aa", ["afp +0", "elm +0", "fdb +0"] },
-        { "1.18.2", "2e9a3e3107cca00d6bc9c97bf7d149cae163ef21", "1d09e3639644b6b2254499469d0765cc005a286d19f3fa595b0ed8fb07971ec7", ["agf +0", "emt +0", "fei +0"] },
-        { "1.19", "c0898ec7c6a5a2eaa317770203a1554260699994", "ffd4fb3037d4110085b4d3d2dc47b760695528eb14292c3e5f7c758983c6d764", ["etn +0", "flu +0"] },
-        { "1.20.1", "0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838", "56b71336d2b4fdffd197f56595b0da93e32a946f78f382a299b8f4b92758bb0f", ["fex +0", "fyv +0"] },
-        { "1.20.2", "82d1974e75fc984c5ed4b038e764e50958ac61a0", "fa1a19be56a506426308abbc1cad85f299a7fc6dae4335559351ba0246713fda", ["fiu +0", "gdj +0"] },
-        { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["fnp +0", "gix +0"] },
-        { "1.20.5", "c6b92b2374a629f20802bb284f98a4ee790e950a", "49d5949adbb1021a7eb00c1b949f9e39934b10249cbf86d25004774d1b3ff510", ["fxt +0"] },
-        { "1.21.11", "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd", "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd", ["cef$b +0", "hia +0"] },
-        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl +0", "net/minecraft/client/multiplayer/ClientPacketListener +0", "net/minecraft/world/attribute/EnvironmentAttributeSystem$ValueSampler +0"] },
+        { "1.18", "d49eb6caed53d23927648c97451503442f9e26fd", "381e090ef22584526113bcccf26ae38a310a22094d14c2d0dec72b71fdf65aaa", ["cqp +0", "afp +0", "elm +0", "fdb +0"] },
+        { "1.18.1", "7e46fb47609401970e2818989fa584fd467cd036", "737c28a56c8980fcd8574465c61538ebde8f511bdd035c69d0cbe27953f892aa", ["cqp +0", "afp +0", "elm +0", "fdb +0"] },
+        { "1.18.2", "2e9a3e3107cca00d6bc9c97bf7d149cae163ef21", "1d09e3639644b6b2254499469d0765cc005a286d19f3fa595b0ed8fb07971ec7", ["crh +0", "agf +0", "emt +0", "fei +0"] },
+        { "1.19", "c0898ec7c6a5a2eaa317770203a1554260699994", "ffd4fb3037d4110085b4d3d2dc47b760695528eb14292c3e5f7c758983c6d764", ["cxd +0", "etn +0", "flu +0"] },
+        { "1.20.1", "0c3ec587af28e5a785c0b4a7b8a30f9a8f78f838", "56b71336d2b4fdffd197f56595b0da93e32a946f78f382a299b8f4b92758bb0f", ["deq +0", "fex +0", "fyv +0"] },
+        { "1.20.2", "82d1974e75fc984c5ed4b038e764e50958ac61a0", "fa1a19be56a506426308abbc1cad85f299a7fc6dae4335559351ba0246713fda", ["dhy +0", "fiu +0", "gdj +0"] },
+        { "1.20.4", "fd19469fed4a4b4c15b2d5133985f0e3e7816a8a", "9221ab461a491bf9661cd8e773a5e662aaa43d600fa7970b8c12bbfb0431b838", ["dlw +0", "fnp +0", "gix +0"] },
+        { "1.20.5", "c6b92b2374a629f20802bb284f98a4ee790e950a", "49d5949adbb1021a7eb00c1b949f9e39934b10249cbf86d25004774d1b3ff510", ["dur +0", "fxt +0"] },
+        { "1.21.11", "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd", "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd", ["eqy +0", "cef$b +0", "hia +0"] },
+        { "26.1", "191771837687b766537a8c4607cb6fad79c533a1", "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840", ["net/minecraft/world/level/chunk/PalettedContainer +0", "net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl +0", "net/minecraft/client/multiplayer/ClientPacketListener +0", "net/minecraft/world/attribute/EnvironmentAttributeSystem$ValueSampler +0"] },
     };
 
     /// <summary>
