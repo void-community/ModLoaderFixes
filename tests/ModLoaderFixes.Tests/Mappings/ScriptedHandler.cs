@@ -12,7 +12,9 @@ internal sealed class ScriptedHandler(Func<string, int, HttpResponseMessage> ans
     /// <inheritdoc/>
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        string address = request.RequestUri?.AbsoluteUri ?? throw new InvalidOperationException(message: "The request has no address.");
+        string address = request.RequestUri?.AbsoluteUri
+            ?? throw new InvalidOperationException(message: "The request has no address.");
+
         int time = _requests.GetValueOrDefault(address) + 1;
 
         _requests[address] = time;

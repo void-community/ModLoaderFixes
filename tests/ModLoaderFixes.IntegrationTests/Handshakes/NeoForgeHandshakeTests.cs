@@ -11,12 +11,15 @@ namespace ModLoaderFixes.IntegrationTests.Handshakes;
 /// </summary>
 public sealed class NeoForgeHandshakeTests
 {
+    // NeoForge's handshake handler, which both fixtures have as their main class.
     private const string MainClass = "net.neoforged.neoforge.network.HandshakeHandler";
-    private const string RepliesPatched =
-        "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (indexed replies handled before they are marked answered (1 change))";
+
+    // The fixture of the replies: what the agent logs when it patches it, and its sources.
+    private const string RepliesPatched = "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (indexed replies handled before they are marked answered (1 change))";
     private const string RepliesSources = "Fixtures/NeoForgeReplies/**/*.java";
-    private const string SentMessagesPatched =
-        "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (<init>: 1 new it/unimi/dsi/fastutil/ints/IntArrayList replaced by new modloaderfixes/HandshakeIndexes stored in sentMessages)";
+
+    // The fixture of the sent messages: what the agent logs when it patches it, and its sources.
+    private const string SentMessagesPatched = "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (<init>: 1 new it/unimi/dsi/fastutil/ints/IntArrayList replaced by new modloaderfixes/HandshakeIndexes stored in sentMessages)";
     private const string SentMessagesSources = "Fixtures/NeoForgeSentMessages/**/*.java";
 
     /// <summary>
@@ -24,6 +27,7 @@ public sealed class NeoForgeHandshakeTests
     /// removed, and the handshake ends after both.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task AgentHandlesTheReplyBeforeTheHandshakeEnds(Jdk jdk)
@@ -31,8 +35,8 @@ public sealed class NeoForgeHandshakeTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(RepliesSources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -41,7 +45,7 @@ public sealed class NeoForgeHandshakeTests
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertRepliesPatched(patched);
+        AssertHandlesTheReplyBeforeTheHandshakeEnds(patched);
     }
 
     /// <summary>
@@ -49,6 +53,7 @@ public sealed class NeoForgeHandshakeTests
     /// answer; with it every answer finds its index. NeoForge for Minecraft 1.20.2 runs on Java 17 and later.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17, 21)]
     public async Task AgentKeepsEveryMessageThatWaitsForAnAnswer(Jdk jdk)
@@ -56,8 +61,8 @@ public sealed class NeoForgeHandshakeTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(SentMessagesSources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -69,15 +74,15 @@ public sealed class NeoForgeHandshakeTests
 
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(SentMessagesPatched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "ANSWERED 400000 handshake messages with modloaderfixes.HandshakeIndexes",
+
+        Assert.Contains(expectedSubstring: "ANSWERED 400000 handshake messages with modloaderfixes.HandshakeIndexes",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the replies as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task JavaAgentJarHandlesTheReplyBeforeTheHandshakeEnds(Jdk jdk)
@@ -85,20 +90,23 @@ public sealed class NeoForgeHandshakeTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(RepliesSources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertRepliesPatched(patched);
+        AssertHandlesTheReplyBeforeTheHandshakeEnds(patched);
     }
 
-    private static void AssertRepliesPatched(JavaRun patched)
+    private static void AssertHandlesTheReplyBeforeTheHandshakeEnds(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(RepliesPatched, patched.Output, StringComparison.Ordinal);
         Assert.Contains(SentMessagesPatched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "EVENTS [acknowledged 19, removed 19, complete]", patched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "EVENTS [acknowledged 19, removed 19, complete]",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 
     // The patched handler and the helper go through the full verifier.

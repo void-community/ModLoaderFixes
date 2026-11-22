@@ -11,8 +11,7 @@ namespace ModLoaderFixes.IntegrationTests.Startup;
 public sealed class SoundLoaderTests
 {
     private const string MainClass = "net.minecraft.client.audio.SoundManager";
-    private const string Patched =
-        "ModLoaderFixes: patched net/minecraft/client/audio/SoundManager (func_148608_i()V: 1 invocation of java/lang/Thread.start redirected; func_148596_a()V: Before advice added)";
+    private const string Patched = "ModLoaderFixes: patched net/minecraft/client/audio/SoundManager (func_148608_i()V: 1 invocation of java/lang/Thread.start redirected; func_148596_a()V: Before advice added)";
     private const string Sources = "Fixtures/SoundLoader/**/*.java";
 
     /// <summary>
@@ -20,6 +19,7 @@ public sealed class SoundLoaderTests
     /// UnsatisfiedLinkError; with it the reload waits for the first load and unloads it before it loads again. Forge for Minecraft 1.7 runs on Java 8.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentReloadsTheSoundSystemOnceItHasLoaded(Jdk jdk)
@@ -27,26 +27,29 @@ public sealed class SoundLoaderTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "Only one OpenAL context may be instantiated at any one time.", unpatched.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "CRASHED java.lang.UnsatisfiedLinkError: org.lwjgl.openal.AL10.nalGetSourcei(II)I",
+
+        Assert.Contains(expectedSubstring: "Only one OpenAL context may be instantiated at any one time.",
             unpatched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "CRASHED java.lang.UnsatisfiedLinkError: org.lwjgl.openal.AL10.nalGetSourcei(II)I",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertReloadsTheSoundSystemOnceItHasLoaded(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarReloadsTheSoundSystemOnceItHasLoaded(Jdk jdk)
@@ -54,15 +57,15 @@ public sealed class SoundLoaderTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertReloadsTheSoundSystemOnceItHasLoaded(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertReloadsTheSoundSystemOnceItHasLoaded(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);

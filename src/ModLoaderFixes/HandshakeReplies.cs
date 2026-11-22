@@ -21,15 +21,14 @@ internal static class HandshakeReplies
     /// Gets the patch, which matches each class that has declared <c>indexFirst</c>: <c>NetworkInitialization</c> in 1.13.2, the handler in <c>fml.network</c> in 1.14 to
     /// 1.16, in <c>fmllegacy.network</c> in 1.17 and in <c>network</c> from 1.18, and NeoForge's from 1.20.2.
     /// </summary>
-    internal static ClassPatch Patch { get; } = ClassPatch.ForMatching(
-            static className => className
+    internal static ClassPatch Patch { get; } = ClassPatch
+        .ForMatching(static className => className
                 is "net/minecraftforge/fml/network/NetworkInitialization"
                 or "net/minecraftforge/fml/network/FMLHandshakeHandler"
                 or "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler"
                 or "net/minecraftforge/network/HandshakeHandler"
                 or "net/neoforged/neoforge/network/HandshakeHandler",
-            description: "Forge's and NeoForge's builders of handshake reply handlers"
-        )
+            description: "Forge's and NeoForge's builders of handshake reply handlers")
         .Edit(Description, static context => Reorder(context.Editor));
 
     // indexFirst keeps the first half in local 1 and ends with aload_1, aload_0, invokestatic of the class's combiner and invokeinterface andThen, which become aload_0,
@@ -60,7 +59,11 @@ internal static class HandshakeReplies
         JavaMethod andThen = JavaMethod.Interface(chaining.Owner, chaining.Name, chaining.Descriptor);
         JavaMethod combine = JavaMethod.Static(model.Name, combining.Name, combining.Descriptor);
         byte[] original = editor.AssembleCode(builder => builder.ALoad(slot: 1).ALoad(slot: 0).Invoke(combine).Invoke(andThen));
-        byte[] replacement = editor.AssembleCode(builder => builder.ALoad(slot: 0).Invoke(combine).ALoad(slot: 1).Invoke(andThen));
+
+        byte[] replacement = editor.AssembleCode(builder => builder.ALoad(slot: 0)
+            .Invoke(combine)
+            .ALoad(slot: 1)
+            .Invoke(andThen));
 
         return editor.ReplaceCode(MethodName, methodDescriptor: null, code[call - 3].Offset, original, replacement) ? 1 : 0;
     }

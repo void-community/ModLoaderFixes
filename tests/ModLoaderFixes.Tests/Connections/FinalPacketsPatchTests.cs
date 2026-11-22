@@ -17,43 +17,67 @@ public sealed class FinalPacketsPatchTests
     private const string Schedule = "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;";
 
     /// <summary>
-    /// Gets Minecraft 1.7's PlayerControllerMP under Forge's names and vanilla 1.7.10's, with its tick, the play client and its getter of the connection, and the
-    /// connection with its check and its processing of the received packets.
+    /// Gets Minecraft 1.7's PlayerControllerMP under Forge's names and vanilla 1.7.10's, with the play client and the connection that its tick reaches.
     /// </summary>
+    /// <value>
+    /// One row per naming: the controller's class and the name of its tick, the play client's class and the name of its getter of the connection, then the
+    /// connection's class, the name of its check and the name of its processing of the received packets.
+    /// </value>
     public static TheoryData<string, string, string, string, string, string, string> Controllers { get; } = new()
     {
         {
-            "net/minecraft/client/multiplayer/PlayerControllerMP", "func_78765_e", "net/minecraft/client/network/NetHandlerPlayClient", "func_147298_b",
-            "net/minecraft/network/NetworkManager", "func_150724_d", "func_74428_b"
+            "net/minecraft/client/multiplayer/PlayerControllerMP",
+            "func_78765_e",
+            "net/minecraft/client/network/NetHandlerPlayClient",
+            "func_147298_b",
+            "net/minecraft/network/NetworkManager",
+            "func_150724_d",
+            "func_74428_b"
         },
         { "bje", "e", "bjb", "b", "ej", "d", "a" },
     };
 
-    /// <summary>
-    /// Gets each packet listener from 1.14 under Forge's names, with its client, its Disconnect packet and the name its handler has, and those of vanilla 1.14 and
-    /// 1.16.3.
-    /// </summary>
+    /// <summary>Gets each packet listener from 1.14 under Forge's names, and those of vanilla 1.14 and 1.16.3.</summary>
+    /// <value>
+    /// One row per listener: its class, the class of its client, the class of its Disconnect packet, and the name that the handler of that packet has.
+    /// </value>
     public static TheoryData<string, string, string, string> Listeners { get; } = new()
     {
-        { "net/minecraft/client/network/play/ClientPlayNetHandler", "net/minecraft/client/Minecraft", "net/minecraft/network/play/server/SDisconnectPacket", "func_147253_a" },
-        { "net/minecraft/client/multiplayer/ClientPacketListener", "net/minecraft/client/Minecraft", "net/minecraft/network/protocol/game/ClientboundDisconnectPacket", "m_7008_" },
         {
-            "net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl", "net/minecraft/client/Minecraft",
-            "net/minecraft/network/protocol/common/ClientboundDisconnectPacket", "handleDisconnect"
+            "net/minecraft/client/network/play/ClientPlayNetHandler",
+            "net/minecraft/client/Minecraft",
+            "net/minecraft/network/play/server/SDisconnectPacket",
+            "func_147253_a"
+        },
+        {
+            "net/minecraft/client/multiplayer/ClientPacketListener",
+            "net/minecraft/client/Minecraft",
+            "net/minecraft/network/protocol/game/ClientboundDisconnectPacket",
+            "m_7008_"
+        },
+        {
+            "net/minecraft/client/multiplayer/ClientCommonPacketListenerImpl",
+            "net/minecraft/client/Minecraft",
+            "net/minecraft/network/protocol/common/ClientboundDisconnectPacket",
+            "handleDisconnect"
         },
         { "dhi", "cvi", "le", "a" },
         { "dwm", "djw", "pm", "a" },
     };
 
-    /// <summary>
-    /// Gets Minecraft 1.13's packet listener under Forge's names and vanilla 1.13.1's, with its client, its Disconnect packet, the name its handler has and the name of
-    /// the client's method that queues a task.
-    /// </summary>
+    /// <summary>Gets Minecraft 1.13's packet listener under Forge's names and vanilla 1.13.1's, whose client queues a task through a method of its own.</summary>
+    /// <value>
+    /// One row per naming: the listener's class, the class of its client, the class of its Disconnect packet, the name that the handler of that packet has, and the
+    /// name of the client's method that queues a task.
+    /// </value>
     public static TheoryData<string, string, string, string, string> ScheduledListeners { get; } = new()
     {
         {
-            "net/minecraft/client/network/NetHandlerPlayClient", "net/minecraft/client/Minecraft", "net/minecraft/network/play/server/SPacketDisconnect",
-            "func_147253_a", "func_152344_a"
+            "net/minecraft/client/network/NetHandlerPlayClient",
+            "net/minecraft/client/Minecraft",
+            "net/minecraft/network/play/server/SPacketDisconnect",
+            "func_147253_a",
+            "func_152344_a"
         },
         { "crc", "cfs", "ka", "a", "a" },
     };
@@ -66,15 +90,29 @@ public sealed class FinalPacketsPatchTests
     }
 
     /// <summary>A controller that has the added method already is left as it is.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The first application left the controller unchanged, so there is no patched controller to apply the patch to a second time; the message is the first
+    /// application's own line about the class.
+    /// </exception>
     [Fact]
     public void PatchLeavesAPatchedControllerAlone()
     {
-        ClassPatchResult first = Apply(CreateController(className: "bje", tick: "e", client: "bjb", getManager: "b", manager: "ej", isOpen: "d", process: "a"));
+        ClassPatchResult first = Apply(CreateController(className: "bje",
+            tick: "e",
+            client: "bjb",
+            getManager: "b",
+            manager: "ej",
+            isOpen: "d",
+            process: "a"));
 
         Assert.False(Apply(first.Bytes ?? throw new InvalidOperationException(first.ToString())).Changed);
     }
 
     /// <summary>A listener whose handler has been moved already is left as it is.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The first application didn't move the listener's handler and left the class unchanged, so there is no patched listener to apply the patch to a second time;
+    /// the message is the first application's own line about the class.
+    /// </exception>
     [Fact]
     public void PatchLeavesAPatchedListenerAlone()
     {
@@ -87,8 +125,7 @@ public sealed class FinalPacketsPatchTests
     [Fact]
     public void PatchLeavesOtherClassesOfTheSameNameAlone()
     {
-        byte[] classFile = new ClassFileWriter(name: "dwm", superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52)
-            .AddField(name: "f", descriptor: "Ldjw;", accessFlags: 0x0012)
+        byte[] classFile = new ClassFileWriter(name: "dwm", superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52).AddField(name: "f", descriptor: "Ldjw;", accessFlags: 0x0012)
             .AddMethod(name: "a", descriptor: "(Lpm;)V", static code => code.Return(), accessFlags: 0x0001)
             .ToArray();
 
@@ -100,17 +137,19 @@ public sealed class FinalPacketsPatchTests
     public void PatchLeavesOtherControllersOfTheSameNameAlone()
     {
         byte[] classFile = new ClassFileWriter(name: "bje", superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 50)
-            .AddMethod(
-                name: "e",
+            .AddMethod(name: "e",
                 descriptor: "()V",
                 static code =>
                 {
                     CodeLabel done = code.NewLabel();
 
-                    return code.AConstNull().Invoke(JavaMethod.Virtual(owner: "ej", name: "d", descriptor: "()Z")).If(Opcodes.IfEq, done).Mark(done).Return();
+                    return code.AConstNull()
+                        .Invoke(JavaMethod.Virtual(owner: "ej", name: "d", descriptor: "()Z"))
+                        .If(Opcodes.IfEq, done)
+                        .Mark(done)
+                        .Return();
                 },
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
 
         Assert.False(Apply(classFile).Changed);
@@ -127,27 +166,49 @@ public sealed class FinalPacketsPatchTests
     /// <param name="manager">The connection.</param>
     /// <param name="isOpen">The name of its check.</param>
     /// <param name="process">The name of its processing of the received packets.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the controller unchanged, and the message is its own line about the class; or the patched controller no longer has a <paramref name="tick"/>
+    /// with code, or has no code for the method that processes the packets and then checks.
+    /// </exception>
     [Theory]
     [MemberData(nameof(Controllers))]
     public void PatchProcessesThePacketsBeforeTheTickChecksTheConnection(string className, string tick, string client, string getManager, string manager, string isOpen, string process)
     {
-        ClassPatchResult result = Apply(CreateController(className, tick, client, getManager, manager, isOpen, process));
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.ToString()));
-        CodeAttribute code = patched.FindMethod(tick, descriptor: "()V")?.Code ?? throw new InvalidOperationException(message: "The tick is gone.");
+        ClassPatchResult applied = Apply(CreateController(className, tick, client, getManager, manager, isOpen, process));
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.ToString()));
+
+        CodeAttribute code = patched.FindMethod(tick, descriptor: "()V")?.Code
+            ?? throw new InvalidOperationException(message: "The tick is gone.");
+
         JavaMethod helper = JavaMethod.Static(className, ProcessThenCheck, "(L" + manager + ";)Z");
 
-        Assert.Equal(
-            [
-                Opcodes.ALoad0, Opcodes.GetField, Opcodes.InvokeVirtual, Opcodes.InvokeStatic, Opcodes.IfEq, Opcodes.ALoad0, Opcodes.GetField, Opcodes.InvokeVirtual,
-                Opcodes.Pop, Opcodes.Nop, Opcodes.Nop, Opcodes.Goto, Opcodes.ALoad0, Opcodes.GetField, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return,
-            ],
-            OpcodesOf(code)
-        );
+        Assert.Equal(expected:
+        [
+            Opcodes.ALoad0,
+            Opcodes.GetField,
+            Opcodes.InvokeVirtual,
+            Opcodes.InvokeStatic,
+            Opcodes.IfEq,
+            Opcodes.ALoad0,
+            Opcodes.GetField,
+            Opcodes.InvokeVirtual,
+            Opcodes.Pop,
+            Opcodes.Nop,
+            Opcodes.Nop,
+            Opcodes.Goto,
+            Opcodes.ALoad0,
+            Opcodes.GetField,
+            Opcodes.InvokeVirtual,
+            Opcodes.InvokeVirtual,
+            Opcodes.Return,
+        ],
+            OpcodesOf(code));
+
         Assert.True(patched.Invokes(code.Instructions[index: 3], helper));
-        Assert.Equal(
-            [Opcodes.ALoad0, Opcodes.InvokeVirtual, Opcodes.ALoad0, Opcodes.InvokeVirtual, Opcodes.IReturn],
-            OpcodesOf(patched.FindMethod(helper.Name, helper.Descriptor)?.Code)
-        );
+
+        Assert.Equal(expected: [Opcodes.ALoad0, Opcodes.InvokeVirtual, Opcodes.ALoad0, Opcodes.InvokeVirtual, Opcodes.IReturn],
+            OpcodesOf(patched.FindMethod(helper.Name, helper.Descriptor)?.Code));
+
         Assert.Equal(expected: 0x100A, patched.FindMethod(helper.Name, helper.Descriptor)?.AccessFlags);
     }
 
@@ -160,39 +221,47 @@ public sealed class FinalPacketsPatchTests
     /// <param name="packet">The Disconnect packet.</param>
     /// <param name="handler">The name of the handler.</param>
     /// <param name="schedule">The name of the client's method that queues a task.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the 1.13 listener unchanged, and the message is its own line about the class; or the patched listener no longer has a
+    /// <paramref name="handler"/> of <paramref name="packet"/> with code, or has no code under the name that the handler's old code moves to.
+    /// </exception>
     [Theory]
     [MemberData(nameof(ScheduledListeners))]
     public void PatchQueuesATaskThroughA113ClientBeforeTheDisconnect(string className, string client, string packet, string handler, string schedule)
     {
         string descriptor = "(L" + packet + ";)V";
-        ClassPatchResult result = Apply(CreateListener(className, client, packet, handler, schedule));
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.ToString()));
-        CodeAttribute code = patched.FindMethod(handler, descriptor)?.Code ?? throw new InvalidOperationException(message: "The handler is gone.");
+        ClassPatchResult applied = Apply(CreateListener(className, client, packet, handler, schedule));
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.ToString()));
 
-        Assert.Equal(
-            [
-                Opcodes.ALoad0, Opcodes.GetField, Opcodes.InvokeStatic, Opcodes.InvokeVirtual, Opcodes.InvokeStatic, Opcodes.ALoad0, Opcodes.ALoad1, Opcodes.InvokeSpecial,
-                Opcodes.Return,
-            ],
-            OpcodesOf(code)
-        );
-        Assert.True(
-            patched.Invokes(
-                code.Instructions[index: 2],
-                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "nothing", descriptor: "()Ljava/lang/Runnable;")
-            )
-        );
+        CodeAttribute code = patched.FindMethod(handler, descriptor)?.Code
+            ?? throw new InvalidOperationException(message: "The handler is gone.");
+
+        Assert.Equal(expected:
+        [
+            Opcodes.ALoad0,
+            Opcodes.GetField,
+            Opcodes.InvokeStatic,
+            Opcodes.InvokeVirtual,
+            Opcodes.InvokeStatic,
+            Opcodes.ALoad0,
+            Opcodes.ALoad1,
+            Opcodes.InvokeSpecial,
+            Opcodes.Return,
+        ],
+            OpcodesOf(code));
+
+        Assert.True(patched.Invokes(code.Instructions[index: 2],
+            JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "nothing", descriptor: "()Ljava/lang/Runnable;")));
+
         Assert.True(patched.Invokes(code.Instructions[index: 3], JavaMethod.Virtual(client, schedule, Schedule)));
-        Assert.True(
-            patched.Invokes(
-                code.Instructions[index: 4],
-                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "awaitHandled", descriptor: "(Ljava/util/concurrent/Future;)V")
-            )
-        );
-        Assert.Equal(
-            [Opcodes.ALoad0, Opcodes.GetField, Opcodes.ALoad1, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return],
-            OpcodesOf(patched.FindMethod(Moved, descriptor)?.Code)
-        );
+
+        Assert.True(patched.Invokes(code.Instructions[index: 4],
+            JavaMethod.Static(owner: "modloaderfixes/QueuedPackets",
+                name: "awaitHandled",
+                descriptor: "(Ljava/util/concurrent/Future;)V")));
+
+        Assert.Equal(expected: [Opcodes.ALoad0, Opcodes.GetField, Opcodes.ALoad1, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return],
+            OpcodesOf(patched.FindMethod(Moved, descriptor)?.Code));
     }
 
     /// <summary>Once patched, the handler hands the client to the helper, which waits for the client thread, and then runs its old code, moved to a method of its own.</summary>
@@ -200,49 +269,57 @@ public sealed class FinalPacketsPatchTests
     /// <param name="client">The client's class.</param>
     /// <param name="packet">The Disconnect packet.</param>
     /// <param name="handler">The name of the handler, which Forge from 1.17 to 1.20.4 gives by SRG.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the listener unchanged, and the message is its own line about the class; or the patched listener has lost the code of its
+    /// <paramref name="handler"/>, or holds none under the name that the handler's old code moves to.
+    /// </exception>
     [Theory]
     [MemberData(nameof(Listeners))]
     public void PatchWaitsForTheClientThreadBeforeTheDisconnect(string className, string client, string packet, string handler)
     {
         string descriptor = "(L" + packet + ";)V";
-        ClassPatchResult result = Apply(CreateListener(className, client, packet, handler));
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.ToString()));
-        CodeAttribute code = patched.FindMethod(handler, descriptor)?.Code ?? throw new InvalidOperationException(message: "The handler is gone.");
+        ClassPatchResult applied = Apply(CreateListener(className, client, packet, handler));
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.ToString()));
 
-        Assert.Contains(
-            code.Instructions,
-            instruction => patched.Invokes(
-                instruction,
-                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets", name: "awaitHandled", descriptor: "(Ljava/util/concurrent/Executor;)V")
-            )
-        );
-        Assert.Equal(
-            [Opcodes.ALoad0, Opcodes.GetField, Opcodes.ALoad1, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return],
-            OpcodesOf(patched.FindMethod(Moved, descriptor)?.Code)
-        );
+        CodeAttribute code = patched.FindMethod(handler, descriptor)?.Code
+            ?? throw new InvalidOperationException(message: "The handler is gone.");
+
+        Assert.Contains(code.Instructions,
+            instruction => patched.Invokes(instruction,
+                JavaMethod.Static(owner: "modloaderfixes/QueuedPackets",
+                    name: "awaitHandled",
+                    descriptor: "(Ljava/util/concurrent/Executor;)V")));
+
+        Assert.Equal(expected: [Opcodes.ALoad0, Opcodes.GetField, Opcodes.ALoad1, Opcodes.InvokeVirtual, Opcodes.InvokeVirtual, Opcodes.Return],
+            OpcodesOf(patched.FindMethod(Moved, descriptor)?.Code));
     }
 
     private static ClassPatchResult Apply(byte[] classFile)
     {
         string name = JavaClassFile.Read(classFile).Name;
 
-        return FinalPackets.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)).Select(patch => patch.Apply(classFile)).Single(result => result.ClassName == name);
+        return FinalPackets.Patches
+            .Where(patch => patch.Matches(classFile, hierarchy: null))
+            .Select(patch => patch.Apply(classFile))
+            .Single(result => result.ClassName == name);
     }
 
     // A controller as Minecraft 1.7 compiles it, whose tick processes the received packets while the connection is open and reports the disconnect otherwise.
     private static byte[] CreateController(string className, string tick, string client, string getManager, string manager, string isOpen, string process)
     {
+        // What the tick calls: the play client's getter of the connection, then the connection's check, its processing of the received packets and its report
+        // of a disconnect.
         JavaMethod getNetworkManager = JavaMethod.Virtual(client, getManager, "()L" + manager + ";");
         JavaMethod isChannelOpen = JavaMethod.Virtual(manager, isOpen, descriptor: "()Z");
         JavaMethod processReceivedPackets = JavaMethod.Virtual(manager, process, descriptor: "()V");
         JavaMethod checkDisconnected = JavaMethod.Virtual(manager, name: "checkDisconnected", descriptor: "()V");
+
+        // The descriptor of the field in which the controller keeps the play client.
         string handler = "L" + client + ";";
 
         // The branches need a class of version 50, which the JVM verifies without stack map frames, as Minecraft 1.7's are.
-        return new ClassFileWriter(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 50)
-            .AddField(name: "b", handler, accessFlags: 0x0012)
-            .AddMethod(
-                tick,
+        return new ClassFileWriter(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 50).AddField(name: "b", handler, accessFlags: 0x0012)
+            .AddMethod(tick,
                 descriptor: "()V",
                 code =>
                 {
@@ -267,8 +344,7 @@ public sealed class FinalPacketsPatchTests
                         .Mark(done)
                         .Return();
                 },
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
     }
 
@@ -281,19 +357,20 @@ public sealed class FinalPacketsPatchTests
 
         if (schedule is not null)
         {
-            listener = listener.AddMethod(
-                name: "handleResourcePack",
+            listener = listener.AddMethod(name: "handleResourcePack",
                 descriptor: "(Ljava/lang/Runnable;)V",
-                code => code.ALoad(slot: 0).GetField(className, name: "f", "L" + client + ";").ALoad(slot: 1).Invoke(JavaMethod.Virtual(client, schedule, Schedule)).Pop().Return(),
-                accessFlags: 0x0001
-            );
+                code => code.ALoad(slot: 0)
+                    .GetField(className, name: "f", "L" + client + ";")
+                    .ALoad(slot: 1)
+                    .Invoke(JavaMethod.Virtual(client, schedule, Schedule))
+                    .Pop()
+                    .Return(),
+                accessFlags: 0x0001);
         }
 
-        return listener
-            .AddField(name: "f", "L" + client + ";", accessFlags: 0x0012)
+        return listener.AddField(name: "f", "L" + client + ";", accessFlags: 0x0012)
             .AddField(name: "c", connection, accessFlags: 0x0012)
-            .AddMethod(
-                name: "<init>",
+            .AddMethod(name: "<init>",
                 "(L" + client + ";" + connection + ")V",
                 code => code.ALoad(slot: 0)
                     .InvokeSpecial(owner: "java/lang/Object", name: "<init>", descriptor: "()V")
@@ -304,10 +381,8 @@ public sealed class FinalPacketsPatchTests
                     .ALoad(slot: 2)
                     .PutField(className, name: "c", connection)
                     .Return(),
-                accessFlags: 0x0001
-            )
-            .AddMethod(
-                handler,
+                accessFlags: 0x0001)
+            .AddMethod(handler,
                 "(L" + packet + ";)V",
                 code => code.ALoad(slot: 0)
                     .GetField(className, name: "c", connection)
@@ -315,13 +390,13 @@ public sealed class FinalPacketsPatchTests
                     .Invoke(JavaMethod.Virtual(packet, name: "getReason", descriptor: "()Ljava/lang/String;"))
                     .Invoke(JavaMethod.Virtual(owner: "net/minecraft/network/Connection", name: "disconnect", descriptor: "(Ljava/lang/String;)V"))
                     .Return(),
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
     }
 
     private static List<byte> OpcodesOf(CodeAttribute? code)
     {
-        return [.. (code ?? throw new InvalidOperationException(message: "The handler's code wasn't moved.")).Instructions.Select(static instruction => instruction.Opcode)];
+        return [.. (code ?? throw new InvalidOperationException(message: "The handler's code wasn't moved.")).Instructions
+            .Select(static instruction => instruction.Opcode)];
     }
 }

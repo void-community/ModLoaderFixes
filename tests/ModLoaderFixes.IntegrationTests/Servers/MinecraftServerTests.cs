@@ -15,16 +15,14 @@ public sealed class MinecraftServerTests
     private const string Image = "itzg/minecraft-server:stable-java8";
 
     /// <summary>
-    /// The vanilla releases at the edges of the two protocols of Minecraft 1.7, and 1.8, the last that leaves Nagle's algorithm on, with their protocol version and
-    /// the obfuscated names of their channel initializer, which only 1.7's tick needs changed, of their NetworkManager and of the chat component that its
-    /// closeChannel takes.
+    /// Gets the vanilla releases whose servers take the burst of logins: those at the edges of the two protocols of Minecraft 1.7, and 1.8, the last that
+    /// leaves Nagle's algorithm on.
     /// </summary>
-    public static TheoryData<string, int, string?, string, string> VanillaReleases { get; } = new()
-    {
-        { "1.7.2", 4, "mt", "ef", "fa" },
-        { "1.7.10", 5, "nd", "ej", "fj" },
-        { "1.8", 47, null, "gr", "ho" },
-    };
+    /// <value>
+    /// One row for each release: its version, its protocol version, and the obfuscated names of its channel initializer, of its NetworkManager and of the chat
+    /// component that its closeChannel takes. The initializer is <see langword="null"/> for 1.8, as only 1.7's tick needs it changed.
+    /// </value>
+    public static TheoryData<string, int, string?, string, string> VanillaReleases { get; } = new() { { "1.7.2", 4, "mt", "ef", "fa" }, { "1.7.10", 5, "nd", "ej", "fj" }, { "1.8", 47, null, "gr", "ho" } };
 
     /// <summary>
     /// A PaperSpigot 1.7.10 server ticks its connections through the agent's helper and lets every player of a burst of logins reach the play state. The tick only
@@ -37,20 +35,14 @@ public sealed class MinecraftServerTests
         // Without a terminal, PaperSpigot 1.7.10's console reader floods the server thread with empty commands, which starve its tick, with the agent or without.
         string logs = await LogInPlayersAsync(type: "PAPER", version: "1.7.10", protocol: 5, extraArguments: "--noconsole");
 
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/ServerConnection (c()V: 1 invocation of net/minecraft/server/v1_7_R4/NetworkManager.isConnected redirected; "
-            + "c()V: 1 invocation of net/minecraft/server/v1_7_R4/NetworkManager.a redirected)"
-        );
-        ForgeServer.AssertLogged(
-            logs,
-            expected: "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/NetworkManager (modloaderfixes$channel()Ljava/lang/Object;: getter of field m added)"
-        );
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/NetworkManager (close(Lnet/minecraft/server/v1_7_R4/IChatBaseComponent;)V: "
-            + "1 invocation of net/minecraft/util/io/netty/channel/Channel.close redirected)"
-        );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/ServerConnection (c()V: 1 invocation of net/minecraft/server/v1_7_R4/NetworkManager.isConnected redirected; "
+            + "c()V: 1 invocation of net/minecraft/server/v1_7_R4/NetworkManager.a redirected)");
+
+        ForgeServer.AssertLogged(logs,
+            expected: "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/NetworkManager (modloaderfixes$channel()Ljava/lang/Object;: getter of field m added)");
+
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/server/v1_7_R4/NetworkManager (close(Lnet/minecraft/server/v1_7_R4/IChatBaseComponent;)V: "
+            + "1 invocation of net/minecraft/util/io/netty/channel/Channel.close redirected)");
     }
 
     /// <summary>
@@ -77,10 +69,7 @@ public sealed class MinecraftServerTests
             ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + initializer + initializerPatched);
 
         ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + manager + " (outbound queue flushed by one thread at a time (1 change))");
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched " + manager + " (a(L" + component + ";)V: 1 invocation of io/netty/channel/Channel.close redirected)"
-        );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + manager + " (a(L" + component + ";)V: 1 invocation of io/netty/channel/Channel.close redirected)");
     }
 
     private static async Task<string> LogInPlayersAsync(string type, string version, int protocol, string extraArguments)
@@ -91,7 +80,8 @@ public sealed class MinecraftServerTests
 
         timeout.CancelAfter(ForgeServer.StartTimeout);
 
-        string loginLoad = await ForgeServer.CompileLoginLoadAsync(timeout.Token).ConfigureAwait(continueOnCapturedContext: false);
+        string loginLoad = await ForgeServer.CompileLoginLoadAsync(timeout.Token)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         IContainer server = ForgeServer.Create(Image, type, version, memory: "1G", option: "-javaagent:", agent)
             .WithEnvironment(name: "EXTRA_ARGS", extraArguments)
@@ -104,8 +94,11 @@ public sealed class MinecraftServerTests
 
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
 
-        ExecResult logins = await ForgeServer.LogInPlayersAsync(server, protocol, fmlVersion: null, timeout.Token).ConfigureAwait(continueOnCapturedContext: false);
-        ExecResult kicks = await ForgeServer.KickPlayersAsync(server, protocol, timeout.Token).ConfigureAwait(continueOnCapturedContext: false);
+        ExecResult logins = await ForgeServer.LogInPlayersAsync(server, protocol, fmlVersion: null, timeout.Token)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        ExecResult kicks = await ForgeServer.KickPlayersAsync(server, protocol, timeout.Token)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token).ConfigureAwait(continueOnCapturedContext: false);
 

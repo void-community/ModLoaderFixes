@@ -22,7 +22,7 @@ namespace ModLoaderFixes;
 /// the set of the listeners that the startup of Minecraft 1.16 to 1.18.2 servers removes from on several threads at once, and the 10 seconds that the early loading
 /// window of Forge clients from 1.20.1 and of NeoForge's up to 1.21.3 gives the game's window before it ends the game, and Mojang's list of blocked servers that
 /// Minecraft clients from 1.12 hang on when patchy can't read it to its end, and the reload of the sound system that Minecraft 1.7 to 1.13.2 clients start a second
-/// sound system with while the first still loads, and the tick cache of a dimension's environment attributes that world generation reads as null on servers from
+/// sound system with while the first still loads, and the tick cache of a dimension's environment attributes that world generation reads as <see langword="null"/> on servers from
 /// 1.21.11 when the server thread clears it in between, and the children of EventBus's listener lists, which Forge 1.13.2 to 1.16.4 add to while a mod's
 /// registration iterates them, and the channel of the JDK's zip file system, which an interrupted read closes for the jars that Forge loads from, and the camera that the entity render
 /// dispatcher of Minecraft 1.14 clients has none of in a new level's first frames, when an item pickup particle draws its item through it, and the close of a
@@ -30,16 +30,14 @@ namespace ModLoaderFixes;
 /// world generation in Minecraft 1.13 to 1.16.5 leaves a block when another block with one replaces it, as a dungeon's spawner does an earlier dungeon's chest,
 /// and the cast that stops Paper 1.14 and 1.17 when Bukkit reads the state of a block with another block's entity, and the map of union file systems that
 /// securejarhandler reads without a lock in Forge from 1.17.1 and NeoForge up to 1.21.8, where a class load misses its jar while another is registered, and
-/// the null that Forge 1.7.2 to 1.9 return for a chunk they generated because its read found nothing, which stops the server as its world ticks.
+/// the <see langword="null"/> that Forge 1.7.2 to 1.9 return for a chunk they generated because its read found nothing, which stops the server as its world ticks.
 /// </summary>
 public sealed class PatcherAgent : JavaAgent
 {
     /// <summary>The call to NetworkManager.setConnectionState, by the name that FML's deobfuscation gives it before Forge's classes are defined.</summary>
-    internal static readonly JavaMethod SetConnectionState = JavaMethod.Virtual(
-        owner: "net/minecraft/network/NetworkManager",
+    internal static readonly JavaMethod SetConnectionState = JavaMethod.Virtual(owner: "net/minecraft/network/NetworkManager",
         name: "func_150723_a",
-        descriptor: "(Lnet/minecraft/network/EnumConnectionState;)V"
-    );
+        descriptor: "(Lnet/minecraft/network/EnumConnectionState;)V");
 
     /// <summary>
     /// Points FML's <c>Collections.sort</c> call at <c>modloaderfixes.Collections</c>. FML sorts LaunchWrapper's tweakers while LaunchWrapper iterates
@@ -47,10 +45,8 @@ public sealed class PatcherAgent : JavaAgent
     /// </summary>
     internal static readonly ClassPatch TweakSort = ClassPatch.For(className: "cpw/mods/fml/relauncher/CoreModManager")
         .Method(name: "sortTweakList", descriptor: "()V")
-        .RedirectInvocation(
-            JavaMethod.Static(owner: "java/util/Collections", name: "sort", descriptor: "(Ljava/util/List;Ljava/util/Comparator;)V"),
-            toOwner: "modloaderfixes/Collections"
-        );
+        .RedirectInvocation(JavaMethod.Static(owner: "java/util/Collections", name: "sort", descriptor: "(Ljava/util/List;Ljava/util/Comparator;)V"),
+            toOwner: "modloaderfixes/Collections");
 
     /// <summary>
     /// Points the <c>setConnectionState(PLAY)</c> call in FML's <c>NetworkDispatcher.serverInitiateHandshake</c> at <c>modloaderfixes.ConnectionStates</c>, which makes the
@@ -62,14 +58,14 @@ public sealed class PatcherAgent : JavaAgent
         .RedirectInvocation(SetConnectionState, toOwner: "modloaderfixes/ConnectionStates", toName: "setConnectionState");
 
     /// <summary>Forge's revert of the registries to their frozen state, which its client handshake calls when a proxy resets the handshake.</summary>
-    internal static readonly JavaMethod RevertToFrozen = JavaMethod.Static(owner: "net/minecraftforge/registries/GameData", name: "revertToFrozen", descriptor: "()V");
+    internal static readonly JavaMethod RevertToFrozen = JavaMethod.Static(owner: "net/minecraftforge/registries/GameData",
+        name: "revertToFrozen",
+        descriptor: "()V");
 
     /// <summary>Forge's injection of a server's registry data, which its client handshake calls when the server sends it.</summary>
-    internal static readonly JavaMethod InjectSnapshot = JavaMethod.Static(
-        owner: "net/minecraftforge/registries/GameData",
+    internal static readonly JavaMethod InjectSnapshot = JavaMethod.Static(owner: "net/minecraftforge/registries/GameData",
         name: "injectSnapshot",
-        descriptor: "(Ljava/util/Map;ZZ)Lcom/google/common/collect/Multimap;"
-    );
+        descriptor: "(Ljava/util/Map;ZZ)Lcom/google/common/collect/Multimap;");
 
     /// <summary>
     /// Points the <c>GameData.revertToFrozen()</c> call of FML's <c>DONE</c> handshake state at <c>modloaderfixes.ClientThread</c>, which schedules it on the client
@@ -97,14 +93,10 @@ public sealed class PatcherAgent : JavaAgent
     /// </summary>
     internal static readonly ClassPatch ChunkBatchAnswer = ClassPatch.For(className: "net/minecraft/client/multiplayer/ClientPacketListener")
         .Method(name: "handleChunkBatchFinished", descriptor: "(Lnet/minecraft/network/protocol/game/ClientboundChunkBatchFinishedPacket;)V")
-        .RedirectInvocation(
-            JavaMethod.Virtual(
-                owner: "net/minecraft/client/multiplayer/ClientPacketListener",
+        .RedirectInvocation(JavaMethod.Virtual(owner: "net/minecraft/client/multiplayer/ClientPacketListener",
                 name: "send",
-                descriptor: "(Lnet/minecraft/network/protocol/Packet;)V"
-            ),
-            toOwner: "modloaderfixes/ClientPackets"
-        );
+                descriptor: "(Lnet/minecraft/network/protocol/Packet;)V"),
+            toOwner: "modloaderfixes/ClientPackets");
 
     private const string ClientThread = "modloaderfixes/ClientThread";
 
@@ -185,7 +177,10 @@ public sealed class PatcherAgent : JavaAgent
         // Collections and ClassHierarchyCache name no game type, so the bootstrap loader makes them visible to whichever loader defines FML or ModLauncher. The
         // others name the game's classes, so each goes into the loader of the class that calls it, where those classes resolve.
         foreach (JavaClassDefinition helper in Helpers)
-            context.DefineClass(helper, IsBootstrapHelper(helper) ? ClassLoaderTarget.Bootstrap : ClassLoaderTarget.PatchedClassLoader);
+        {
+            context.DefineClass(helper,
+                IsDefinedInBootstrap(helper) ? ClassLoaderTarget.Bootstrap : ClassLoaderTarget.PatchedClassLoader);
+        }
 
         // ZipChannels makes the JDK's own zip channel uninterruptible through FileChannelImpl, as SecureJarHandler does, which java.base doesn't export.
         context.ExportPackage(module: "java.base", package: "sun/nio/ch", JavaClasses.Modloaderfixes.ZipChannels);
@@ -194,8 +189,10 @@ public sealed class PatcherAgent : JavaAgent
             context.Patch(patch);
     }
 
-    private static bool IsBootstrapHelper(JavaClassDefinition helper)
+    private static bool IsDefinedInBootstrap(JavaClassDefinition helper)
     {
-        return helper == JavaClasses.Modloaderfixes.Collections || helper == JavaClasses.Modloaderfixes.ClassHierarchyCache || helper == JavaClasses.Modloaderfixes.ZipChannels;
+        return helper == JavaClasses.Modloaderfixes.Collections
+            || helper == JavaClasses.Modloaderfixes.ClassHierarchyCache
+            || helper == JavaClasses.Modloaderfixes.ZipChannels;
     }
 }

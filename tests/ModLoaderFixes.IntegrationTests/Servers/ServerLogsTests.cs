@@ -24,12 +24,9 @@ public sealed class ServerLogsTests
     {
         const string output = "2026-11-16T02:21:59.000000001Z [init] Starting\n2026-11-16T02:22:05.000000000Z Preparing level\n2026-11-16T02:23:25.858168015Z Server is still starting!\n";
         const string error = "2026-11-16T02:22:00.313582511Z ModLoaderFixes: patched a\n2026-11-16T02:22:09.441914739Z ModLoaderFixes: patched b\n";
-
         string[] lines = ServerLogs.Chronological(output, error).Split(separator: '\n');
 
-        Assert.Equal(
-            ["[init] Starting", "ModLoaderFixes: patched a", "Preparing level", "ModLoaderFixes: patched b", "Server is still starting!"],
-            lines.Select(static line => line[(line.IndexOf(value: ' ', StringComparison.Ordinal) + 1)..])
-        );
+        Assert.Equal(expected: ["[init] Starting", "ModLoaderFixes: patched a", "Preparing level", "ModLoaderFixes: patched b", "Server is still starting!"],
+            lines.Select(static line => line[(line.IndexOf(value: ' ', StringComparison.Ordinal) + 1)..]));
     }
 }

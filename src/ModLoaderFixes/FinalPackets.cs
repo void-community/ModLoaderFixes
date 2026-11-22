@@ -14,17 +14,34 @@ namespace ModLoaderFixes;
 /// </summary>
 internal static class FinalPackets
 {
-    private const string Description = "packets before a disconnect handled first";
-    private const string Helper = "modloaderfixes/QueuedPackets";
-    private const string MovedDisconnect = "modloaderfixes$handleDisconnect";
+    // The access flags of the tick that the patch adds to a 1.7 client.
     private const int PrivateStaticSynthetic = 0x100A;
-    private const string ProcessThenCheck = "modloaderfixes$processReceivedPackets";
-    private const string Schedule = "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;";
+
+    // The access flag of a static member.
     private const int Static = 0x0008;
 
-    private static readonly JavaMethod AwaitHandled = JavaMethod.Static(Helper, name: "awaitHandled", descriptor: "(Ljava/util/concurrent/Executor;)V");
-    private static readonly JavaMethod AwaitScheduled = JavaMethod.Static(Helper, name: "awaitHandled", descriptor: "(Ljava/util/concurrent/Future;)V");
-    private static readonly JavaMethod Nothing = JavaMethod.Static(Helper, name: "nothing", descriptor: "()Ljava/lang/Runnable;");
+    // What the log says the patch did, and the class of its Java helper.
+    private const string Description = "packets before a disconnect handled first";
+    private const string Helper = "modloaderfixes/QueuedPackets";
+
+    // The methods the patch adds: the Disconnect's handler as it was, and the 1.7 tick that handles the received packets before it checks the connection.
+    private const string MovedDisconnect = "modloaderfixes$handleDisconnect";
+    private const string ProcessThenCheck = "modloaderfixes$processReceivedPackets";
+
+    // The descriptor of the method that a 1.13 client queues a task with.
+    private const string Schedule = "(Ljava/lang/Runnable;)Lcom/google/common/util/concurrent/ListenableFuture;";
+
+    private static readonly JavaMethod AwaitHandled = JavaMethod.Static(Helper,
+        name: "awaitHandled",
+        descriptor: "(Ljava/util/concurrent/Executor;)V");
+
+    private static readonly JavaMethod AwaitScheduled = JavaMethod.Static(Helper,
+        name: "awaitHandled",
+        descriptor: "(Ljava/util/concurrent/Future;)V");
+
+    private static readonly JavaMethod Nothing = JavaMethod.Static(Helper,
+        name: "nothing",
+        descriptor: "()Ljava/lang/Runnable;");
 
     /// <summary>
     /// Gets the patches: of Minecraft 1.7's client tick in <c>PlayerControllerMP</c>, and of the Disconnect's handler in the client's packet listener from 1.13,
@@ -34,16 +51,14 @@ internal static class FinalPackets
     internal static IReadOnlyList<ClassPatch> Patches { get; } =
     [
         .. MappedClasses.PlayerController.Patches(Process),
-        .. MappedClasses.PlayClientHandler.Patches(
-            static names => Await(names, name: "func_147253_a", descriptor: "(Lnet/minecraft/network/play/server/SPacketDisconnect;)V", isScheduled: true)
-        ),
-        .. MappedClasses.PlayNetHandler.Patches(static names => Await(names, name: "func_147253_a", descriptor: "(Lnet/minecraft/network/play/server/SDisconnectPacket;)V")),
-        .. MappedClasses.PacketListener.Patches(
-            static names => Await(names, name: "handleDisconnect", descriptor: "(Lnet/minecraft/network/protocol/game/ClientboundDisconnectPacket;)V")
-        ),
-        .. MappedClasses.CommonPacketListener.Patches(
-            static names => Await(names, name: "handleDisconnect", descriptor: "(Lnet/minecraft/network/protocol/common/ClientboundDisconnectPacket;)V")
-        ),
+        .. MappedClasses.PlayClientHandler
+            .Patches(static names => Await(names, name: "func_147253_a", descriptor: "(Lnet/minecraft/network/play/server/SPacketDisconnect;)V", isScheduled: true)),
+        .. MappedClasses.PlayNetHandler
+            .Patches(static names => Await(names, name: "func_147253_a", descriptor: "(Lnet/minecraft/network/play/server/SDisconnectPacket;)V")),
+        .. MappedClasses.PacketListener
+            .Patches(static names => Await(names, name: "handleDisconnect", descriptor: "(Lnet/minecraft/network/protocol/game/ClientboundDisconnectPacket;)V")),
+        .. MappedClasses.CommonPacketListener
+            .Patches(static names => Await(names, name: "handleDisconnect", descriptor: "(Lnet/minecraft/network/protocol/common/ClientboundDisconnectPacket;)V")),
     ];
 
     private static ClassPatch Await(ClassNames names, string name, string descriptor, bool isScheduled = false)
@@ -60,9 +75,20 @@ internal static class FinalPackets
     private static int Await(ClassFileEditor editor, string descriptor, bool isScheduled)
     {
         JavaClassFile model = editor.Model;
-        ClassMember[] handlers = [.. model.Methods.Where(method => method.Descriptor == descriptor && (method.AccessFlags & Static) == 0)];
-        string[] clients = [.. model.Methods.Where(static method => method.Name == "<init>").Select(static method => FirstParameter(method.Descriptor)).Distinct(StringComparer.Ordinal)];
-        ClassMember[] fields = clients is [{ } client] ? [.. model.Fields.Where(field => field.Descriptor == client && (field.AccessFlags & Static) == 0)] : [];
+
+        // The handler by its descriptor, the client as the one field of the type the constructors take first, and whether the handler was moved already.
+        ClassMember[] handlers = [.. model.Methods
+            .Where(method => method.Descriptor == descriptor && (method.AccessFlags & Static) == 0)];
+
+        string[] clients = [.. model.Methods
+            .Where(static method => method.Name == "<init>")
+            .Select(static method => FirstParameter(method.Descriptor))
+            .Distinct(StringComparer.Ordinal)];
+
+        ClassMember[] fields = clients is [{ } client]
+            ? [.. model.Fields.Where(field => field.Descriptor == client && (field.AccessFlags & Static) == 0)]
+            : [];
+
         bool isPatched = model.FindMethod(MovedDisconnect, descriptor) is not null;
 
         if (handlers is not [{ } handler] || fields is not [{ } minecraft] || isPatched)
@@ -78,23 +104,22 @@ internal static class FinalPackets
             ? code => code.Invoke(Nothing).Invoke(scheduler).Invoke(AwaitScheduled)
             : static code => code.Invoke(AwaitHandled);
 
-        editor.ReplaceMethodBody(
-            handler.Name,
+        editor.ReplaceMethodBody(handler.Name,
             descriptor,
             MovedDisconnect,
-            code => wait(code.ALoad(slot: 0).GetField(model.Name, minecraft.Name, minecraft.Descriptor))
-                .ALoad(slot: 0)
+            code => wait(code.ALoad(slot: 0).GetField(model.Name, minecraft.Name, minecraft.Descriptor)).ALoad(slot: 0)
                 .ALoad(slot: 1)
                 .InvokeSpecial(model.Name, MovedDisconnect, descriptor)
-                .Return()
-        );
+                .Return());
 
         return 1;
     }
 
     private static MemberReference? Called(JavaClassFile model, Instruction instruction)
     {
-        return instruction is { Opcode: Opcodes.InvokeVirtual, ConstantIndex: { } index } ? model.GetMemberReference(index) : null;
+        return instruction is { Opcode: Opcodes.InvokeVirtual, ConstantIndex: { } index }
+            ? model.GetMemberReference(index)
+            : null;
     }
 
     private static string FirstParameter(string descriptor)
@@ -137,35 +162,38 @@ internal static class FinalPackets
         JavaMethod processReceivedPackets = JavaMethod.Virtual(processes.Owner, processes.Name, processes.Descriptor);
         JavaMethod processThenCheck = JavaMethod.Static(model.Name, ProcessThenCheck, "(L" + isOpen.Owner + ";)Z");
 
-        editor.AddMethod(
-            PrivateStaticSynthetic,
+        editor.AddMethod(PrivateStaticSynthetic,
             ProcessThenCheck,
             processThenCheck.Descriptor,
-            builder => builder.ALoad(slot: 0).Invoke(processReceivedPackets).ALoad(slot: 0).Invoke(isChannelOpen).IReturn()
-        );
+            builder => builder.ALoad(slot: 0)
+                .Invoke(processReceivedPackets)
+                .ALoad(slot: 0)
+                .Invoke(isChannelOpen)
+                .IReturn());
 
-        bool isCheckReplaced = editor.ReplaceCode(
-            tick.Name,
+        bool isCheckReplaced = editor.ReplaceCode(tick.Name,
             tick.Descriptor,
             code[check].Offset,
             editor.AssembleCode(builder => builder.Invoke(isChannelOpen)),
-            editor.AssembleCode(builder => builder.Invoke(processThenCheck))
-        );
+            editor.AssembleCode(builder => builder.Invoke(processThenCheck)));
 
-        bool isProcessReplaced = isCheckReplaced && editor.ReplaceCode(
-            tick.Name,
-            tick.Descriptor,
-            code[check + 5].Offset,
-            editor.AssembleCode(builder => builder.Invoke(processReceivedPackets)),
-            editor.AssembleCode(static builder => builder.Pop().Nop().Nop())
-        );
+        bool isProcessReplaced = isCheckReplaced
+            && editor.ReplaceCode(tick.Name,
+                tick.Descriptor,
+                code[check + 5].Offset,
+                editor.AssembleCode(builder => builder.Invoke(processReceivedPackets)),
+                editor.AssembleCode(static builder => builder.Pop().Nop().Nop()));
 
-        return isProcessReplaced ? 1 : throw new InvalidOperationException(model.Name + "." + tick.Name + " doesn't call the connection's methods it was read to call.");
+        return isProcessReplaced
+            ? 1
+            : throw new InvalidOperationException(model.Name + "." + tick.Name + " doesn't call the connection's methods it was read to call.");
     }
 
     private static JavaMethod[] Schedulers(JavaClassFile model, string client)
     {
-        IEnumerable<MemberReference?> called = model.Methods.SelectMany(static method => method.Code?.Instructions ?? []).Select(instruction => Called(model, instruction));
+        IEnumerable<MemberReference?> called = model.Methods
+            .SelectMany(static method => method.Code?.Instructions ?? [])
+            .Select(instruction => Called(model, instruction));
 
         return
         [

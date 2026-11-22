@@ -16,11 +16,12 @@ public sealed class ChunkLoadTests
     private const string Ticked = "TICKED a chunk that was read and one that was generated, and the provider kept both";
 
     /// <summary>
-    /// Without the agent the load returns null for the chunk that Forge generated in the place of the one it couldn't read, and the world's tick fails on it, as
+    /// Without the agent the load returns <see langword="null"/> for the chunk that Forge generated in the place of the one it couldn't read, and the world's tick fails on it, as
     /// a server's does with <c>Exception ticking world</c>; with it the load returns that chunk, and a chunk that was read is still the one that was read.
     /// Forge 1.7.2 to 1.9 run on Java 8 and earlier.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentReturnsTheChunkThatForgeGenerated(Jdk jdk)
@@ -28,21 +29,25 @@ public sealed class ChunkLoadTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "Exception ticking world: java.lang.NullPointerException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "Exception ticking world: java.lang.NullPointerException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertReturnsTheChunkThatForgeGenerated(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarReturnsTheChunkThatForgeGenerated(Jdk jdk)
@@ -50,15 +55,15 @@ public sealed class ChunkLoadTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertReturnsTheChunkThatForgeGenerated(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertReturnsTheChunkThatForgeGenerated(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);

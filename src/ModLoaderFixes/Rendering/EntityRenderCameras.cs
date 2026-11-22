@@ -13,22 +13,36 @@ namespace ModLoaderFixes.Rendering;
 /// </summary>
 internal static class EntityRenderCameras
 {
+    private const int Static = 0x0008;
+
+    // What the log says the patch did, and the method that keeps renderEntity's body.
     private const string Description = "entities drawn only with a camera";
     private const string MovedBody = "modloaderfixes$renderEntity";
+
+    // renderEntity and setWorld by the names Forge runs them under, each with its descriptor.
     private const string Render = "func_188391_a";
     private const string RenderDescriptor = "(Lnet/minecraft/entity/Entity;DDDFFZ)V";
     private const string SetWorld = "func_78717_a";
     private const string SetWorldDescriptor = "(Lnet/minecraft/world/World;)V";
-    private const int Static = 0x0008;
 
-    private static readonly JavaMethod RenderWithCamera = JavaMethod.Static(owner: "modloaderfixes/EntityRenders", name: "renderWithCamera", descriptor: "(Ljava/lang/Object;Ljava/lang/Runnable;)V");
+    private static readonly JavaMethod RenderWithCamera = JavaMethod.Static(owner: "modloaderfixes/EntityRenders",
+        name: "renderWithCamera",
+        descriptor: "(Ljava/lang/Object;Ljava/lang/Runnable;)V");
 
     private static readonly JavaMethod Run = JavaMethod.Interface(owner: "java/lang/Runnable", name: "run", descriptor: "()V");
 
     // setWorld as Mojang compiles it in 1.14: this.world = world; if (world == null) this.camera = null.
     private static readonly byte[] SetWorldShape =
     [
-        Opcodes.ALoad0, Opcodes.ALoad1, Opcodes.PutField, Opcodes.ALoad1, Opcodes.IfNonNull, Opcodes.ALoad0, Opcodes.AConstNull, Opcodes.PutField, Opcodes.Return,
+        Opcodes.ALoad0,
+        Opcodes.ALoad1,
+        Opcodes.PutField,
+        Opcodes.ALoad1,
+        Opcodes.IfNonNull,
+        Opcodes.ALoad0,
+        Opcodes.AConstNull,
+        Opcodes.PutField,
+        Opcodes.Return,
     ];
 
     /// <summary>Gets the patches of the dispatcher: Forge's, by MCP's name <c>EntityRendererManager</c>, and vanilla's under each release's names from 1.14 to 1.14.4.</summary>
@@ -47,10 +61,14 @@ internal static class EntityRenderCameras
     private static int Guard(ClassFileEditor editor, JavaMethod render, JavaMethod setWorld)
     {
         JavaClassFile model = editor.Model;
+
+        // renderEntity, what setWorld does, and whether the class is patched already or its setWorld is of the expected shape.
         ClassMember? renders = model.FindMethod(render.Name, render.Descriptor);
         IReadOnlyList<Instruction>? clears = model.FindMethod(setWorld.Name, setWorld.Descriptor)?.Code?.Instructions;
         bool isPatched = model.FindMethod(MovedBody, render.Descriptor) is not null;
-        bool isShaped = clears is not null && clears.Select(static instruction => instruction.Opcode).SequenceEqual(SetWorldShape);
+
+        bool isShaped = clears is not null
+            && clears.Select(static instruction => instruction.Opcode).SequenceEqual(SetWorldShape);
 
         if (renders is null || (renders.AccessFlags & Static) != 0 || clears is null || !isShaped || isPatched)
             return 0;
@@ -63,8 +81,7 @@ internal static class EntityRenderCameras
         JavaMethod moved = JavaMethod.Virtual(model.Name, MovedBody, render.Descriptor);
 
         // The lambda captures the dispatcher and each argument, in the slots that the descriptor (entity, x, y, z, yaw, partial ticks, debug) gives them.
-        editor.ReplaceMethodBody(
-            render.Name,
+        editor.ReplaceMethodBody(render.Name,
             render.Descriptor,
             MovedBody,
             code => code.ALoad(slot: 0)
@@ -79,8 +96,7 @@ internal static class EntityRenderCameras
                 .ILoad(slot: 10)
                 .Lambda(Run, moved)
                 .Invoke(RenderWithCamera)
-                .Return()
-        );
+                .Return());
 
         return 1;
     }

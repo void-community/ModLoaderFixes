@@ -14,7 +14,9 @@ namespace ModLoaderFixes.Startup;
 /// </summary>
 internal static class ReloadListeners
 {
-    private static readonly JavaMethod NewHashSet = JavaMethod.Static(owner: "com/google/common/collect/Sets", name: "newHashSet", descriptor: "(Ljava/lang/Iterable;)Ljava/util/HashSet;");
+    private static readonly JavaMethod NewHashSet = JavaMethod.Static(owner: "com/google/common/collect/Sets",
+        name: "newHashSet",
+        descriptor: "(Ljava/lang/Iterable;)Ljava/util/HashSet;");
 
     /// <summary>
     /// Gets the patches of the reload: Forge's, by MCP's name <c>AsyncReloader</c> up to 1.16.5 and Mojang's <c>SimpleReloadInstance</c> from 1.17, vanilla's under

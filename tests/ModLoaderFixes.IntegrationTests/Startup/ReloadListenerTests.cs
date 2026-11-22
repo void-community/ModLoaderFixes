@@ -18,6 +18,7 @@ public sealed class ReloadListenerTests
     /// reload completes. Minecraft 1.16 runs on Java 8 and 1.18 on Java 17, so the fixture is compiled for each.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentCompletesEveryReloadWhoseWorkersRemoveListenersAtOnce(Jdk jdk)
@@ -25,8 +26,8 @@ public sealed class ReloadListenerTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -36,11 +37,12 @@ public sealed class ReloadListenerTests
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertCompletesEveryReload(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarCompletesEveryReloadWhoseWorkersRemoveListenersAtOnce(Jdk jdk)
@@ -48,23 +50,26 @@ public sealed class ReloadListenerTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertCompletesEveryReload(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertCompletesEveryReload(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraft/server/packs/resources/SimpleReloadInstance (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraft/server/packs/resources/SimpleReloadInstance (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)",
             patched.Output,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(expectedSubstring: "SET modloaderfixes.ReloadListeners$LockedSet", patched.Output, StringComparison.Ordinal);
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "SET modloaderfixes.ReloadListeners$LockedSet",
+            patched.Output,
+            StringComparison.Ordinal);
+
         // A reload that the JVM stalled, by never running a stage of a future, is counted in this line and is none of the set's doing; one in which the set kept
         // a listener after every removal ran ends the run with HUNG, as without the agent.
         Assert.Contains(expectedSubstring: "RELOADED 20000 times", patched.Output, StringComparison.Ordinal);

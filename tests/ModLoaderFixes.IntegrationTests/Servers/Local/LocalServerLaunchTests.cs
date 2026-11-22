@@ -17,18 +17,29 @@ public sealed class LocalServerLaunchTests
 
         LocalServerLaunch launch = LocalServerLaunch.Parse(unix, directory: "/server");
 
-        LocalServerLaunch windows = LocalServerLaunch.Parse(
-            unix.Replace(oldChar: ':', newChar: ';').Replace(oldValue: "\n", newValue: "\r\n", StringComparison.Ordinal),
-            directory: "C:\\server"
-        );
+        LocalServerLaunch windows = LocalServerLaunch.Parse(unix.Replace(oldChar: ':', newChar: ';')
+            .Replace(oldValue: "\n", newValue: "\r\n", StringComparison.Ordinal),
+            directory: "C:\\server");
 
-        Assert.Equal(
-            ["-p", "libraries/a.jar:libraries/b.jar", "--add-modules", "ALL-MODULE-PATH", "--add-opens", "java.base/java.util.jar=cpw.mods.securejarhandler", "-DlibraryDirectory=libraries"],
-            launch.JvmArguments
-        );
+        Assert.Equal(expected:
+        [
+            "-p",
+            "libraries/a.jar:libraries/b.jar",
+            "--add-modules",
+            "ALL-MODULE-PATH",
+            "--add-opens",
+            "java.base/java.util.jar=cpw.mods.securejarhandler",
+            "-DlibraryDirectory=libraries",
+        ],
+            launch.JvmArguments);
+
+        // The first word after the options is the class, the words after it are its arguments, and the server's directory stands in for the class path that the
+        // file doesn't name.
         Assert.Equal(expected: "net.minecraftforge.bootstrap.BootstrapLauncher", launch.MainClass);
-        Assert.Equal(["--launchTarget", "forge_server", "--fml.forgeVersion", "48.1.0"], launch.Arguments);
+        Assert.Equal(expected: ["--launchTarget", "forge_server", "--fml.forgeVersion", "48.1.0"], launch.Arguments);
         Assert.Equal(expected: "/server", launch.ClassPath);
+
+        // Windows' file keeps the semicolons of its module path in one option, and its line endings change neither the class nor the arguments.
         Assert.Equal(expected: "libraries/a.jar;libraries/b.jar", windows.JvmArguments[index: 1]);
         Assert.Equal(launch.MainClass, windows.MainClass);
         Assert.Equal(launch.Arguments, windows.Arguments);
@@ -38,7 +49,8 @@ public sealed class LocalServerLaunchTests
     [Fact]
     public void ArgumentFileWithoutAClassIsRefused()
     {
-        FormatException exception = Assert.Throws<FormatException>(static () => LocalServerLaunch.Parse(text: "-p libraries/a.jar --add-modules ALL-MODULE-PATH", directory: "/server"));
+        FormatException exception = Assert.Throws<FormatException>(static () => LocalServerLaunch.Parse(text: "-p libraries/a.jar --add-modules ALL-MODULE-PATH",
+            directory: "/server"));
 
         Assert.Contains(expectedSubstring: "names no class to start", exception.Message, StringComparison.Ordinal);
     }

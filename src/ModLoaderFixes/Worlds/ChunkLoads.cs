@@ -16,25 +16,30 @@ namespace ModLoaderFixes.Worlds;
 /// </summary>
 internal static class ChunkLoads
 {
+    private const int Static = 0x0008;
+
+    // A chunk as a descriptor names it, and Forge's executor of chunk loads.
     private const string Chunk = "Lnet/minecraft/world/chunk/Chunk;";
     private const string ClassName = "net/minecraftforge/common/chunkio/ChunkIOExecutor";
+
+    // What the log says the patch did.
     private const string Description = "synchronous chunk loads return the chunk the provider has";
+
+    // syncChunkLoad: its descriptor, the method that keeps its body, and its name.
     private const string Descriptor = "(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/storage/AnvilChunkLoader;L" + Provider + ";II)" + Chunk;
     private const string MovedBody = "modloaderfixes$syncChunkLoad";
     private const string Name = "syncChunkLoad";
+
+    // The server's chunk provider, which holds the chunk that a load generated.
     private const string Provider = "net/minecraft/world/gen/ChunkProviderServer";
-    private const int Static = 0x0008;
 
     // The executor's load of one queued chunk at once, whose result syncChunkLoad returns as it is up to Forge 1.9-12.16.0.1884.
-    private static readonly JavaMethod GetSkipQueue = JavaMethod.Virtual(
-        owner: "net/minecraftforge/common/util/AsynchronousExecutor",
+    private static readonly JavaMethod GetSkipQueue = JavaMethod.Virtual(owner: "net/minecraftforge/common/util/AsynchronousExecutor",
         name: "getSkipQueue",
-        descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;"
-    );
+        descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
 
     // ChunkProviderServer.loadChunk, by the name FML gives it, which returns a chunk that is loaded without reading or generating anything.
     private static readonly JavaMethod LoadChunk = JavaMethod.Virtual(Provider, name: "func_73158_c", "(II)" + Chunk);
-
     private static readonly JavaMethod Moved = JavaMethod.Static(ClassName, MovedBody, Descriptor);
 
     /// <summary>
@@ -50,14 +55,16 @@ internal static class ChunkLoads
     private static int ReturnLoaded(ClassFileEditor editor)
     {
         JavaClassFile model = editor.Model;
-        bool isFaulty = model.FindMethod(Name, Descriptor) is { Code: { } code } load && (load.AccessFlags & Static) != 0 && code.Instructions.Any(instruction => model.Invokes(instruction, GetSkipQueue));
+
+        bool isFaulty = model.FindMethod(Name, Descriptor) is { Code: { } code } load
+            && (load.AccessFlags & Static) != 0
+            && code.Instructions.Any(instruction => model.Invokes(instruction, GetSkipQueue));
 
         if (!isFaulty || model.FindMethod(MovedBody, Descriptor) is not null)
             return 0;
 
         // The fallback's name changed between builds, and loadChunk has been there in all of them.
-        editor.ReplaceMethodBody(
-            Name,
+        editor.ReplaceMethodBody(Name,
             Descriptor,
             MovedBody,
             static code => code.ALoad(slot: 0)
@@ -71,8 +78,7 @@ internal static class ChunkLoads
                 .ILoad(slot: 3)
                 .ILoad(slot: 4)
                 .Invoke(LoadChunk)
-                .AReturn()
-        );
+                .AReturn());
 
         return 1;
     }

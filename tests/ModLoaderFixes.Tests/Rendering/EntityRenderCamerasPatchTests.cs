@@ -12,9 +12,14 @@ namespace ModLoaderFixes.Tests.Rendering;
 /// <summary>Making Minecraft 1.14's entity render dispatcher draw an entity only once it has a camera, by MCP's name and by each 1.14 release's obfuscated one.</summary>
 public sealed class EntityRenderCamerasPatchTests
 {
+    // The dispatcher by MCP's name, under which the class that the patch must leave alone is written.
     private const string Dispatcher = "net/minecraft/client/renderer/entity/EntityRendererManager";
+
+    // The Java helper that runs renderEntity's body only when there is a camera, and the method that the patch moves that body to.
     private const string Helper = "modloaderfixes/EntityRenders";
     private const string Moved = "modloaderfixes$renderEntity";
+
+    // The descriptors, by MCP's names, of the dispatcher's renderEntity and of the world that its setWorld stores.
     private const string RenderDescriptor = "(Lnet/minecraft/entity/Entity;DDDFFZ)V";
     private const string WorldDescriptor = "Lnet/minecraft/world/World;";
 
@@ -29,49 +34,49 @@ public sealed class EntityRenderCamerasPatchTests
     /// <param name="className">The dispatcher's name in that client.</param>
     /// <param name="entity">The entity's name there.</param>
     /// <param name="camera">The name of the camera's field there.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch that matches <paramref name="className"/> left the client's real dispatcher unchanged, so it has no bytes to read renderEntity from; the message is
+    /// the patch's own line on why.
+    /// </exception>
     [Theory]
-    [InlineData(
-        "1.14",
+    [InlineData("1.14",
         "7a762a59345c13af7d87111207a93f5a8607f6c0",
         "93907cbf0655aa5f10d049efa4d745f4250eecc5d0d5d1268046eec3144f323a",
         "dpf",
         "aif",
-        "c"
-    )]
-    [InlineData(
-        "1.14.1",
+        "c")]
+    [InlineData("1.14.1",
         "55ba86ddcbc3579397f41910463ffd4056e1e523",
         "7194d1326cf796f62ac55f3cb56f851c232895639ae27510f3207d5a73f91814",
         "dpi",
         "aii",
-        "c"
-    )]
-    [InlineData(
-        "1.14.3",
+        "c")]
+    [InlineData("1.14.3",
         "af100b34ec7ef2b8b9cf7775b544d21d690dddec",
         "4063062677433988e012fba53e42e4c21adb6919ac7f061f19f3c6e75b334e07",
         "dpm",
         "ail",
-        "c"
-    )]
-    [InlineData(
-        "1.14.4",
+        "c")]
+    [InlineData("1.14.4",
         "8c325a0c5bd674dd747d6ebaa4c791fd363ad8a9",
         "b3b2a798e2d67b566008fe4a03767ae2c7ff3f8c7ba6751e7b71fc7299672d0a",
         "dsa",
         "aio",
-        "c"
-    )]
+        "c")]
     public async Task PatchDrawsOnlyWithACamera(string version, string sha1, string sha256, string className, string entity, string camera)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string jar = await RealJarTests.VanillaClient(version, sha1, sha256).GetPathAsync(cancellationToken);
         byte[] classFile = await ReadClassAsync(jar, className, cancellationToken);
-        string descriptor = "(L" + entity + ";DDDFFZ)V";
 
-        ClassPatchResult result = Apply(classFile);
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        // renderEntity's descriptor with this client's name of the entity, and the dispatcher as the patch leaves it.
+        string descriptor = "(L" + entity + ";DDDFFZ)V";
+        ClassPatchResult applied = Apply(classFile);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
         JavaClassFile model = JavaClassFile.Read(patched);
+
+        // What renderEntity, which each of these clients names a, does once patched: its one read of a field and its one call of a static method.
         IReadOnlyList<Instruction> body = model.FindMethod(name: "a", descriptor)?.Code?.Instructions ?? [];
         Instruction read = Assert.Single(body, static instruction => instruction.Opcode == Opcodes.GetField);
         Instruction call = Assert.Single(body, static instruction => instruction.Opcode == Opcodes.InvokeStatic);
@@ -86,15 +91,15 @@ public sealed class EntityRenderCamerasPatchTests
     [Fact]
     public void PatchLeavesADispatcherWhoseSetWorldKeepsTheCamera()
     {
-        byte[] classFile = new ClassFileWriter(Dispatcher)
-            .AddField(name: "field_217783_c", descriptor: "Lnet/minecraft/client/renderer/ActiveRenderInfo;")
+        byte[] classFile = new ClassFileWriter(Dispatcher).AddField(name: "field_217783_c", descriptor: "Lnet/minecraft/client/renderer/ActiveRenderInfo;")
             .AddField(name: "field_78722_g", WorldDescriptor)
-            .AddMethod(
-                name: "func_78717_a",
+            .AddMethod(name: "func_78717_a",
                 "(" + WorldDescriptor + ")V",
-                static code => code.ALoad(slot: 0).ALoad(slot: 1).PutField(Dispatcher, name: "field_78722_g", WorldDescriptor).Return(),
-                accessFlags: 0x0001
-            )
+                static code => code.ALoad(slot: 0)
+                    .ALoad(slot: 1)
+                    .PutField(Dispatcher, name: "field_78722_g", WorldDescriptor)
+                    .Return(),
+                accessFlags: 0x0001)
             .AddMethod(name: "func_188391_a", RenderDescriptor, static code => code.Return(), accessFlags: 0x0001)
             .ToArray();
 
@@ -108,11 +113,14 @@ public sealed class EntityRenderCamerasPatchTests
 
     private static async Task<byte[]> ReadClassAsync(string jar, string className, CancellationToken cancellationToken)
     {
-        ZipArchive archive = await ZipFile.OpenReadAsync(jar, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        ZipArchive archive = await ZipFile.OpenReadAsync(jar, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         await using (archive.ConfigureAwait(continueOnCapturedContext: false))
         {
-            ZipArchiveEntry entry = archive.GetEntry(className + ".class") ?? throw new InvalidOperationException(className + " isn't in " + jar + ".");
+            ZipArchiveEntry entry = archive.GetEntry(className + ".class")
+                ?? throw new InvalidOperationException(className + " isn't in " + jar + ".");
+
             Stream stream = await entry.OpenAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             using MemoryStream bytes = new();

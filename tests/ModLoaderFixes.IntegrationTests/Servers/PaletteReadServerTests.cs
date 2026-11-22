@@ -17,11 +17,18 @@ public sealed class PaletteReadServerTests
     private const string SpigotsName = "net/minecraft/world/level/chunk/DataPaletteBlock";
 
     /// <summary>
-    /// The servers, each with the name it runs the container of a chunk section's blocks under: Forge 1.19.4, the server whose spawn area stopped at 83% on
-    /// an ARM64 runner, and NeoForge 1.21.4, under Mojang's name with Mojang's read; Paper 1.19.4, under Spigot's name; and Paper 1.21.4, under Mojang's
-    /// name with the read that Paper gives it from 1.21.3. Each runs on itzg's latest release for its Java, which ForgeServer asks Docker Hub for once in
-    /// each run.
+    /// Gets the servers that <see cref="ServerPreparesItsSpawnAreaThroughThePatchedRead"/> starts, each with the name it runs the container of a chunk
+    /// section's blocks under.
     /// </summary>
+    /// <value>
+    /// One row for each server: the itzg image that runs it, itzg's TYPE, the Minecraft version, the Forge or NeoForge build, which is empty for Paper, and
+    /// the container's name in that server.
+    /// </value>
+    /// <remarks>
+    /// Forge 1.19.4, the server whose spawn area stopped at 83% on an ARM64 runner, and NeoForge 1.21.4 run the container under Mojang's name with Mojang's
+    /// read; Paper 1.19.4 runs it under Spigot's name; and Paper 1.21.4 under Mojang's name with the read that Paper gives it from 1.21.3. Each runs on
+    /// itzg's latest release for its Java, which ForgeServer asks Docker Hub for once in each run.
+    /// </remarks>
     public static TheoryData<string, string, string, string, string> Builds { get; } = new()
     {
         { "itzg/minecraft-server:stable-java17", "FORGE", "1.19.4", "45.3.0", MojangsName },

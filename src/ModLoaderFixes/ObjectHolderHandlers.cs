@@ -14,13 +14,9 @@ internal static class ObjectHolderHandlers
     /// <summary>Gets the patch of <c>ObjectHolderRegistry</c>.</summary>
     internal static ClassPatch Patch { get; } = ClassPatch.For(className: "net/minecraftforge/registries/ObjectHolderRegistry")
         .Method(name: "<clinit>", descriptor: "()V")
-        .ReplaceConstruction(
-            fromClass: "java/util/HashSet",
-            JavaMethod.Static(
-                owner: "java/util/concurrent/ConcurrentHashMap",
+        .ReplaceConstruction(fromClass: "java/util/HashSet",
+            JavaMethod.Static(owner: "java/util/concurrent/ConcurrentHashMap",
                 name: "newKeySet",
-                descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;"
-            ),
-            storedIn: "objectHolders"
-        );
+                descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;"),
+            storedIn: "objectHolders");
 }

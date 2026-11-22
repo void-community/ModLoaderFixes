@@ -13,31 +13,53 @@ namespace ModLoaderFixes.Worlds;
 /// </summary>
 internal static class AttributeSamplers
 {
-    private const string Compute = "modloaderfixes$computeDimensionValue";
-    private const string Description = "dimension values read from the cache once";
-    private const string MovedBody = "modloaderfixes$getDimensionValue";
-    private const string ObjectDescriptor = "Ljava/lang/Object;";
+    // The access flags of the methods the patch adds, and of a static member.
     private const int PrivateSynthetic = 0x1002;
     private const int Static = 0x0008;
+
+    // The method the patch adds that computes the value and caches it.
+    private const string Compute = "modloaderfixes$computeDimensionValue";
+
+    // What the log says the patch did.
+    private const string Description = "dimension values read from the cache once";
+
+    // The method that keeps the getter's body.
+    private const string MovedBody = "modloaderfixes$getDimensionValue";
+
+    // The descriptors of the cache's field and of the getter.
+    private const string ObjectDescriptor = "Ljava/lang/Object;";
     private const string ValueDescriptor = "()Ljava/lang/Object;";
 
-    private static readonly JavaMethod CachedOrComputed = JavaMethod.Static(
-        owner: "modloaderfixes/AttributeValues",
+    private static readonly JavaMethod CachedOrComputed = JavaMethod.Static(owner: "modloaderfixes/AttributeValues",
         name: "cachedOrComputed",
-        descriptor: "(Ljava/lang/Object;Ljava/util/function/Supplier;)Ljava/lang/Object;"
-    );
+        descriptor: "(Ljava/lang/Object;Ljava/util/function/Supplier;)Ljava/lang/Object;");
 
     // getDimensionValue as Mojang compiles it from 1.21.11: if (cachedTickValue != null) return cachedTickValue; else compute, cache and return the result.
     private static readonly byte[] Shape =
     [
-        Opcodes.ALoad0, Opcodes.GetField, Opcodes.IfNull, Opcodes.ALoad0, Opcodes.GetField, Opcodes.AReturn, Opcodes.ALoad0, Opcodes.InvokeVirtual, Opcodes.AStore1,
-        Opcodes.ALoad0, Opcodes.ALoad1, Opcodes.PutField, Opcodes.ALoad1, Opcodes.AReturn,
+        Opcodes.ALoad0,
+        Opcodes.GetField,
+        Opcodes.IfNull,
+        Opcodes.ALoad0,
+        Opcodes.GetField,
+        Opcodes.AReturn,
+        Opcodes.ALoad0,
+        Opcodes.InvokeVirtual,
+        Opcodes.AStore1,
+        Opcodes.ALoad0,
+        Opcodes.ALoad1,
+        Opcodes.PutField,
+        Opcodes.ALoad1,
+        Opcodes.AReturn,
     ];
 
-    private static readonly JavaMethod SupplierGet = JavaMethod.Interface(owner: "java/util/function/Supplier", name: "get", ValueDescriptor);
+    private static readonly JavaMethod SupplierGet = JavaMethod.Interface(owner: "java/util/function/Supplier",
+        name: "get",
+        ValueDescriptor);
 
     /// <summary>Gets the patches of the sampler: by Mojang's name, which Forge, NeoForge, Paper and Minecraft from 26.1 run, and by 1.21.11's obfuscated one.</summary>
-    internal static IReadOnlyList<ClassPatch> Patches { get; } = [.. MappedClasses.AttributeSampler.Patches(static names => names.Patch().Edit(Description, static context => ReadOnce(context.Editor)))];
+    internal static IReadOnlyList<ClassPatch> Patches { get; } = [.. MappedClasses.AttributeSampler
+        .Patches(static names => names.Patch().Edit(Description, static context => ReadOnce(context.Editor)))];
 
     private static bool IsShaped(CodeAttribute code)
     {
@@ -47,9 +69,9 @@ internal static class AttributeSamplers
     // The member is the class's own, of the descriptor, and each other instruction names the same member.
     private static bool Names(JavaClassFile model, MemberReference member, string descriptor, params Instruction[] others)
     {
-        return member.Owner == model.Name && member.Descriptor == descriptor && others.All(
-            other => other.ConstantIndex is { } index && model.GetMemberReference(index) is { } reference && reference.Name == member.Name && reference.Owner == member.Owner
-        );
+        return member.Owner == model.Name
+            && member.Descriptor == descriptor
+            && others.All(other => other.ConstantIndex is { } index && model.GetMemberReference(index) is { } reference && reference.Name == member.Name && reference.Owner == member.Owner);
     }
 
     // getDimensionValue is the one method of the shape above, whose reads and write name the same field of the class, and whose miss calls a method of the class
@@ -57,7 +79,10 @@ internal static class AttributeSamplers
     private static int ReadOnce(ClassFileEditor editor)
     {
         JavaClassFile model = editor.Model;
-        ClassMember[] getters = [.. model.Methods.Where(method => method is { Descriptor: ValueDescriptor, Code: { } code } && (method.AccessFlags & Static) == 0 && IsShaped(code))];
+
+        ClassMember[] getters = [.. model.Methods
+            .Where(method => method is { Descriptor: ValueDescriptor, Code: { } code } && (method.AccessFlags & Static) == 0 && IsShaped(code))];
+
         bool isPatched = model.FindMethod(Compute, ValueDescriptor) is not null;
 
         if (getters is not [{ Code.Instructions: var code } getter] || isPatched)
@@ -72,8 +97,7 @@ internal static class AttributeSamplers
         JavaMethod compute = JavaMethod.Virtual(model.Name, computed.Name, ValueDescriptor);
         JavaMethod computeAndCache = JavaMethod.Virtual(model.Name, Compute, ValueDescriptor);
 
-        editor.AddMethod(
-            PrivateSynthetic,
+        editor.AddMethod(PrivateSynthetic,
             Compute,
             ValueDescriptor,
             builder => builder.ALoad(slot: 0)
@@ -83,10 +107,9 @@ internal static class AttributeSamplers
                 .ALoad(slot: 1)
                 .PutField(model.Name, cache.Name, ObjectDescriptor)
                 .ALoad(slot: 1)
-                .AReturn()
-        );
-        editor.ReplaceMethodBody(
-            getter.Name,
+                .AReturn());
+
+        editor.ReplaceMethodBody(getter.Name,
             ValueDescriptor,
             MovedBody,
             code => code.ALoad(slot: 0)
@@ -94,8 +117,7 @@ internal static class AttributeSamplers
                 .ALoad(slot: 0)
                 .Lambda(SupplierGet, computeAndCache)
                 .Invoke(CachedOrComputed)
-                .AReturn()
-        );
+                .AReturn());
 
         return 1;
     }

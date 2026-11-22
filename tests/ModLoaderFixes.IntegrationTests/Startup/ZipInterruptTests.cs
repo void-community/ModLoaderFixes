@@ -21,6 +21,7 @@ public sealed class ZipInterruptTests
     /// to 1.16.5 run on, and later releases in <c>jdk.nio.zipfs</c>.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17, 21)]
     public async Task AgentKeepsTheJarReadableAfterAnInterruptedRead(Jdk jdk)
@@ -28,21 +29,29 @@ public sealed class ZipInterruptTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
-        JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(jdk), cancellationToken: cancellationToken);
+
+        JavaRun unpatched = await jdk.RunAsync(MainClass,
+            classPath,
+            options: Verified(jdk),
+            cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "next entry: java.nio.channels.ClosedChannelException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "next entry: java.nio.channels.ClosedChannelException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(jdk), cancellationToken);
 
-        AssertPatched(patched, jdk);
+        AssertKeepsTheJarReadable(patched, jdk);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task JavaAgentJarKeepsTheJarReadableAfterAnInterruptedRead(Jdk jdk)
@@ -50,15 +59,15 @@ public sealed class ZipInterruptTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(jdk), cancellationToken);
 
-        AssertPatched(patched, jdk);
+        AssertKeepsTheJarReadable(patched, jdk);
     }
 
-    private static void AssertPatched(JavaRun patched, Jdk jdk)
+    private static void AssertKeepsTheJarReadable(JavaRun patched, Jdk jdk)
     {
         // SecureJarHandler casts the channel to FileChannelImpl on Java 17 and later, which only Java 8's wrapper isn't.
         string expected = jdk.Major == 8

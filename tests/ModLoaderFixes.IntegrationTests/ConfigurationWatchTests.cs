@@ -17,6 +17,8 @@ public sealed class ConfigurationWatchTests
     /// Without the agent the watcher's reload lands while the correction walks the config, which throws ConcurrentModificationException; with it nothing reloads
     /// and every value is corrected. These games run on Java 8 to 17, so the fixture is compiled for each.
     /// </summary>
+    /// <param name="jdk">The JDK that compiles the fixture for its own Java release and runs it, first without the agent and then with it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentCorrectsTheConfigurationWithoutAWatcherReloadingIt(Jdk jdk)
@@ -24,20 +26,25 @@ public sealed class ConfigurationWatchTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "CRASHED java.util.ConcurrentModificationException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "CRASHED java.util.ConcurrentModificationException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertCorrectsEveryValueWithoutAReload(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarCorrectsTheConfigurationWithoutAWatcherReloadingIt(Jdk jdk)
@@ -45,22 +52,22 @@ public sealed class ConfigurationWatchTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertCorrectsEveryValueWithoutAReload(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertCorrectsEveryValueWithoutAReload(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         // Every outdated value is corrected, and no watcher reloads the file meanwhile; loadFrom saves it once at the end.
         Assert.Contains(expectedSubstring: "CORRECTED 3 values, RELOADED 0 times", patched.Output, StringComparison.Ordinal);
     }

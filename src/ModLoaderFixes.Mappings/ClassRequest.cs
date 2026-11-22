@@ -21,7 +21,10 @@ internal sealed record ClassRequest(string Property, string Name, string From, s
         ArgumentNullException.ThrowIfNull(version);
 
         string[] parts = version.Split(separator: '.');
-        bool isMcp = parts is ["1", { } minor, ..] && int.TryParse(minor, NumberStyles.None, CultureInfo.InvariantCulture, out int number) && number <= 16;
+
+        bool isMcp = parts is ["1", { } minor, ..]
+            && int.TryParse(minor, NumberStyles.None, CultureInfo.InvariantCulture, out int number)
+            && number <= 16;
 
         return isMcp ? Namespace.Srg : Namespace.Official;
     }
@@ -49,9 +52,10 @@ internal sealed record ClassRequest(string Property, string Name, string From, s
                 continue;
 
             if (line.Split(separator: '\t') is not [{ } property, { } name, { } from, { } to, { } methods])
-                throw new FormatException($"Request {number} has fewer or more than five fields: {line}");
+                throw new FormatException(message: $"Request {number} has fewer or more than five fields: {line}");
 
-            MethodName[] parsed = [.. methods.Split(separator: ' ', StringSplitOptions.RemoveEmptyEntries).Select(method => ParseMethod(method, number))];
+            MethodName[] parsed = [.. methods.Split(separator: ' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(method => Parse(method, number))];
 
             requests.Add(new ClassRequest(property, name, from, to, parsed));
         }
@@ -59,12 +63,12 @@ internal sealed record ClassRequest(string Property, string Name, string From, s
         return requests;
     }
 
-    private static MethodName ParseMethod(string method, int number)
+    private static MethodName Parse(string method, int number)
     {
         int descriptor = method.IndexOf(value: '(', StringComparison.Ordinal);
 
         return descriptor <= 0
-            ? throw new FormatException($"Request {number} names a method without its descriptor: {method}")
+            ? throw new FormatException(message: $"Request {number} names a method without its descriptor: {method}")
             : new MethodName(method[..descriptor], method[descriptor..]);
     }
 }

@@ -17,6 +17,8 @@ public sealed class HandshakeReplyTests
     /// Without the agent the reply's own handler finds no handshake handler and throws NullPointerException; with it the reply is handled before its index is removed,
     /// and the handshake completes after both. Forge's handler runs on Java 8 to 17, so the fixture is compiled for each.
     /// </summary>
+    /// <param name="jdk">The JDK that compiles the fixture for its own Java release and runs it, first without the agent and then with it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentHandlesTheLastReplyBeforeTheHandshakeCompletes(Jdk jdk)
@@ -24,8 +26,8 @@ public sealed class HandshakeReplyTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -34,10 +36,12 @@ public sealed class HandshakeReplyTests
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertHandlesTheLastReplyBeforeTheHandshakeCompletes(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarHandlesTheLastReplyBeforeTheHandshakeCompletes(Jdk jdk)
@@ -45,23 +49,25 @@ public sealed class HandshakeReplyTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertHandlesTheLastReplyBeforeTheHandshakeCompletes(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertHandlesTheLastReplyBeforeTheHandshakeCompletes(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/network/HandshakeHandler (indexed replies handled before they are marked answered (1 change))",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/network/HandshakeHandler (indexed replies handled before they are marked answered (1 change))",
             patched.Output,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(expectedSubstring: "EVENTS [acknowledged 18, removed 18, complete]", patched.Output, StringComparison.Ordinal);
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "EVENTS [acknowledged 18, removed 18, complete]",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 
     // The patched indexFirst goes through the full verifier.

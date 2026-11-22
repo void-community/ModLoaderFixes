@@ -15,23 +15,27 @@ namespace ModLoaderFixes.Startup;
 /// </summary>
 internal static class ListenerListChildren
 {
-    private const string AddChild = "addChild";
-    private const string Helper = "modloaderfixes/ListenerChildren";
     // ACC_PRIVATE | ACC_SYNCHRONIZED: addChild stays private and locks the parent list it adds to.
     private const int PrivateSynchronized = 0x0022;
 
-    private static readonly JavaMethod Iterator = JavaMethod.Interface(owner: "java/util/List", name: "iterator", descriptor: "()Ljava/util/Iterator;");
-    private static readonly JavaMethod SynchronizedList = JavaMethod.Static(owner: "java/util/Collections", name: "synchronizedList", descriptor: "(Ljava/util/List;)Ljava/util/List;");
+    private const string AddChild = "addChild";
+    private const string Helper = "modloaderfixes/ListenerChildren";
+
+    private static readonly JavaMethod Iterator = JavaMethod.Interface(owner: "java/util/List",
+        name: "iterator",
+        descriptor: "()Ljava/util/Iterator;");
+
+    private static readonly JavaMethod SynchronizedList = JavaMethod.Static(owner: "java/util/Collections",
+        name: "synchronizedList",
+        descriptor: "(Ljava/util/List;)Ljava/util/List;");
 
     /// <summary>Gets the patch of <c>ListenerList$ListenerListInst</c>, which every EventBus up to 6.2 names so.</summary>
     internal static ClassPatch Patch { get; } = ClassPatch.For(className: "net/minecraftforge/eventbus/ListenerList$ListenerListInst")
         .Method(AddChild, descriptor: "(Lnet/minecraftforge/eventbus/ListenerList$ListenerListInst;)V")
         .When(static body => !body.Calls(SynchronizedList))
-        .ReplaceConstruction(
-            fromClass: "java/util/ArrayList",
+        .ReplaceConstruction(fromClass: "java/util/ArrayList",
             JavaMethod.Static(Helper, name: "newChildren", descriptor: "()Ljava/util/List;"),
-            storedIn: "children"
-        )
+            storedIn: "children")
         .SetAccess(PrivateSynchronized)
         .Method(name: "forceRebuild", descriptor: "()V")
         .RedirectInvocation(Iterator, Helper);

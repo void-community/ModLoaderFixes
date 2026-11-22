@@ -19,17 +19,24 @@ public sealed class PaperBlockEntityServerTests
 {
     // Three minutes of looking at the log every two seconds: the first timings history comes a minute after the server has started.
     private const int Attempts = 90;
-    private const uint Minecraft = 1000;
+    private const int Sends = 6;
+
     private const string Region = "/data/world/region/r.0.0.mca";
     private const string Replaced = "ModLoaderFixes gave the block its own block entity so that its state can be read";
-    private const int Sends = 6;
+
+    private const uint Minecraft = 1000;
+
     private const UnixFileModes Writable = UnixFileModes.UserRead | UnixFileModes.UserWrite | UnixFileModes.GroupRead | UnixFileModes.OtherRead;
 
     /// <summary>
-    /// The Paper releases that stop on such a block, each with the itzg image that runs it, CraftBukkit's revision, which names the patched class, and the
-    /// system properties it needs: 1.14.3, whose last build has no repair of such a block entity, as every build from 1.14 to 1.14.4's build 216, and 1.17,
-    /// whose repair replaces nothing. Paper 1.17 asks for Java 16, which itzg has no current image of, and runs on 17 when told not to check.
+    /// Gets the Paper releases that stop on a spawner with a chest's block entity: 1.14.3, whose last build has no repair of such a block entity, as every
+    /// build from 1.14 to 1.14.4's build 216, and 1.17, whose repair replaces nothing.
     /// </summary>
+    /// <value>
+    /// One row for each release: the itzg image that runs it, the Minecraft version, CraftBukkit's revision, which names the patched class, and the system
+    /// properties the server needs, as itzg's JVM_DD_OPTS takes them, which are empty when it needs none.
+    /// </value>
+    /// <remarks>Paper 1.17 asks for Java 16, which itzg has no current image of, and runs on 17 when told not to check.</remarks>
     public static TheoryData<string, string, string, string> Servers { get; } = new()
     {
         { "itzg/minecraft-server:stable-java8", "1.14.3", "v1_14_R1", string.Empty },
@@ -62,13 +69,11 @@ public sealed class PaperBlockEntityServerTests
             .WithEnvironment(name: "LEVEL_TYPE", value: "FLAT")
             .WithEnvironment(name: "CREATE_CONSOLE_IN_PIPE", value: "true")
             .WithEnvironment(name: "JVM_DD_OPTS", properties)
-            .WithResourceMapping(
-                Encoding.UTF8.GetBytes(s: "timings:\n  history-interval: 60\n"),
+            .WithResourceMapping(Encoding.UTF8.GetBytes(s: "timings:\n  history-interval: 60\n"),
                 FilePath.Of(path: "/data/paper.yml"),
                 Minecraft,
                 Minecraft,
-                Writable
-            )
+                Writable)
             .Build();
 
         string logs = await ForgeServer.StartAsync(server, timeout.Token);
@@ -78,15 +83,21 @@ public sealed class PaperBlockEntityServerTests
         Task<long> stopping = server.GetExitCodeAsync(timeout.Token);
 
         logs = await SendAsync(server, stopping, command: "forceload add 0 0", effect: "to be force loaded", timeout.Token);
-        logs = await SendAsync(server, stopping, command: "setblock 8 10 8 minecraft:spawner", effect: "Changed the block at 8, 10, 8", timeout.Token);
-        logs = await SendAsync(server, stopping, command: "stop", effect: "Stopping server", timeout.Token);
 
+        logs = await SendAsync(server,
+            stopping,
+            command: "setblock 8 10 8 minecraft:spawner",
+            effect: "Changed the block at 8, 10, 8",
+            timeout.Token);
+
+        logs = await SendAsync(server, stopping, command: "stop", effect: "Stopping server", timeout.Token);
         logs = await WaitAsync(server, stopping, static log => false, Attempts, timeout.Token);
 
         Assert.True(stopping.IsCompleted, "The server didn't stop. Its log:" + Environment.NewLine + logs);
 
         long stopped = await server.GetExitCodeAsync(timeout.Token);
         byte[] region = await server.ReadFileAsync(Region, timeout.Token);
+
         int swapped = RegionFiles.GiveSpawnersAChestsBlockEntity(region);
 
         await server.CopyAsync(region, Region, Minecraft, Minecraft, Writable, timeout.Token);
@@ -94,15 +105,21 @@ public sealed class PaperBlockEntityServerTests
 
         Task<long> exit = server.GetExitCodeAsync(timeout.Token);
 
-        logs = await WaitAsync(server, exit, static log => log.Contains(Replaced, StringComparison.Ordinal), Attempts, timeout.Token);
-        logs = await SendAsync(server, exit, command: "data get block 8 10 8", effect: "8, 10, 8 has the following block data", timeout.Token);
+        logs = await WaitAsync(server,
+            exit,
+            static log => log.Contains(Replaced, StringComparison.Ordinal),
+            Attempts,
+            timeout.Token);
+
+        logs = await SendAsync(server,
+            exit,
+            command: "data get block 8 10 8",
+            effect: "8, 10, 8 has the following block data",
+            timeout.Token);
 
         Assert.Equal(expected: 0, stopped);
         Assert.Equal(expected: 1, swapped);
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched org/bukkit/craftbukkit/" + revision + "/block/CraftBlockEntityState (<init>(Lorg/bukkit/block/Block;Ljava/lang/Class;)V: 1 invocation of java/lang/Class.cast redirected)"
-        );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched org/bukkit/craftbukkit/" + revision + "/block/CraftBlockEntityState (<init>(Lorg/bukkit/block/Block;Ljava/lang/Class;)V: 1 invocation of java/lang/Class.cast redirected)");
 
         // Paper 1.14 also generates its world through the region whose setter the agent changes; Paper 1.17's dungeons can't set a spawner on a chest.
         if (revision == "v1_14_R1")
@@ -110,9 +127,12 @@ public sealed class PaperBlockEntityServerTests
         else
             ForgeServer.AssertNotLogged(logs, ForgeServer.GenerationPatched);
 
+        // The log names the spawner as a block that has another's block entity, the helper says it gave the block its own, and the cast doesn't fail.
         ForgeServer.AssertLogged(logs, expected: "Block at 8, 10, 8 is Block{minecraft:spawner} but has ");
         ForgeServer.AssertLogged(logs, Replaced);
         ForgeServer.AssertNotLogged(logs, unexpected: "ClassCastException");
+
+        // The block's data, which the last command asked for, is a spawner's, and the server still runs after its timings history read the block.
         ForgeServer.AssertLogged(logs, expected: "id: \"minecraft:mob_spawner\"");
         Assert.False(exit.IsCompleted, ForgeServer.Printable(logs));
     }
@@ -126,11 +146,16 @@ public sealed class PaperBlockEntityServerTests
         for (int attempt = 0; attempt < Sends && !logs.Contains(effect, StringComparison.Ordinal) && !exit.IsCompleted; attempt++)
         {
             // The pipe belongs to the user that itzg runs the server as, and its script refuses any other.
-            ExecResult sent = await server.ExecAsync(["gosu", "1000:1000", "mc-send-to-console", command], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            ExecResult sent = await server.ExecAsync(command: ["gosu", "1000:1000", "mc-send-to-console", command], cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             Assert.True(sent.ExitCode is 0, sent.Stdout + sent.Stderr);
 
-            logs = await WaitAsync(server, exit, log => log.Contains(effect, StringComparison.Ordinal), attempts: 5, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            logs = await WaitAsync(server,
+                exit,
+                log => log.Contains(effect, StringComparison.Ordinal),
+                attempts: 5,
+                cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         }
 
         return logs;
@@ -140,11 +165,14 @@ public sealed class PaperBlockEntityServerTests
     // used up, and returns the log either way: the assertions say what is missing from it.
     private static async Task<string> WaitAsync(IContainer server, Task<long> exit, Func<string, bool> condition, int attempts, CancellationToken cancellationToken)
     {
-        string logs = await ForgeServer.ReadLogsAsync(server, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string logs = await ForgeServer.ReadLogsAsync(server, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         for (int attempt = 0; attempt < attempts && !condition(logs) && !exit.IsCompleted; attempt++)
         {
-            await Task.Delay(TimeSpan.FromSeconds(seconds: 2), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.Delay(TimeSpan.FromSeconds(seconds: 2), cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             logs = await ForgeServer.ReadLogsAsync(server, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         }
 

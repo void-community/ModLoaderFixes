@@ -19,7 +19,9 @@ internal static class ChannelCloses
     private const string PaperHelper = "modloaderfixes/PaperChannelCloses";
     private const string PaperNetty = "net/minecraft/util/io/netty/channel/";
 
-    private static readonly JavaMethod Close = JavaMethod.Interface(owner: "io/netty/channel/Channel", name: "close", descriptor: "()Lio/netty/channel/ChannelFuture;");
+    private static readonly JavaMethod Close = JavaMethod.Interface(owner: "io/netty/channel/Channel",
+        name: "close",
+        descriptor: "()Lio/netty/channel/ChannelFuture;");
 
     /// <summary>
     /// Gets the patch of PaperSpigot 1.7.10's <c>NetworkManager.close</c>, the same method by CraftBukkit's names, whose channel is of the package that CraftBukkit

@@ -18,20 +18,26 @@ public sealed class ConfigurationWatchPatchTests
     [Fact]
     public void PatchLeavesConfigsBuiltWithoutThem()
     {
-        ClassPatchResult result = ModLoaderConfigurationWatch.Patch.Apply(CreateClassFile(["sync"]));
+        ClassPatchResult skipped = ModLoaderConfigurationWatch.Patch.Apply(CreateClassFile(builderCalls: ["sync"]));
 
-        Assert.False(result.Changed);
-        Assert.Contains("no invocation of " + Builder, result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains("no invocation of " + Builder, skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary>Both calls go, so the builder they returned stays on the stack for the call that follows, which is kept.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left FMLConfig unchanged although its loadFrom calls autosave and autoreload, so there is no patched loadFrom to look into; the message is the patch's
+    /// own line about the class.
+    /// </exception>
     [Fact]
     public void PatchLeavesOffAutosaveAndAutoreload()
     {
-        ClassPatchResult result = ModLoaderConfigurationWatch.Patch.Apply(CreateClassFile(["autosave", "autoreload", "sync"]));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = ModLoaderConfigurationWatch.Patch
+            .Apply(CreateClassFile(builderCalls: ["autosave", "autoreload", "sync"]));
 
-        Assert.Equal(expected: 2, result.RemovedInvocations);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
+
+        Assert.Equal(expected: 2, applied.RemovedInvocations);
         ClassFileAssert.DoesNotCall(patched, LoadFrom, Builder, name: "autosave", BuilderDescriptor);
         ClassFileAssert.DoesNotCall(patched, LoadFrom, Builder, name: "autoreload", BuilderDescriptor);
         ClassFileAssert.Calls(patched, LoadFrom, Builder, name: "sync", BuilderDescriptor);
@@ -41,11 +47,11 @@ public sealed class ConfigurationWatchPatchTests
     private static byte[] CreateClassFile(string[] builderCalls)
     {
         return new ClassFileWriter(ClassName)
-            .AddMethod(
-                LoadFrom,
+            .AddMethod(LoadFrom,
                 descriptor: "(Ljava/nio/file/Path;)V",
-                code => builderCalls.Aggregate(code.AConstNull(), static (code, call) => code.Invoke(JavaMethod.Virtual(Builder, call, BuilderDescriptor))).Pop().Return()
-            )
+                code => builderCalls.Aggregate(code.AConstNull(), static (code, call) => code.Invoke(JavaMethod.Virtual(Builder, call, BuilderDescriptor)))
+                    .Pop()
+                    .Return())
             .ToArray();
     }
 }

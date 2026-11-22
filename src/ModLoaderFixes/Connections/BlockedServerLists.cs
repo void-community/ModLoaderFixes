@@ -16,7 +16,9 @@ internal static class BlockedServerLists
 {
     private const string Helper = "modloaderfixes/BlockLists";
 
-    private static readonly JavaMethod Lines = JavaMethod.Virtual(owner: "java/io/BufferedReader", name: "lines", descriptor: "()Ljava/util/stream/Stream;");
+    private static readonly JavaMethod Lines = JavaMethod.Virtual(owner: "java/io/BufferedReader",
+        name: "lines",
+        descriptor: "()Ljava/util/stream/Stream;");
 
     /// <summary>Gets the patches: of patchy 2's <c>createBlockList</c>, in 2.1.6 and 2.2.10, and of patchy 1.3.9's <c>BlockedServers</c> initializer.</summary>
     internal static IReadOnlyList<ClassPatch> Patches { get; } =
@@ -24,6 +26,8 @@ internal static class BlockedServerLists
         ClassPatch.For(className: "com/mojang/patchy/MojangBlockListSupplier")
             .Method(name: "createBlockList", descriptor: "()Ljava/util/function/Predicate;")
             .RedirectInvocation(Lines, Helper),
-        ClassPatch.For(className: "com/mojang/patchy/BlockedServers").Method(name: "<clinit>", descriptor: "()V").RedirectInvocation(Lines, Helper),
+        ClassPatch.For(className: "com/mojang/patchy/BlockedServers")
+            .Method(name: "<clinit>", descriptor: "()V")
+            .RedirectInvocation(Lines, Helper),
     ];
 }

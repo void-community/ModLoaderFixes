@@ -11,14 +11,15 @@ namespace ModLoaderFixes.IntegrationTests;
 public sealed class ClassHierarchyTests
 {
     private const string MainClass = "cpw.mods.modlauncher.TransformerClassWriter";
-    private const string Patched =
-        "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";
+    private const string Patched = "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";
     private const string Sources = "Fixtures/ClassHierarchies/**/*.java";
 
     /// <summary>
-    /// Without the agent the asking thread reads the half recorded hierarchy as null and throws, as Forge 1.13.2 did when it loaded a world; with it the asking thread
+    /// Without the agent the asking thread reads the half recorded hierarchy as <see langword="null"/> and throws, as Forge 1.13.2 did when it loaded a world; with it the asking thread
     /// records the class itself and gets its superclass. Forge for 1.13.2 to 1.15.2 runs on Java 8 and later, so the fixture is compiled for Java 8 and 17.
     /// </summary>
+    /// <param name="jdk">The JDK that compiles the fixture for its own Java release and runs it, first without the agent and then with it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentKeepsAHalfRecordedClassFromBreakingTheCommonSuperclass(Jdk jdk)
@@ -26,8 +27,8 @@ public sealed class ClassHierarchyTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -36,10 +37,12 @@ public sealed class ClassHierarchyTests
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertGetsTheCommonSuperclass(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarKeepsAHalfRecordedClassFromBreakingTheCommonSuperclass(Jdk jdk)
@@ -47,15 +50,15 @@ public sealed class ClassHierarchyTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertGetsTheCommonSuperclass(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertGetsTheCommonSuperclass(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);

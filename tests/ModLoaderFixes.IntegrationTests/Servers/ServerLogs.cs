@@ -29,7 +29,8 @@ internal static class ServerLogs
 
         IEnumerable<string> lines = Lines(standardOutput).Concat(Lines(standardError));
 
-        return string.Join(separator: '\n', lines.OrderBy(static line => line.Length < TimeLength ? line : line[..TimeLength], StringComparer.Ordinal));
+        return string.Join(separator: '\n',
+            lines.OrderBy(static line => line.Length < TimeLength ? line : line[..TimeLength], StringComparer.Ordinal));
     }
 
     /// <summary>
@@ -46,8 +47,11 @@ internal static class ServerLogs
         if (server.State != TestcontainersStates.Running)
             return "The container doesn't run, so its JVM has no threads to show.";
 
-        string before = await ForgeServer.ReadLogsAsync(server, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        ExecResult signal = await server.ExecAsync(["sh", "-c", "kill -3 $(pidof java)"], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string before = await ForgeServer.ReadLogsAsync(server, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        ExecResult signal = await server.ExecAsync(command: ["sh", "-c", "kill -3 $(pidof java)"], cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         if (signal.ExitCode != 0)
             return "No JVM in the container took the signal: " + signal.Stderr.Trim();
@@ -55,17 +59,18 @@ internal static class ServerLogs
         // The JVM prints the stacks first and its JNI references last, a moment after the signal.
         for (int attempt = 0; attempt < 20; attempt++)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(milliseconds: 500), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.Delay(TimeSpan.FromMilliseconds(milliseconds: 500), cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
-            string logs = await ForgeServer.ReadLogsAsync(server, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            string logs = await ForgeServer.ReadLogsAsync(server, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             int start = logs.IndexOf(value: "Full thread dump", Math.Min(before.Length, logs.Length), StringComparison.Ordinal);
 
             if (start >= 0 && logs.IndexOf(value: "JNI global ref", start, StringComparison.Ordinal) >= 0)
             {
-                return string.Join(
-                    separator: '\n',
-                    Lines(logs[start..]).Select(static (line, index) => index == 0 || line.Length <= TimeLength ? line : line[(TimeLength + 1)..])
-                );
+                return string.Join(separator: '\n',
+                    Lines(logs[start..]).Select(static (line, index) => index == 0 || line.Length <= TimeLength ? line : line[(TimeLength + 1)..]));
             }
         }
 
@@ -79,7 +84,8 @@ internal static class ServerLogs
     {
         ArgumentNullException.ThrowIfNull(logs);
 
-        return string.Join(separator: '\n', Lines(logs).Where(static line => !line.Contains(HealthCheck, StringComparison.Ordinal)));
+        return string.Join(separator: '\n',
+            Lines(logs).Where(static line => !line.Contains(HealthCheck, StringComparison.Ordinal)));
     }
 
     private static string[] Lines(string text)

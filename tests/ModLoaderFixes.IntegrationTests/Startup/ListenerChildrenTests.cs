@@ -11,8 +11,7 @@ namespace ModLoaderFixes.IntegrationTests.Startup;
 public sealed class ListenerChildrenTests
 {
     private const string MainClass = "net.minecraftforge.eventbus.ListenerList";
-    private const string Patched =
-        "ModLoaderFixes: patched net/minecraftforge/eventbus/ListenerList$ListenerListInst (addChild(Lnet/minecraftforge/eventbus/ListenerList$ListenerListInst;)V: 1 new java/util/ArrayList() replaced by modloaderfixes/ListenerChildren.newChildren() stored in children; addChild(Lnet/minecraftforge/eventbus/ListenerList$ListenerListInst;)V: access set to 0x22; forceRebuild()V: 1 invocation of java/util/List.iterator redirected)";
+    private const string Patched = "ModLoaderFixes: patched net/minecraftforge/eventbus/ListenerList$ListenerListInst (addChild(Lnet/minecraftforge/eventbus/ListenerList$ListenerListInst;)V: 1 new java/util/ArrayList() replaced by modloaderfixes/ListenerChildren.newChildren() stored in children; addChild(Lnet/minecraftforge/eventbus/ListenerList$ListenerListInst;)V: access set to 0x22; forceRebuild()V: 1 invocation of java/util/List.iterator redirected)";
     private const string Sources = "Fixtures/ListenerChildren/**/*.java";
 
     /// <summary>
@@ -20,6 +19,7 @@ public sealed class ListenerChildrenTests
     /// Forge for Minecraft 1.13.2 to 1.16.4 runs on Java 8.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentKeepsEveryChildWhileTheListRebuilds(Jdk jdk)
@@ -27,21 +27,25 @@ public sealed class ListenerChildrenTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "rebuilds with ConcurrentModificationException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "rebuilds with ConcurrentModificationException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsEveryChildWhileTheListRebuilds(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarKeepsEveryChildWhileTheListRebuilds(Jdk jdk)
@@ -49,23 +53,22 @@ public sealed class ListenerChildrenTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsEveryChildWhileTheListRebuilds(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertKeepsEveryChildWhileTheListRebuilds(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "REBUILT every list while its children grew, kept in java.util.Collections$SynchronizedRandomAccessList",
+
+        Assert.Contains(expectedSubstring: "REBUILT every list while its children grew, kept in java.util.Collections$SynchronizedRandomAccessList",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 
     // The patched list and the helper go through the full verifier.

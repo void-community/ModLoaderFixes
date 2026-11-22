@@ -11,8 +11,7 @@ namespace ModLoaderFixes.IntegrationTests;
 public sealed class PlayClientTests
 {
     private const string MainClass = "cpw.mods.fml.client.FMLClientHandler";
-    private const string Patched =
-        "ModLoaderFixes: patched cpw/mods/fml/client/FMLClientHandler (waitForPlayClient()V: 1 invocation of java/util/concurrent/CountDownLatch.await redirected; modloaderfixes$playClientBlock()Ljava/util/concurrent/CountDownLatch;: getter of field playClientBlock added)";
+    private const string Patched = "ModLoaderFixes: patched cpw/mods/fml/client/FMLClientHandler (waitForPlayClient()V: 1 invocation of java/util/concurrent/CountDownLatch.await redirected; modloaderfixes$playClientBlock()Ljava/util/concurrent/CountDownLatch;: getter of field playClientBlock added)";
     private const string Sources = "Fixtures/PlayClient/**/*.java";
 
     /// <summary>
@@ -20,6 +19,8 @@ public sealed class PlayClientTests
     /// waiting at once when the client connects again before it does, which replaces the latch; the dispatcher's own wait then tells which connection it was.
     /// Forge for Minecraft 1.7 runs on Java 8.
     /// </summary>
+    /// <param name="jdk">The JDK of Java 8, which compiles the fixture and runs it without the agent and then with the library.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentWaitsForABusyClientThread(Jdk jdk)
@@ -27,24 +28,25 @@ public sealed class PlayClientTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(
-            expectedSubstring: "busy client thread: Timeout waiting for client thread to catch up!",
+
+        Assert.Contains(expectedSubstring: "busy client thread: Timeout waiting for client thread to catch up!",
             unpatched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertWaitsForTheClientThread(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK of Java 8, which compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarWaitsForABusyClientThread(Jdk jdk)
@@ -52,19 +54,22 @@ public sealed class PlayClientTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertWaitsForTheClientThread(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertWaitsForTheClientThread(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "busy client thread: joined; abandoned connection: given up", patched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "busy client thread: joined; abandoned connection: given up",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 
     // The patched wait goes through the full verifier.

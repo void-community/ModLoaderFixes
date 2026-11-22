@@ -21,9 +21,13 @@ public sealed class OutboundPacketTests
     ];
 
     /// <summary>
-    /// Without the agent both flushes of vanilla 1.9.3's manager find the queued handshake under the shared read lock, and the second polls null and crashes, as the
+    /// Without the agent both flushes of vanilla 1.9.3's manager find the queued handshake under the shared read lock, and the second polls <see langword="null"/> and crashes, as the
     /// client does with <c>Ticking screen</c>; with it the second flush waits for the first, and both packets go out.
     /// </summary>
+    /// <param name="jdk">
+    /// The JDK of Java 8, which compiles the fixture of vanilla 1.9.3's manager and runs it without the agent and then with the library.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentKeepsTwoFlushesOfAMinecraft19ManagerApart(Jdk jdk)
@@ -31,22 +35,29 @@ public sealed class OutboundPacketTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources: "Fixtures/PacketFlush/**/*.java", cancellationToken: cancellationToken);
-        JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(manager: "em"), cancellationToken: cancellationToken);
+
+        JavaRun unpatched = await jdk.RunAsync(MainClass,
+            classPath,
+            options: Verified(manager: "em"),
+            cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "em crashed with java.lang.NullPointerException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "em crashed with java.lang.NullPointerException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun run = await jdk.RunAsync(MainClass, classPath, agent, Verified(manager: "em"), cancellationToken);
 
         Assert.True(run.ExitCode is 0, run.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched em (outbound queue flushed by one thread at a time (1 change))",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched em (outbound queue flushed by one thread at a time (1 change))",
             run.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         Assert.Contains(expectedSubstring: "em wrote [handshake, login start]", run.Output, StringComparison.Ordinal);
     }
 
@@ -54,6 +65,10 @@ public sealed class OutboundPacketTests
     /// Without the agent the login start goes out first, and the handshake then reaches the encoder in the login state, with no id there; with it the login start
     /// waits for the tick's flush, and both go out in order. Minecraft 1.7 runs on Java 8.
     /// </summary>
+    /// <param name="jdk">
+    /// The JDK of Java 8, which compiles the fixture and runs it with each of the two managers, without the agent and then with the library.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentSendsTheHandshakeBeforeTheLoginStart(Jdk jdk)
@@ -67,6 +82,8 @@ public sealed class OutboundPacketTests
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK of Java 8, which compiles the fixture and runs it with the jar and the manager under Forge's name.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarSendsTheHandshakeBeforeTheLoginStart(Jdk jdk)
@@ -74,10 +91,15 @@ public sealed class OutboundPacketTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
-        JavaRun run = await jdk.RunAsync(MainClass, classPath, jar, Verified(manager: "net.minecraft.network.NetworkManager"), cancellationToken);
+
+        JavaRun run = await jdk.RunAsync(MainClass,
+            classPath,
+            jar,
+            Verified(manager: "net.minecraft.network.NetworkManager"),
+            cancellationToken);
 
         Assert.True(run.ExitCode is 0, run.Output);
         Assert.Contains(expectedSubstring: "sent [handshake, login start]", run.Output, StringComparison.Ordinal);
@@ -86,15 +108,21 @@ public sealed class OutboundPacketTests
     private static async Task AssertFixedAsync(Jdk jdk, PublishedAgent agent, string manager, string patched)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(manager), cancellationToken: cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(manager + " sent [login start], then handshake: Can't serialize unregistered packet", unpatched.Output, StringComparison.Ordinal);
 
-        JavaRun run = await jdk.RunAsync(MainClass, classPath, agent, Verified(manager), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        Assert.Contains(manager + " sent [login start], then handshake: Can't serialize unregistered packet",
+            unpatched.Output,
+            StringComparison.Ordinal);
+
+        JavaRun run = await jdk.RunAsync(MainClass, classPath, agent, Verified(manager), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         Assert.True(run.ExitCode is 0, run.Output);
         Assert.Contains(patched, run.Output, StringComparison.Ordinal);

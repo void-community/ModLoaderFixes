@@ -21,14 +21,11 @@ public sealed class AttributeSamplersPatchTests
     [Fact]
     public void PatchLeavesAGetterOfAnotherShape()
     {
-        byte[] classFile = new ClassFileWriter(Sampler)
-            .AddField(name: "cachedTickValue", ObjectDescriptor)
-            .AddMethod(
-                name: "getDimensionValue",
+        byte[] classFile = new ClassFileWriter(Sampler).AddField(name: "cachedTickValue", ObjectDescriptor)
+            .AddMethod(name: "getDimensionValue",
                 ValueDescriptor,
                 static code => code.ALoad(slot: 0).GetField(Sampler, name: "cachedTickValue", ObjectDescriptor).AReturn(),
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
 
         Assert.False(Apply(classFile).Changed);
@@ -46,45 +43,49 @@ public sealed class AttributeSamplersPatchTests
     /// <param name="getter">The getter's name there.</param>
     /// <param name="compute">The name of the method that computes the value there.</param>
     /// <param name="cache">The name of the cache's field there.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the sampler of the client of <paramref name="version"/> unchanged, so there is no patched getter to look into; the message is the patch's
+    /// own account of what it did.
+    /// </exception>
     [Theory]
-    [InlineData(
-        "1.21.11",
+    [InlineData("1.21.11",
         "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
         "1473c9489ac50fda3c435049a76a70d61a10b8610db27f5ba9d8756b686cd3bd",
         "cef$b",
         "b",
         "c",
-        "e"
-    )]
-    [InlineData(
-        "26.1",
+        "e")]
+    [InlineData("26.1",
         "191771837687b766537a8c4607cb6fad79c533a1",
         "bc6194c61566b587f196090d730698f2191170f7580adb143e4ff839939d3840",
         Sampler,
         "getDimensionValue",
         "computeValueNotPositional",
-        "cachedTickValue"
-    )]
+        "cachedTickValue")]
     public async Task PatchReadsTheCacheOnce(string version, string sha1, string sha256, string className, string getter, string compute, string cache)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string jar = await RealJarTests.VanillaClient(version, sha1, sha256).GetPathAsync(cancellationToken);
         byte[] classFile = await ReadClassAsync(jar, className, cancellationToken);
 
-        ClassPatchResult result = Apply(classFile);
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        // The patch changes the real sampler.
+        ClassPatchResult applied = Apply(classFile);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
+
+        // The patched getter reads one field, which the assertion below shows to be the cache.
         JavaClassFile model = JavaClassFile.Read(patched);
         IReadOnlyList<Instruction> body = model.FindMethod(getter, ValueDescriptor)?.Code?.Instructions ?? [];
         Instruction read = Assert.Single(body, static instruction => instruction.Opcode == Opcodes.GetField);
 
         Assert.Equal(cache, model.GetMemberReference(read.ConstantIndex ?? 0).Name);
-        ClassFileAssert.Calls(
-            patched,
+
+        ClassFileAssert.Calls(patched,
             getter,
             owner: "modloaderfixes/AttributeValues",
             name: "cachedOrComputed",
-            "(" + ObjectDescriptor + "Ljava/util/function/Supplier;)" + ObjectDescriptor
-        );
+            "(" + ObjectDescriptor + "Ljava/util/function/Supplier;)" + ObjectDescriptor);
+
         ClassFileAssert.Calls(patched, method: "modloaderfixes$computeDimensionValue", className, compute, ValueDescriptor);
     }
 
@@ -95,11 +96,14 @@ public sealed class AttributeSamplersPatchTests
 
     private static async Task<byte[]> ReadClassAsync(string jar, string className, CancellationToken cancellationToken)
     {
-        ZipArchive archive = await ZipFile.OpenReadAsync(jar, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        ZipArchive archive = await ZipFile.OpenReadAsync(jar, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         await using (archive.ConfigureAwait(continueOnCapturedContext: false))
         {
-            ZipArchiveEntry entry = archive.GetEntry(className + ".class") ?? throw new InvalidOperationException(className + " isn't in " + jar + ".");
+            ZipArchiveEntry entry = archive.GetEntry(className + ".class")
+                ?? throw new InvalidOperationException(className + " isn't in " + jar + ".");
+
             Stream stream = await entry.OpenAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             using MemoryStream bytes = new();

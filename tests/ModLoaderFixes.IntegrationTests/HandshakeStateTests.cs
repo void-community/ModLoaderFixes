@@ -11,6 +11,8 @@ public sealed class HandshakeStateTests
     private const string Sources = "Fixtures/HandshakeState/**/*.java";
 
     /// <summary>Without the agent the fixture encodes the queued login packets in the play state; with it they go out in the login state, before the handshake.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it, first without the agent and then with it.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentKeepsQueuedLoginPacketsInTheLoginState(Jdk jdk)
@@ -18,24 +20,25 @@ public sealed class HandshakeStateTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(
-            expectedSubstring: "Can't serialize unregistered packet: [SPacketEnableCompression in PLAY, SPacketLoginSuccess in PLAY]",
+
+        Assert.Contains(expectedSubstring: "Can't serialize unregistered packet: [SPacketEnableCompression in PLAY, SPacketLoginSuccess in PLAY]",
             unpatched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, cancellationToken: cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsQueuedLoginPacketsInTheLoginState(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK that compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarKeepsQueuedLoginPacketsInTheLoginState(Jdk jdk)
@@ -43,27 +46,25 @@ public sealed class HandshakeStateTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, cancellationToken: cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsQueuedLoginPacketsInTheLoginState(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertKeepsQueuedLoginPacketsInTheLoginState(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/common/network/handshake/NetworkDispatcher",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/fml/common/network/handshake/NetworkDispatcher",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         // The switch runs on the event loop after the queued login packets and before the handshake packet that FML sends next.
-        Assert.Contains(
-            expectedSubstring: "SENT [LOGIN SPacketEnableCompression, LOGIN SPacketLoginSuccess, PLAY FML|HS ServerHello]",
+        Assert.Contains(expectedSubstring: "SENT [LOGIN SPacketEnableCompression, LOGIN SPacketLoginSuccess, PLAY FML|HS ServerHello]",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 }

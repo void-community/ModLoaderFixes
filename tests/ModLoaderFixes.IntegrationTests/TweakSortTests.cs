@@ -10,6 +10,8 @@ public sealed class TweakSortTests
     private const string MainClass = "cpw.mods.fml.relauncher.CoreModManager";
 
     /// <summary>The fixture throws without the agent and completes its iteration with it.</summary>
+    /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentLetsFixtureSortTweakersWhileIteratingThem(Jdk jdk)
@@ -17,21 +19,26 @@ public sealed class TweakSortTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources: "Fixtures/TweakSort/**/*.java", cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, cancellationToken: cancellationToken);
 
         // The JVM must count a sort as a structural change, as Java from 8u20 does, for the agent to have anything to fix.
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "java.util.ConcurrentModificationException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "java.util.ConcurrentModificationException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, cancellationToken: cancellationToken);
 
-        AssertPatched(patched);
+        AssertSortsTweakersWhileIteratingThem(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does, although the JVM starts it after the VM is up.</summary>
+    /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarLetsFixtureSortTweakersWhileIteratingThem(Jdk jdk)
@@ -39,19 +46,25 @@ public sealed class TweakSortTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources: "Fixtures/TweakSort/**/*.java", cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, cancellationToken: cancellationToken);
 
-        AssertPatched(patched);
+        AssertSortsTweakersWhileIteratingThem(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertSortsTweakersWhileIteratingThem(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched cpw/mods/fml/relauncher/CoreModManager", patched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched cpw/mods/fml/relauncher/CoreModManager",
+            patched.Output,
+            StringComparison.Ordinal);
+
         // As on Java before 8u20, the sort moves tweakers under the iterator, which calls one twice and skips another, as FML did there.
-        Assert.Contains(expectedSubstring: "CALLED [deobfuscation, deobfuscation, injection]", patched.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "CALLED [deobfuscation, deobfuscation, injection]",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 }

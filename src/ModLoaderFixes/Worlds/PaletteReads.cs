@@ -19,34 +19,65 @@ namespace ModLoaderFixes.Worlds;
 /// </summary>
 internal static class PaletteReads
 {
+    private const int Static = 0x0008;
+
     private const string Description = "blocks read again while their palette entry is on its way";
     private const string Descriptor = "(I)Ljava/lang/Object;";
     private const string MovedBody = "modloaderfixes$get";
-    private const int Static = 0x0008;
 
-    private static readonly JavaMethod Apply = JavaMethod.Interface(owner: "java/util/function/IntFunction", name: "apply", Descriptor);
+    private static readonly JavaMethod Apply = JavaMethod.Interface(owner: "java/util/function/IntFunction",
+        name: "apply",
+        Descriptor);
 
-    private static readonly JavaMethod Read = JavaMethod.Static(owner: "modloaderfixes/Palettes", name: "read", descriptor: "(Ljava/util/function/IntFunction;I)Ljava/lang/Object;");
+    private static readonly JavaMethod Read = JavaMethod.Static(owner: "modloaderfixes/Palettes",
+        name: "read",
+        descriptor: "(Ljava/util/function/IntFunction;I)Ljava/lang/Object;");
 
     // get(int) as Paper compiles it from 1.21.3 to 26.2: Data data = this.data; return this.readPalette(data, data.storage.get(index));
     private static readonly byte[] PaperShape =
     [
-        Opcodes.ALoad0, Opcodes.GetField, Opcodes.AStore2, Opcodes.ALoad0, Opcodes.ALoad2, Opcodes.ALoad2, Opcodes.GetField, Opcodes.ILoad1, Opcodes.InvokeInterface,
-        Opcodes.InvokeVirtual, Opcodes.AReturn,
+        Opcodes.ALoad0,
+        Opcodes.GetField,
+        Opcodes.AStore2,
+        Opcodes.ALoad0,
+        Opcodes.ALoad2,
+        Opcodes.ALoad2,
+        Opcodes.GetField,
+        Opcodes.ILoad1,
+        Opcodes.InvokeInterface,
+        Opcodes.InvokeVirtual,
+        Opcodes.AReturn,
     ];
 
     // get(int) as Paper compiles it from 26.3: Data data = this.data; return readPalette(data, data.storage.get(index));
     private static readonly byte[] PaperStaticShape =
     [
-        Opcodes.ALoad0, Opcodes.GetField, Opcodes.AStore2, Opcodes.ALoad2, Opcodes.ALoad2, Opcodes.GetField, Opcodes.ILoad1, Opcodes.InvokeInterface, Opcodes.InvokeStatic,
+        Opcodes.ALoad0,
+        Opcodes.GetField,
+        Opcodes.AStore2,
+        Opcodes.ALoad2,
+        Opcodes.ALoad2,
+        Opcodes.GetField,
+        Opcodes.ILoad1,
+        Opcodes.InvokeInterface,
+        Opcodes.InvokeStatic,
         Opcodes.AReturn,
     ];
 
     // get(int) as Mojang compiles it from 1.18: Data data = this.data; return data.palette.valueFor(data.storage.get(index));
     private static readonly byte[] Shape =
     [
-        Opcodes.ALoad0, Opcodes.GetField, Opcodes.AStore2, Opcodes.ALoad2, Opcodes.GetField, Opcodes.ALoad2, Opcodes.GetField, Opcodes.ILoad1, Opcodes.InvokeInterface,
-        Opcodes.InvokeInterface, Opcodes.AReturn,
+        Opcodes.ALoad0,
+        Opcodes.GetField,
+        Opcodes.AStore2,
+        Opcodes.ALoad2,
+        Opcodes.GetField,
+        Opcodes.ALoad2,
+        Opcodes.GetField,
+        Opcodes.ILoad1,
+        Opcodes.InvokeInterface,
+        Opcodes.InvokeInterface,
+        Opcodes.AReturn,
     ];
 
     /// <summary>
@@ -55,8 +86,10 @@ internal static class PaletteReads
     /// </summary>
     internal static IReadOnlyList<ClassPatch> Patches { get; } =
     [
-        .. MappedClasses.PalettedContainer.Patches(static names => names.Patch().Edit(Description, static context => ReadAgain(context.Editor))),
-        ClassPatch.For(className: "net/minecraft/world/level/chunk/DataPaletteBlock").Edit(Description, static context => ReadAgain(context.Editor)),
+        .. MappedClasses.PalettedContainer
+            .Patches(static names => names.Patch().Edit(Description, static context => ReadAgain(context.Editor))),
+        ClassPatch.For(className: "net/minecraft/world/level/chunk/DataPaletteBlock")
+            .Edit(Description, static context => ReadAgain(context.Editor)),
     ];
 
     private static bool IsShaped(CodeAttribute code)
@@ -71,14 +104,23 @@ internal static class PaletteReads
     private static int ReadAgain(ClassFileEditor editor)
     {
         JavaClassFile model = editor.Model;
-        ClassMember[] reads = [.. model.Methods.Where(method => method is { Descriptor: Descriptor, Code: { } code } && (method.AccessFlags & Static) == 0 && IsShaped(code))];
+
+        ClassMember[] reads = [.. model.Methods
+            .Where(method => method is { Descriptor: Descriptor, Code: { } code } && (method.AccessFlags & Static) == 0 && IsShaped(code))];
 
         if (reads is not [var read] || model.FindMethod(MovedBody, Descriptor) is not null)
             return 0;
 
         JavaMethod moved = JavaMethod.Virtual(model.Name, MovedBody, Descriptor);
 
-        editor.ReplaceMethodBody(read.Name, Descriptor, MovedBody, code => code.ALoad(slot: 0).Lambda(Apply, moved).ILoad(slot: 1).Invoke(Read).AReturn());
+        editor.ReplaceMethodBody(read.Name,
+            Descriptor,
+            MovedBody,
+            code => code.ALoad(slot: 0)
+                .Lambda(Apply, moved)
+                .ILoad(slot: 1)
+                .Invoke(Read)
+                .AReturn());
 
         return 1;
     }

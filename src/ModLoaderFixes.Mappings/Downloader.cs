@@ -31,7 +31,10 @@ internal sealed class Downloader(HttpClient client, TimeSpan pause)
         for (int attempt = 1; attempt <= Attempts; attempt++)
         {
             if (attempt > 1)
-                await Task.Delay(pause * (1 << (attempt - 2)), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            {
+                await Task.Delay(pause * (1 << (attempt - 2)), cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
+            }
 
             try
             {
@@ -52,7 +55,7 @@ internal sealed class Downloader(HttpClient client, TimeSpan pause)
             }
         }
 
-        throw new HttpRequestException($"{address} couldn't be downloaded in {Attempts} attempts: {failure?.Message}", failure);
+        throw new HttpRequestException(message: $"{address} couldn't be downloaded in {Attempts} attempts: {failure?.Message}", failure);
     }
 
     private static bool IsTemporary(HttpStatusCode status)
@@ -62,10 +65,13 @@ internal sealed class Downloader(HttpClient client, TimeSpan pause)
 
     private async Task<byte[]> GetOnceAsync(string address, CancellationToken cancellationToken)
     {
-        using HttpResponseMessage response = await client.GetAsync(new Uri(address), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        using HttpResponseMessage response = await client.GetAsync(new Uri(address), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         return !response.IsSuccessStatusCode
-            ? throw new HttpRequestException($"{address} answered {(int)response.StatusCode}.", inner: null, response.StatusCode)
+            ? throw new HttpRequestException(message: $"{address} answered {(int)response.StatusCode}.",
+                inner: null,
+                response.StatusCode)
             : await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
     }
 }

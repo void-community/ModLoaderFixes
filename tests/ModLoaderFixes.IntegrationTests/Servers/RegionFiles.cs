@@ -6,9 +6,10 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 /// <summary>Edits a world's region file as it lies on disk, to give a server a world that it couldn't have saved itself.</summary>
 internal static class RegionFiles
 {
+    private const byte Zlib = 2;
+
     private const int Entries = 1024;
     private const int Sector = 4096;
-    private const byte Zlib = 2;
 
     /// <summary>
     /// Gives each spawner's block entity in a region file a chest's id, and leaves the block a spawner: what world generation up to Minecraft 1.16.5 leaves where a
@@ -47,6 +48,7 @@ internal static class RegionFiles
 
             BinaryPrimitives.WriteInt32BigEndian(region.AsSpan(start), packed.Length + 1);
             packed.CopyTo(region, start + 5);
+
             swapped += found;
         }
 
@@ -70,20 +72,21 @@ internal static class RegionFiles
     {
         using MemoryStream source = new(data.ToArray());
 
-        using MemoryStream result = new();
+        using MemoryStream transformed = new();
 
         if (mode == CompressionMode.Decompress)
         {
             using ZLibStream inflater = new(source, mode);
 
-            inflater.CopyTo(result);
+            inflater.CopyTo(transformed);
         }
         else
         {
-            using (ZLibStream deflater = new(result, mode, leaveOpen: true))
-                source.CopyTo(deflater);
+            using ZLibStream deflater = new(transformed, mode, leaveOpen: true);
+
+            source.CopyTo(deflater);
         }
 
-        return result.ToArray();
+        return transformed.ToArray();
     }
 }

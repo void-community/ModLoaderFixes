@@ -10,27 +10,34 @@ namespace ModLoaderFixes.Tests;
 /// <summary>Making the set of object holder handlers that Forge's ObjectHolderRegistry keeps a concurrent one, in its static initializer.</summary>
 public sealed class ObjectHolderPatchTests
 {
+    // Forge's registry of object holders and its static initializer, which the patch changes.
     private const string ClassInitializer = "<clinit>";
     private const string ClassName = "net/minecraftforge/registries/ObjectHolderRegistry";
+
+    // The constructor's name in a class file, and the two classes that the initializer constructs: the HashMap that stays and the HashSet that the patch replaces.
     private const string Constructor = "<init>";
     private const string HashMap = "java/util/HashMap";
     private const string HashSet = "java/util/HashSet";
 
     /// <summary>The set stored in <c>objectHolders</c> comes from <c>ConcurrentHashMap.newKeySet()</c>, and the map the initializer creates next stays a HashMap.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left a registry whose initializer stores a new HashSet in <c>objectHolders</c> unchanged, so it has no bytes to check; the message is the patch's
+    /// own line on why.
+    /// </exception>
     [Fact]
     public void PatchCreatesObjectHoldersAsAConcurrentKeySet()
     {
-        ClassPatchResult result = ObjectHolderHandlers.Patch.Apply(CreateClassFile(setField: "objectHolders"));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = ObjectHolderHandlers.Patch.Apply(CreateClassFile(setField: "objectHolders"));
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.ReplacedConstructions);
-        ClassFileAssert.Calls(
-            patched,
+        Assert.Equal(expected: 1, applied.ReplacedConstructions);
+
+        ClassFileAssert.Calls(patched,
             ClassInitializer,
             owner: "java/util/concurrent/ConcurrentHashMap",
             name: "newKeySet",
-            descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;"
-        );
+            descriptor: "()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;");
+
         ClassFileAssert.DoesNotCall(patched, ClassInitializer, HashSet, Constructor, descriptor: "()V");
         ClassFileAssert.Calls(patched, ClassInitializer, HashMap, Constructor, descriptor: "()V");
     }
@@ -39,10 +46,10 @@ public sealed class ObjectHolderPatchTests
     [Fact]
     public void PatchLeavesInitializersThatDontCreateObjectHolders()
     {
-        ClassPatchResult result = ObjectHolderHandlers.Patch.Apply(CreateClassFile(setField: "pendingHolders"));
+        ClassPatchResult skipped = ObjectHolderHandlers.Patch.Apply(CreateClassFile(setField: "pendingHolders"));
 
-        Assert.False(result.Changed);
-        Assert.Contains("no construction of " + HashSet, result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains("no construction of " + HashSet, skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     // A static initializer that stores a new HashSet in the given field and a new HashMap in namedHandlers, as Forge's for Minecraft 1.20.1 does.
@@ -50,16 +57,17 @@ public sealed class ObjectHolderPatchTests
     {
         static CodeBuilder StoreNew(CodeBuilder code, string type, string field, string descriptor)
         {
-            return code.New(type).Dup().InvokeSpecial(type, Constructor, descriptor: "()V").PutStatic(ClassName, field, descriptor);
+            return code.New(type)
+                .Dup()
+                .InvokeSpecial(type, Constructor, descriptor: "()V")
+                .PutStatic(ClassName, field, descriptor);
         }
 
         return new ClassFileWriter(ClassName)
-            .AddMethod(
-                ClassInitializer,
+            .AddMethod(ClassInitializer,
                 descriptor: "()V",
                 code => StoreNew(StoreNew(code, HashSet, setField, descriptor: "Ljava/util/Set;"), HashMap, field: "namedHandlers", descriptor: "Ljava/util/Map;").Return(),
-                accessFlags: 0x0008
-            )
+                accessFlags: 0x0008)
             .ToArray();
     }
 }

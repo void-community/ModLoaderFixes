@@ -14,12 +14,10 @@ internal sealed class ClassNames
     /// <param name="versions">The vanilla releases that name it so, or null for Forge's names.</param>
     /// <param name="forgeMethods">The requested methods under Forge, by which patches ask for them.</param>
     /// <param name="methods">The same methods in this naming, in the same order.</param>
-    internal ClassNames(
-        string name,
+    internal ClassNames(string name,
         string? versions,
         IReadOnlyList<(string Name, string Descriptor)> forgeMethods,
-        IReadOnlyList<(string Name, string Descriptor)> methods
-    )
+        IReadOnlyList<(string Name, string Descriptor)> methods)
     {
         Name = name;
         Versions = versions;
@@ -54,7 +52,9 @@ internal sealed class ClassNames
     {
         string name = Name;
 
-        return Versions is null ? ClassPatch.For(name) : ClassPatch.ForMatching(candidate => candidate == name, name + " of vanilla " + Versions);
+        return Versions is null
+            ? ClassPatch.For(name)
+            : ClassPatch.ForMatching(candidate => candidate == name, name + " of vanilla " + Versions);
     }
 
     /// <summary>Gets an instance method of the class in this naming, by its names under Forge.</summary>

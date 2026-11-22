@@ -14,45 +14,62 @@ namespace ModLoaderFixes.Mappings;
 /// </summary>
 internal sealed class MappingSources : IMappingSources
 {
-    private const string FirstOfficial = "1.14.4";
-
-    private const string Forge = "https://maven.minecraftforge.net/de/oceanlabs/mcp/";
     // A release is resolved through its own mapping of the requested names and, for each of the two other kinds, through its mapping of that kind and both
     // mappings of the nearest release that has both kinds.
     private const int Kept = 1 + (2 * 3);
+
+    // The first release that Mojang publishes its own mappings for.
+    private const string FirstOfficial = "1.14.4";
+
+    // Forge's Maven, which holds MCP's mappings.
+    private const string Forge = "https://maven.minecraftforge.net/de/oceanlabs/mcp/";
+
+    // The last release that Forge's mappings name the methods of; later ones keep Mojang's names.
     private const string LastTsrg = "1.16.5";
+
+    // Where the releases are listed: Mojang's manifest of every version, and Ornithe's Maven with the list of the releases it maps.
     private const string Manifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     private const string Ornithe = "https://maven.ornithemc.net/releases/";
     private const string OrnitheVersions = "https://meta.ornithemc.net/v3/versions/gen2/intermediary";
 
+    // Where the mappings are downloaded from and kept between builds.
     private readonly DirectoryInfo _cache;
     private readonly Downloader _downloader;
+
+    // The mappings read last, which stay in memory while the releases next to them are resolved.
     private readonly List<KeptMapping> _kept = [];
+
+    // Ornithe's file for each release it maps, and each release's place in Mojang's list.
     private readonly IReadOnlyDictionary<string, string> _ornithe;
     private readonly Dictionary<string, int> _releaseIndices;
+
+    // The releases that Forge maps with srg and with tsrg files, and Mojang's file of each version.
     private readonly IReadOnlySet<string> _srg;
     private readonly IReadOnlySet<string> _tsrg;
     private readonly IReadOnlyDictionary<string, string> _versionFiles;
 
-    private MappingSources(
-        Downloader downloader,
+    private MappingSources(Downloader downloader,
         DirectoryInfo cache,
         IReadOnlyList<string> releases,
         IReadOnlyDictionary<string, string> versionFiles,
         IReadOnlySet<string> srg,
         IReadOnlySet<string> tsrg,
-        IReadOnlyDictionary<string, string> ornithe
-    )
+        IReadOnlyDictionary<string, string> ornithe)
     {
         Dictionary<string, int> indices = new(StringComparer.Ordinal);
 
         for (int index = 0; index < releases.Count; index++)
             indices[releases[index]] = index;
 
+        // Where the mappings come from and where they are kept.
         _downloader = downloader;
         _cache = cache;
+
+        // The releases in Mojang's order, and each one's place in it.
         Releases = releases;
         _releaseIndices = indices;
+
+        // What each release has to map it.
         _versionFiles = versionFiles;
         _srg = srg;
         _tsrg = tsrg;
@@ -77,7 +94,11 @@ internal sealed class MappingSources : IMappingSources
             throw new ArgumentException(version + " has no " + Describe(names) + " mapping.", nameof(version));
 
         int index = _kept.FindIndex(kept => kept.Key == key);
-        KeptMapping used = index < 0 ? new KeptMapping(key, await LoadAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false)) : _kept[index];
+
+        KeptMapping used = index < 0
+            ? new KeptMapping(key,
+                await LoadAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
+            : _kept[index];
 
         if (index < 0)
             Loads++;
@@ -96,13 +117,14 @@ internal sealed class MappingSources : IMappingSources
     /// <inheritdoc/>
     public bool Has(Namespace names, string version)
     {
-        return _releaseIndices.TryGetValue(version, out int index) && names switch
-        {
-            Namespace.Srg => _srg.Contains(version) || (_tsrg.Contains(version) && index <= _releaseIndices[LastTsrg]),
-            Namespace.Intermediary => _ornithe.ContainsKey(version),
-            Namespace.Official => index >= _releaseIndices[FirstOfficial],
-            _ => false,
-        };
+        return _releaseIndices.TryGetValue(version, out int index)
+            && names switch
+            {
+                Namespace.Srg => _srg.Contains(version) || (_tsrg.Contains(version) && index <= _releaseIndices[LastTsrg]),
+                Namespace.Intermediary => _ornithe.ContainsKey(version),
+                Namespace.Official => index >= _releaseIndices[FirstOfficial],
+                _ => false,
+            };
     }
 
     /// <summary>Lists the releases and which mappings each has, from Mojang's version manifest, Forge's Maven metadata and Ornithe's meta server.</summary>
@@ -126,7 +148,8 @@ internal sealed class MappingSources : IMappingSources
     {
         ArgumentNullException.ThrowIfNull(downloader);
 
-        using JsonDocument manifest = JsonDocument.Parse(await downloader.GetAsync(Manifest, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+        using JsonDocument manifest = JsonDocument.Parse(await downloader.GetAsync(Manifest, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false));
 
         List<JsonElement> releases = [];
 
@@ -146,7 +169,8 @@ internal sealed class MappingSources : IMappingSources
         HashSet<string> srg = await MavenVersionsAsync(downloader, Forge + "mcp/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
         HashSet<string> tsrg = await MavenVersionsAsync(downloader, Forge + "mcp_config/maven-metadata.xml", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
-        using JsonDocument ornithe = JsonDocument.Parse(await downloader.GetAsync(OrnitheVersions, cancellationToken).ConfigureAwait(continueOnCapturedContext: false));
+        using JsonDocument ornithe = JsonDocument.Parse(await downloader.GetAsync(OrnitheVersions, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false));
 
         Dictionary<string, string> intermediary = new(StringComparer.Ordinal);
 
@@ -214,8 +238,12 @@ internal sealed class MappingSources : IMappingSources
         else
         {
             bytes = await _downloader.GetAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
             _cache.Create();
-            await File.WriteAllBytesAsync(path + ".part", bytes, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+            await File.WriteAllBytesAsync(path + ".part", bytes, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
             File.Move(path + ".part", path, overwrite: true);
         }
 
@@ -227,6 +255,7 @@ internal sealed class MappingSources : IMappingSources
         if (names == Namespace.Srg && _srg.Contains(version))
         {
             string address = Forge + "mcp/" + version + "/mcp-" + version + "-srg.zip";
+
             byte[] zip = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             return Mapping.ReadSrg("Forge's " + version, ZipEntry(zip, name: "joined.srg", address));
@@ -235,6 +264,7 @@ internal sealed class MappingSources : IMappingSources
         if (names == Namespace.Srg)
         {
             string address = Forge + "mcp_config/" + version + "/mcp_config-" + version + ".zip";
+
             byte[] zip = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             return Mapping.ReadTsrg("Forge's " + version, ZipEntry(zip, name: "config/joined.tsrg", address));
@@ -276,6 +306,7 @@ internal sealed class MappingSources : IMappingSources
         string artifact = coordinates[1];
         string directory = Ornithe + coordinates[0].Replace(oldChar: '.', newChar: '/') + "/" + artifact + "/" + coordinates[2] + "/";
         string address = directory + artifact + "-" + coordinates[2] + "-v2.jar";
+
         byte[] jar = await DownloadAsync(address, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return Mapping.ReadTiny("Ornithe's " + version, ZipEntry(jar, name: "mappings/mappings.tiny", address));

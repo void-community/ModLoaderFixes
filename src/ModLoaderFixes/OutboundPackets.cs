@@ -16,10 +16,13 @@ namespace ModLoaderFixes;
 /// </summary>
 internal static class OutboundPackets
 {
-    private const string Description = "outbound queue flushed by one thread at a time";
     private const int Synchronized = 0x0020;
 
-    private static readonly JavaMethod IsEmpty = JavaMethod.Interface(owner: "java/util/Queue", name: "isEmpty", descriptor: "()Z");
+    private const string Description = "outbound queue flushed by one thread at a time";
+
+    private static readonly JavaMethod IsEmpty = JavaMethod.Interface(owner: "java/util/Queue",
+        name: "isEmpty",
+        descriptor: "()Z");
 
     /// <summary>Gets the patches of <c>NetworkManager</c>'s flush, <c>flushOutboundQueue</c>: Forge's, by FML's names, and vanilla's under each release's names.</summary>
     internal static IReadOnlyList<ClassPatch> Patches { get; } = MappedClasses.NetworkManager.Patches(Synchronize);
@@ -35,10 +38,15 @@ internal static class OutboundPackets
     private static int Synchronize(ClassFileEditor editor, JavaMethod flush)
     {
         JavaClassFile model = editor.Model;
-        ClassMember member = model.FindMethod(flush.Name, flush.Descriptor) ?? throw new InvalidOperationException(model.Name + " has no " + flush.Name + flush.Descriptor + ".");
+
+        ClassMember member = model.FindMethod(flush.Name, flush.Descriptor)
+            ?? throw new InvalidOperationException(model.Name + " has no " + flush.Name + flush.Descriptor + ".");
+
         bool checksEmptiness = member.Code?.Instructions.Any(instruction => model.Invokes(instruction, IsEmpty)) ?? false;
         bool isSynchronized = (member.AccessFlags & Synchronized) != 0;
 
-        return !checksEmptiness || isSynchronized ? 0 : editor.SetMethodAccess(member.Name, member.Descriptor, member.AccessFlags | Synchronized);
+        return !checksEmptiness || isSynchronized
+            ? 0
+            : editor.SetMethodAccess(member.Name, member.Descriptor, member.AccessFlags | Synchronized);
     }
 }

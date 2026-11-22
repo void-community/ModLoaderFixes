@@ -13,17 +13,14 @@ namespace ModLoaderFixes.Startup;
 /// </summary>
 internal static class ZipFileChannels
 {
-    private static readonly JavaMethod NewByteChannel = JavaMethod.Static(
-        owner: "java/nio/file/Files",
+    private static readonly JavaMethod NewByteChannel = JavaMethod.Static(owner: "java/nio/file/Files",
         name: "newByteChannel",
-        descriptor: "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/nio/channels/SeekableByteChannel;"
-    );
+        descriptor: "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/nio/channels/SeekableByteChannel;");
 
     /// <summary>Gets the patch of <c>ZipFileSystem</c>'s constructor.</summary>
-    internal static ClassPatch Patch { get; } = ClassPatch.ForMatching(
-            static className => className is "jdk/nio/zipfs/ZipFileSystem" or "com/sun/nio/zipfs/ZipFileSystem",
-            description: "the JDK's zip file system"
-        )
+    internal static ClassPatch Patch { get; } = ClassPatch
+        .ForMatching(static className => className is "jdk/nio/zipfs/ZipFileSystem" or "com/sun/nio/zipfs/ZipFileSystem",
+            description: "the JDK's zip file system")
         .Method(name: "<init>")
         .RedirectInvocation(NewByteChannel, toOwner: "modloaderfixes/ZipChannels");
 }

@@ -13,7 +13,14 @@ public sealed class EventBusServerTests
     // itzg's latest release for Java 8, which ForgeServer asks Docker Hub for once in each run.
     private const string Image = "itzg/minecraft-server:stable-java8";
 
-    /// <summary>Forge 1.14.2 with EventBus 0.10.1, whose fix redirects its synchronized map's computeIfAbsent, and 1.14.3 with EventBus 0.10.3, whose fix redirects computeListenerList.</summary>
+    /// <summary>
+    /// Gets the Forge builds whose EventBus the agent fixes in different ways: 1.14.2 with EventBus 0.10.1, whose fix redirects its synchronized map's
+    /// computeIfAbsent, and 1.14.3 with EventBus 0.10.3, whose fix redirects computeListenerList.
+    /// </summary>
+    /// <value>
+    /// One row for each build: its Minecraft version, the Forge build that itzg installs, and the call that the agent logs as redirected in that build's
+    /// EventListenerHelper, with the internal name of the call's class.
+    /// </value>
     public static TheoryData<string, string, string> Builds { get; } = new()
     {
         { "1.14.2", "26.0.63", "java/util/Map.computeIfAbsent" },
@@ -44,16 +51,13 @@ public sealed class EventBusServerTests
         string logs = await ForgeServer.StartAsync(server, timeout.Token);
 
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched net/minecraftforge/eventbus/api/EventListenerHelper (getListenerListInternal(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;: 1 invocation of " + redirected + " redirected"
-        );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraftforge/eventbus/api/EventListenerHelper (getListenerListInternal(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;: 1 invocation of " + redirected + " redirected");
+
         // Forge 1.14 ships ModLauncher 2 and 3, whose class hierarchy cache the agent makes safe to share between threads.
         ForgeServer.AssertLogged(logs, ForgeServer.ModLauncherPatched);
+
         // Forge 1.14 builds its fml.toml with autosave and autoreload too, which the server corrects on its first start.
-        ForgeServer.AssertLogged(
-            logs,
-            expected: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)"
-        );
+        ForgeServer.AssertLogged(logs,
+            expected: "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)");
     }
 }

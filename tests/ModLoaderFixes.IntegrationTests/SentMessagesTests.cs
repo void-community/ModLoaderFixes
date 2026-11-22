@@ -14,6 +14,10 @@ public sealed class SentMessagesTests
     private const string Sources = "Fixtures/SentMessages/**/*.java";
 
     /// <summary>Without the agent the removal throws ConcurrentModificationException; with it the list is a CopyOnWriteArrayList and both changes land. Forge's handler runs on Java 8 to 17, so the fixture is compiled for each.</summary>
+    /// <param name="jdk">
+    /// The JDK of Java 8 or 17, which compiles the fixture for its own release and runs it without the agent and then with the library.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentLetsBothThreadsChangeSentMessages(Jdk jdk)
@@ -21,20 +25,25 @@ public sealed class SentMessagesTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "DROPPED java.util.ConcurrentModificationException", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "DROPPED java.util.ConcurrentModificationException",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertMakesBothChanges(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK of Java 8, which compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarLetsBothThreadsChangeSentMessages(Jdk jdk)
@@ -42,24 +51,26 @@ public sealed class SentMessagesTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertMakesBothChanges(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertMakesBothChanges(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/network/HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/network/HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         // The answered message is gone, the one added meanwhile is there, and the constructor's other list is still an ArrayList.
-        Assert.Contains(expectedSubstring: "SENT CopyOnWriteArrayList [2, 3], BACKLOG ArrayList", patched.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "SENT CopyOnWriteArrayList [2, 3], BACKLOG ArrayList",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 
     // The patched constructor goes through the full verifier.

@@ -13,7 +13,11 @@ public sealed class ModLoaderConfigurationPatchTests
     private const string LoadFrom = "loadFrom";
     private const string LoadFromDescriptor = "(Ljava/nio/file/Path;)V";
 
-    /// <summary>The names of FML's configuration class in Forge and in NeoForge, with the type of its configData: NeoForge's FML 4 changed it.</summary>
+    /// <summary>Gets the names of FML's configuration class in Forge and in NeoForge, with the type of its configData, which NeoForge's FML 4 changed.</summary>
+    /// <value>
+    /// One row per configuration class and type: the internal name of FMLConfig, then the descriptor of its <c>configData</c> field. NeoForge's class has two rows,
+    /// one for each type that its configData has had.
+    /// </value>
     public static TheoryData<string, string> Configurations { get; } = new()
     {
         { "net/minecraftforge/fml/loading/FMLConfig", "Lcom/electronwill/nightconfig/core/file/CommentedFileConfig;" },
@@ -25,12 +29,12 @@ public sealed class ModLoaderConfigurationPatchTests
     [Fact]
     public void PatchLeavesConfigsWhoseLoadDoesNotCallLoadFrom()
     {
-        ClassPatchResult result = Apply(
-            CreateClassFile(className: "net/neoforged/fml/loading/FMLConfig", configurationDataDescriptor: "Ljava/lang/Object;", caller: "reload")
-        );
+        ClassPatchResult skipped = Apply(CreateClassFile(className: "net/neoforged/fml/loading/FMLConfig",
+            configurationDataDescriptor: "Ljava/lang/Object;",
+            caller: "reload"));
 
-        Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "load()V", result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains(expectedSubstring: "load()V", skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -39,18 +43,27 @@ public sealed class ModLoaderConfigurationPatchTests
     /// </summary>
     /// <param name="className">FMLConfig's name.</param>
     /// <param name="configurationDataDescriptor">The type of its configData.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch of <paramref name="className"/> left a FMLConfig whose <c>load</c> calls <c>loadFrom</c> unchanged, so it has no bytes to check; the message is the
+    /// patch's own line on why.
+    /// </exception>
     [Theory]
     [MemberData(nameof(Configurations))]
     public void PatchRedirectsTheLoadInLoad(string className, string configurationDataDescriptor)
     {
-        ClassPatchResult result = Apply(CreateClassFile(className, configurationDataDescriptor, caller: "load"));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = Apply(CreateClassFile(className, configurationDataDescriptor, caller: "load"));
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
         JavaClassFile model = JavaClassFile.Read(patched);
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
-        Assert.Equal(expected: 2, result.AddedMembers);
+        // The patch redirected one call and added two members.
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
+        Assert.Equal(expected: 2, applied.AddedMembers);
+
+        // The call is load's of loadFrom, which now goes to the helper with the config as its first argument.
         ClassFileAssert.Calls(patched, method: "load", Helper, LoadFrom, "(L" + className + ";Ljava/nio/file/Path;)V");
         ClassFileAssert.DoesNotCall(patched, method: "load", className, LoadFrom, LoadFromDescriptor);
+
+        // The members are the getter of configData, as an Object, and the invoker of the private loadFrom.
         Assert.NotNull(model.FindMethod(name: "modloaderfixes$configData", descriptor: "()Ljava/lang/Object;"));
         Assert.NotNull(model.FindMethod(name: "modloaderfixes$loadFrom", LoadFromDescriptor));
     }
@@ -68,13 +81,13 @@ public sealed class ModLoaderConfigurationPatchTests
     {
         JavaMethod loadFrom = JavaMethod.Virtual(className, LoadFrom, LoadFromDescriptor);
 
-        ClassFileWriter writer = new ClassFileWriter(className)
-            .AddField(name: "configData", configurationDataDescriptor)
+        ClassFileWriter writer = new ClassFileWriter(className).AddField(name: "configData", configurationDataDescriptor)
             .AddMethod(LoadFrom, LoadFromDescriptor, static code => code.Return(), accessFlags: 0x0002);
 
         if (caller != "load")
             writer = writer.AddMethod(name: "load", descriptor: "()V", static code => code.Return());
 
-        return writer.AddMethod(caller, descriptor: "()V", code => code.AConstNull().AConstNull().Invoke(loadFrom).Return()).ToArray();
+        return writer.AddMethod(caller, descriptor: "()V", code => code.AConstNull().AConstNull().Invoke(loadFrom).Return())
+            .ToArray();
     }
 }

@@ -11,7 +11,9 @@ internal static class Generator
     /// <returns>The table.</returns>
     internal static async Task<string> GenerateAsync(string requests, string cache, HttpClient client, CancellationToken cancellationToken)
     {
-        MappingSources sources = await MappingSources.CreateAsync(client, cache, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        MappingSources sources = await MappingSources.CreateAsync(client, cache, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
         IReadOnlyList<ResolvedClass> classes = await ResolveAsync(ClassRequest.Parse(requests), sources, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         return Write(classes);
@@ -40,6 +42,7 @@ internal static class Generator
             string last = releases[indices[end]];
 
             runs.Add((end - start) switch { 0 => first, 1 => first + " and " + last, _ => first + " to " + last, });
+
             start = end + 1;
         }
 
@@ -68,7 +71,9 @@ internal static class Generator
             foreach (RequestedClass requested in classes.Where(requested => requested.From <= index && index <= requested.To))
             {
                 ClassRequest request = requested.Request;
-                Resolution resolution = await resolver.ResolveAsync(request.Names, request, releases[index], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+                Resolution resolution = await resolver.ResolveAsync(request.Names, request, releases[index], cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
 
                 requested.Add(releases[index], resolution.Naming);
             }
@@ -104,17 +109,21 @@ internal static class Generator
             if (lines[^1] != "{")
                 lines.Add(item: "");
 
+            // The property, with the release range it covers in its documentation.
             lines.Add("    /// <summary>Gets <c>" + request.Name + "</c> in Minecraft " + request.From + " to " + request.To + ".</summary>");
             lines.Add("    internal static MappedClass " + request.Property + " { get; } = new(");
+
+            // The names that Forge runs the class and its methods under.
             lines.Add("        name: " + Quote(request.Name) + ",");
             lines.Add("        methods: " + Methods(request.Methods) + ",");
+
+            // The names of each vanilla naming, with the releases that share it.
             lines.Add(item: "        vanilla:");
             lines.Add(item: "        [");
-            lines.AddRange(
-                resolved.Namings.Select(
-                    static naming => "            (" + Quote(naming.Versions) + ", " + Quote(naming.Naming.Name) + ", " + Methods(naming.Naming.Methods) + "),"
-                )
-            );
+
+            lines.AddRange(resolved.Namings
+                .Select(static naming => "            (" + Quote(naming.Versions) + ", " + Quote(naming.Naming.Name) + ", " + Methods(naming.Naming.Methods) + "),"));
+
             lines.Add(item: "        ]");
             lines.Add(item: "    );");
         }
@@ -126,7 +135,8 @@ internal static class Generator
 
     private static string Methods(IEnumerable<MethodName> methods)
     {
-        return "[" + string.Join(separator: ", ", methods.Select(static method => "(" + Quote(method.Name) + ", " + Quote(method.Descriptor) + ")")) + "]";
+        return "[" + string.Join(separator: ", ",
+            methods.Select(static method => "(" + Quote(method.Name) + ", " + Quote(method.Descriptor) + ")")) + "]";
     }
 
     private static string Quote(string value)
@@ -142,8 +152,8 @@ internal static class Generator
         return to < from
             ? throw new InvalidOperationException(request.Name + " is requested from " + request.From + ", which comes after " + request.To + ".")
             : ClassRequest.NamesOf(request.From) != ClassRequest.NamesOf(request.To)
-            ? throw new InvalidOperationException(request.Name + " is requested from " + request.From + " to " + request.To + ", across Forge's change of names in 1.17.")
-            : new RequestedClass(request, from, to, [.. releases.Skip(from).Take(to - from + 1)]);
+                ? throw new InvalidOperationException(request.Name + " is requested from " + request.From + " to " + request.To + ", across Forge's change of names in 1.17.")
+                : new RequestedClass(request, from, to, versions: [.. releases.Skip(from).Take(to - from + 1)]);
     }
 
     // A request with the places of its first and last release among the releases, and the namings found for it so far, each with the releases that share it.
@@ -153,9 +163,7 @@ internal static class Generator
         private readonly List<List<string>> _shared = [];
 
         internal int From => from;
-
         internal ClassRequest Request => request;
-
         internal int To => to;
 
         internal void Add(string version, Naming naming)
@@ -165,7 +173,7 @@ internal static class Generator
             if (existing < 0)
             {
                 _namings.Add(naming);
-                _shared.Add([version]);
+                _shared.Add(item: [version]);
             }
             else
             {
@@ -175,7 +183,7 @@ internal static class Generator
 
         internal ResolvedClass Resolved()
         {
-            return new ResolvedClass(request, [.. _namings.Select((naming, index) => new ReleaseNaming(Label(_shared[index], versions), naming))]);
+            return new ResolvedClass(request, Namings: [.. _namings.Select((naming, index) => new ReleaseNaming(Label(_shared[index], versions), naming))]);
         }
     }
 }

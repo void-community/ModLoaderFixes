@@ -42,7 +42,8 @@ internal sealed class Resolver(IMappingSources sources)
 
         if (sources.Has(names, version))
         {
-            Mapping direct = await sources.GetAsync(names, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            Mapping direct = await sources.GetAsync(names, version, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             if (Direct(direct, request) is { } naming)
             {
@@ -56,9 +57,14 @@ internal sealed class Resolver(IMappingSources sources)
             if (Nearest(names, link, version) is not { } through)
                 continue;
 
-            Mapping target = await sources.GetAsync(link, version, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            Mapping named = await sources.GetAsync(names, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            Mapping linked = await sources.GetAsync(link, through, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            Mapping target = await sources.GetAsync(link, version, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            Mapping named = await sources.GetAsync(names, through, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            Mapping linked = await sources.GetAsync(link, through, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             if (Bridge(named, linked, target, request) is { } naming)
             {
@@ -99,7 +105,7 @@ internal sealed class Resolver(IMappingSources sources)
 
             MethodName? resolved = obfuscated is null || linkedName is null
                 ? null
-                : target.ObfuscatedMethod(link, new MethodName(linkedName, linked.NamedDescriptor(obfuscated.Descriptor)));
+                : target.ObfuscatedMethod(link, new MethodName(linkedName, linked.Named(obfuscated.Descriptor)));
 
             if (resolved is null)
                 return null;

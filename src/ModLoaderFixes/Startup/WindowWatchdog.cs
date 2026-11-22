@@ -12,10 +12,9 @@ namespace ModLoaderFixes.Startup;
 internal static class WindowWatchdog
 {
     /// <summary>Gets the patches of <c>DisplayWindow</c>: Forge's, which NeoForge for 1.20.1 keeps, and NeoForge's from 1.20.2.</summary>
-    internal static IReadOnlyList<ClassPatch> Patches { get; } =
-    [
-        .. new[] { "net/minecraftforge/fml/earlydisplay/DisplayWindow", "net/neoforged/fml/earlydisplay/DisplayWindow" }.Select(
-            static className => ClassPatch.For(className).Method(name: "initWindow", descriptor: "(Ljava/lang/String;)V").ReplaceConstant(oldValue: 10L, newValue: 30L)
-        ),
+    internal static IReadOnlyList<ClassPatch> Patches { get; } = [
+        .. new[] { "net/minecraftforge/fml/earlydisplay/DisplayWindow", "net/neoforged/fml/earlydisplay/DisplayWindow" }.Select(static className => ClassPatch.For(className)
+            .Method(name: "initWindow", descriptor: "(Ljava/lang/String;)V")
+            .ReplaceConstant(oldValue: 10L, newValue: 30L)),
     ];
 }

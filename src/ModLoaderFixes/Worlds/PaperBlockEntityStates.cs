@@ -18,7 +18,9 @@ internal static class PaperBlockEntityStates
     private const string Constructor = "(Lorg/bukkit/block/Block;Ljava/lang/Class;)V";
     private const string State17 = "org/bukkit/craftbukkit/v1_17_R1/block/CraftBlockEntityState";
 
-    private static readonly JavaMethod Cast = JavaMethod.Virtual(owner: "java/lang/Class", name: "cast", descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
+    private static readonly JavaMethod Cast = JavaMethod.Virtual(owner: "java/lang/Class",
+        name: "cast",
+        descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
 
     /// <summary>Gets the patch of Paper 1.14's state, whose block entities <c>modloaderfixes.PaperBlockEntities</c> names by the package of that revision.</summary>
     internal static ClassPatch Paper14 { get; } = ClassPatch.For(className: "org/bukkit/craftbukkit/v1_14_R1/block/CraftBlockEntityState")

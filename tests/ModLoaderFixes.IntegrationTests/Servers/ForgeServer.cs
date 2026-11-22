@@ -19,15 +19,13 @@ internal static partial class ForgeServer
     /// The line the agent logs when it makes the synchronous chunk load of Forge 1.7.2 to 1.9 return the chunk that its provider has, also when Forge
     /// generated it because the read found nothing.
     /// </summary>
-    internal const string ChunkLoadPatched =
-        "ModLoaderFixes: patched net/minecraftforge/common/chunkio/ChunkIOExecutor (synchronous chunk loads return the chunk the provider has (1 change))";
+    internal const string ChunkLoadPatched = "ModLoaderFixes: patched net/minecraftforge/common/chunkio/ChunkIOExecutor (synchronous chunk loads return the chunk the provider has (1 change))";
 
     /// <summary>
     /// The line the agent logs when it points the close of a connection's channel at the helper that sends what is unsent first, under FML's names, in Forge for
     /// Minecraft 1.7.2 to 1.8.9.
     /// </summary>
-    internal const string ClosePatched =
-        "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
+    internal const string ClosePatched = "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
 
     /// <summary>
     /// The xUnit collection of the server tests, which xUnit runs one at a time: each installs its server from Mojang's and Forge's servers, and installs that run side by
@@ -48,8 +46,7 @@ internal static partial class ForgeServer
     internal const string GenerationPatched = " (block entity of another block removed where generation replaces the block (1 change))";
 
     /// <summary>The line the agent logs when it makes the class hierarchy cache of ModLauncher 2 to 5, which Forge for Minecraft 1.13.2 to 1.15.2 ships, safe to share.</summary>
-    internal const string ModLauncherPatched =
-        "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";
+    internal const string ModLauncherPatched = "ModLoaderFixes: patched cpw/mods/modlauncher/TransformerClassWriter (<clinit>()V: 1 new java/util/HashMap() replaced by modloaderfixes/ClassHierarchyCache.parents() stored in classParents";
 
     /// <summary>
     /// What the agent logs, after the container's name, when it has the container of a chunk section's blocks, in Minecraft from 1.18, read a block again
@@ -64,8 +61,7 @@ internal static partial class ForgeServer
     /// The line the agent logs when it makes the map of union file systems of securejarhandler's provider a concurrent one, in Forge from 1.17.1 and in
     /// NeoForge up to 21.8, which read their jars through it.
     /// </summary>
-    internal const string UnionFileSystemsPatched =
-        "ModLoaderFixes: patched cpw/mods/niofs/union/UnionFileSystemProvider (<init>()V: 1 new java/util/HashMap replaced by new java/util/concurrent/ConcurrentHashMap stored in fileSystems)";
+    internal const string UnionFileSystemsPatched = "ModLoaderFixes: patched cpw/mods/niofs/union/UnionFileSystemProvider (<init>()V: 1 new java/util/HashMap replaced by new java/util/concurrent/ConcurrentHashMap stored in fileSystems)";
 
     /// <summary>
     /// The end of the line the agent logs when it points the JDK's zip file system at the helper that keeps its channel readable after an interrupt, in Java 8's
@@ -73,8 +69,9 @@ internal static partial class ForgeServer
     /// </summary>
     internal const string ZipChannelPatched = "ZipFileSystem (<init>: 1 invocation of java/nio/file/Files.newByteChannel redirected)";
 
-    private const string AgentDirectory = "/patcher/";
     private const int InstallAttempts = 3;
+
+    private const string AgentDirectory = "/patcher/";
     private const string Kicks = "40";
     private const string LoaderDirectory = "/loader/";
 
@@ -85,7 +82,9 @@ internal static partial class ForgeServer
     /// Gets the runtime whose library a server container loads: 64-bit Linux with glibc of the machine's architecture, as itzg's images are, whatever platform the
     /// tests run on. Tests in an Alpine container, or in a 32-bit ARM one on an ARM64 machine, start the same server containers beside their own.
     /// </summary>
-    internal static string Runtime => RuntimeInformation.ProcessArchitecture is Architecture.Arm or Architecture.Arm64 ? "linux-arm64" : "linux-x64";
+    internal static string Runtime => RuntimeInformation.ProcessArchitecture is Architecture.Arm or Architecture.Arm64
+        ? "linux-arm64"
+        : "linux-x64";
 
     /// <summary>Gets how long installing and starting a server may take.</summary>
     internal static TimeSpan StartTimeout { get; } = TimeSpan.FromMinutes(minutes: 15);
@@ -99,12 +98,10 @@ internal static partial class ForgeServer
     /// <param name="logs">The server's log after the kicks.</param>
     internal static void AssertKicked(ExecResult kicks, string logs)
     {
-        bool isReceived = kicks.ExitCode is 0 && kicks.Stdout.Contains("KICKS {received=" + Kicks + "}", StringComparison.Ordinal);
+        bool isReceived = kicks.ExitCode is 0
+            && kicks.Stdout.Contains("KICKS {received=" + Kicks + "}", StringComparison.Ordinal);
 
-        Assert.True(
-            isReceived,
-            kicks.Stdout + kicks.Stderr + Environment.NewLine + "The server's log about them:" + Environment.NewLine + About(logs, kicks.Stdout)
-        );
+        Assert.True(isReceived, kicks.Stdout + kicks.Stderr + Environment.NewLine + "The server's log about them:" + Environment.NewLine + About(logs, kicks.Stdout));
     }
 
     /// <summary>Checks that the server's log has a line, and shows the end of the log when it hasn't: the start, which is all a failed Contains prints, is itzg's setup.</summary>
@@ -112,10 +109,8 @@ internal static partial class ForgeServer
     /// <param name="expected">The text a line must have.</param>
     internal static void AssertLogged(string logs, string expected)
     {
-        Assert.True(
-            logs.Contains(expected, StringComparison.Ordinal),
-            $"The server didn't log \"{expected}\". Its log ends with:{Environment.NewLine}{Tail(logs)}"
-        );
+        Assert.True(logs.Contains(expected, StringComparison.Ordinal),
+            userMessage: $"The server didn't log \"{expected}\". Its log ends with:{Environment.NewLine}{Tail(logs)}");
     }
 
     /// <summary>Checks that no line of the server's log has a text, and shows the lines that have it when one does.</summary>
@@ -125,10 +120,8 @@ internal static partial class ForgeServer
     {
         string[] lines = [.. logs.Split(separator: '\n').Where(line => line.Contains(unexpected, StringComparison.Ordinal))];
 
-        Assert.True(
-            lines.Length == 0,
-            $"The server logged \"{unexpected}\":{Environment.NewLine}{string.Join(Environment.NewLine, lines.Take(count: 10))}"
-        );
+        Assert.True(lines.Length == 0,
+            userMessage: $"The server logged \"{unexpected}\":{Environment.NewLine}{string.Join(Environment.NewLine, lines.Take(count: 10))}");
     }
 
     /// <summary>Compiles the login client and the kick client for Java 8, which every server image runs.</summary>
@@ -152,12 +145,12 @@ internal static partial class ForgeServer
     /// <returns>The container's builder.</returns>
     internal static ContainerBuilder Create(string image, string type, string version, string memory, string option, FileInfo agent)
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux(), reason: "The servers run in Linux containers, which load the agent of a Linux platform.");
+        Assert.SkipUnless(OperatingSystem.IsLinux(),
+            reason: "The servers run in Linux containers, which load the agent of a Linux platform.");
 
         // The images are named by itzg's tags of its latest release, which move. Docker keeps the image it pulled first, so each run pulls an image when it first
         // uses it, which costs little when it is the one Docker has, and takes what Docker has from then on.
-        return new ContainerBuilder(image)
-            .WithImagePullPolicy(cached => Refreshed.TryAdd(image, value: true) || cached is null)
+        return new ContainerBuilder(image).WithImagePullPolicy(cached => Refreshed.TryAdd(image, value: true) || cached is null)
             .WithEnvironment(name: "EULA", value: "TRUE")
             .WithEnvironment(name: "TYPE", type)
             .WithEnvironment(name: "VERSION", version)
@@ -178,7 +171,17 @@ internal static partial class ForgeServer
     /// <returns>The kick client's result; it prints <c>KICKS {received=40}</c> and exits with 0 when every player got the reason and then the end of its connection.</returns>
     internal static async Task<ExecResult> KickPlayersAsync(IContainer server, int protocol, CancellationToken cancellationToken)
     {
-        List<string> command = ["java", "-cp", LoaderDirectory, "loginload.KickLoad", "127.0.0.1", "25565", protocol.ToString(CultureInfo.InvariantCulture), Kicks];
+        List<string> command =
+        [
+            "java",
+            "-cp",
+            LoaderDirectory,
+            "loginload.KickLoad",
+            "127.0.0.1",
+            "25565",
+            protocol.ToString(CultureInfo.InvariantCulture),
+            Kicks,
+        ];
 
         try
         {
@@ -201,7 +204,18 @@ internal static partial class ForgeServer
     /// <returns>The login client's result; it prints <c>LOGINS {logged in=200}</c> and exits with 0 when every login reached the play state.</returns>
     internal static async Task<ExecResult> LogInPlayersAsync(IContainer server, int protocol, string? fmlVersion, CancellationToken cancellationToken)
     {
-        List<string> command = ["java", "-cp", LoaderDirectory, "loginload.LoginLoad", "127.0.0.1", "25565", protocol.ToString(CultureInfo.InvariantCulture), "200", "40"];
+        List<string> command =
+        [
+            "java",
+            "-cp",
+            LoaderDirectory,
+            "loginload.LoginLoad",
+            "127.0.0.1",
+            "25565",
+            protocol.ToString(CultureInfo.InvariantCulture),
+            "200",
+            "40",
+        ];
 
         if (fmlVersion is not null)
             command.Add(fmlVersion);
@@ -233,7 +247,8 @@ internal static partial class ForgeServer
     /// <returns>The log.</returns>
     internal static async Task<string> ReadLogsAsync(IContainer server, CancellationToken cancellationToken)
     {
-        (string standardOutput, string standardError) = await server.GetLogsAsync(ct: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        (string standardOutput, string standardError) = await server.GetLogsAsync(ct: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         return Printable(ServerLogs.Chronological(standardOutput, standardError));
     }
@@ -263,8 +278,7 @@ internal static partial class ForgeServer
     /// <returns>The builder.</returns>
     internal static ContainerBuilder WithLoginLoad(this ContainerBuilder server, string loginLoad)
     {
-        return server
-            .WithEnvironment(name: "ONLINE_MODE", value: "FALSE")
+        return server.WithEnvironment(name: "ONLINE_MODE", value: "FALSE")
             .WithEnvironment(name: "MAX_PLAYERS", value: "1000")
             .WithResourceMapping(DirectoryPath.Of(loginLoad), DirectoryPath.Of(LoaderDirectory));
     }
@@ -275,9 +289,13 @@ internal static partial class ForgeServer
     {
         string[] lines = logs.Split(separator: '\n');
         string[] players = [.. UnreceivedPlayer().Matches(kicks).Select(static match => match.Groups[groupnum: 1].Value)];
-        int[] named = [.. Enumerable.Range(start: 0, lines.Length).Where(index => players.Any(player => PlayerName(player).IsMatch(lines[index])))];
 
-        return named.Length == 0 ? Tail(logs) : string.Join(separator: '\n', lines.Skip(named[0]).Take(Math.Min(named[^1] - named[0] + 20, val2: 200)));
+        int[] named = [.. Enumerable.Range(start: 0, lines.Length)
+            .Where(index => players.Any(player => PlayerName(player).IsMatch(lines[index])))];
+
+        return named.Length == 0
+            ? Tail(logs)
+            : string.Join(separator: '\n', lines.Skip(named[0]).Take(Math.Min(named[^1] - named[0] + 20, val2: 200)));
     }
 
     [GeneratedRegex(pattern: @"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")]
@@ -286,7 +304,8 @@ internal static partial class ForgeServer
     // itzg logs "[init] [ERROR] Failed to install Forge" (or NeoForge) once per failed install.
     private static int CountInstallFailures(string logs)
     {
-        return logs.Split(separator: '\n').Count(static line => line.Contains(value: "[ERROR] Failed to install", StringComparison.Ordinal));
+        return logs.Split(separator: '\n')
+            .Count(static line => line.Contains(value: "[ERROR] Failed to install", StringComparison.Ordinal));
     }
 
     [GeneratedRegex(pattern: @"\x1B\[[0-?]*[ -/]*[@-~]")]
@@ -312,7 +331,9 @@ internal static partial class ForgeServer
 
             while (!logs.Contains(ReadyLine, StringComparison.Ordinal) && !exit.IsCompleted)
             {
-                await Task.Delay(TimeSpan.FromSeconds(seconds: 2), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+                await Task.Delay(TimeSpan.FromSeconds(seconds: 2), cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
+
                 logs = await ReadLogsAsync(server, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
 
@@ -335,12 +356,18 @@ internal static partial class ForgeServer
     private static async Task<TimeoutException> TimedOutAsync(IContainer server, string phase, OperationCanceledException exception)
     {
         string logs = await ReadLogsAsync(server, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-        string threads = await ServerLogs.ThreadsAsync(server, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
 
-        string message = string.Join(
-            Environment.NewLine,
-            value: [$"{phase} within {StartTimeout.TotalMinutes} minutes. The server's log, without the health check's lines, ends with:", Tail(ServerLogs.WithoutHealthChecks(logs)), "The threads of its JVM:", threads]
-        );
+        string threads = await ServerLogs.ThreadsAsync(server, CancellationToken.None)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        string message = string.Join(Environment.NewLine,
+            value:
+            [
+                $"{phase} within {StartTimeout.TotalMinutes} minutes. The server's log, without the health check's lines, ends with:",
+                Tail(ServerLogs.WithoutHealthChecks(logs)),
+                "The threads of its JVM:",
+                threads,
+            ]);
 
         return new TimeoutException(message, exception);
     }

@@ -5,10 +5,15 @@ namespace ModLoaderFixes.Mappings;
 /// <summary>The names that one source gives the obfuscated classes and methods of one Minecraft version, and the other way round.</summary>
 internal sealed partial class Mapping
 {
+    // What the source calls each obfuscated class and method.
     private readonly Dictionary<string, string> _namedClasses = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _obfuscatedClasses = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _namedMethods = new(StringComparer.Ordinal);
+
+    // The obfuscated class and method behind each of the source's names.
+    private readonly Dictionary<string, string> _obfuscatedClasses = new(StringComparer.Ordinal);
     private readonly Dictionary<string, MethodName> _obfuscatedMethods = new(StringComparer.Ordinal);
+
+    // The methods as their files list them, which are put into the maps above once every class of the source is known.
     private readonly List<PendingMethod> _pending = [];
 
     private Mapping(string source, bool isIdentity)
@@ -35,12 +40,13 @@ internal sealed partial class Mapping
     /// <param name="descriptor">The types of a method's parameters and result.</param>
     /// <param name="map">The map of class names.</param>
     /// <returns>The descriptor with the mapped classes.</returns>
-    internal static string MapDescriptor(string descriptor, Func<string, string?> map)
+    internal static string Map(string descriptor, Func<string, string?> map)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(map);
 
-        return DescriptorClass().Replace(descriptor, match => "L" + (map(Group(match, name: "name")) ?? Group(match, name: "name")) + ";");
+        return DescriptorClass().Replace(descriptor,
+            match => "L" + (map(Group(match, name: "name")) ?? Group(match, name: "name")) + ";");
     }
 
     /// <summary>Reads Mojang's ProGuard files, which name the obfuscated classes and methods of Minecraft 1.14.4 to 1.21.11, the client's and then the server's.</summary>
@@ -66,14 +72,21 @@ internal sealed partial class Mapping
                 if (!isMember && type.Success)
                 {
                     owner = Group(type, name: "obfuscated").Replace(oldChar: '.', newChar: '/');
+
                     mapping.AddClass(owner, Group(type, name: "named").Replace(oldChar: '.', newChar: '/'));
                 }
                 else if (owner is not null && method.Success && !Group(method, name: "named").StartsWith(value: '<'))
                 {
                     string[] parameters = Group(method, name: "parameters").Split(separator: ',', StringSplitOptions.RemoveEmptyEntries);
-                    string descriptor = "(" + string.Concat(parameters.Select(JavaType)) + ")" + JavaType(Group(method, name: "returns"));
 
-                    mapping.AddMethod(owner, Group(method, name: "obfuscated"), descriptor, Group(method, name: "named"), isNamedDescriptor: true);
+                    string descriptor = "(" + string.Concat(parameters.Select(DescriptorOf)) + ")" + DescriptorOf(Group(method,
+                        name: "returns"));
+
+                    mapping.AddMethod(owner,
+                        Group(method, name: "obfuscated"),
+                        descriptor,
+                        Group(method, name: "named"),
+                        isNamedDescriptor: true);
                 }
             }
         }
@@ -94,9 +107,17 @@ internal sealed partial class Mapping
             string[] parts = line.Split(separator: ' ');
 
             if (parts is ["CL:", { } obfuscated, { } named])
+            {
                 mapping.AddClass(obfuscated, named);
+            }
             else if (parts is ["MD:", { } method, { } descriptor, { } namedMethod, _])
-                mapping.AddMethod(Owner(method), SimpleName(method), descriptor, SimpleName(namedMethod), isNamedDescriptor: false);
+            {
+                mapping.AddMethod(Owner(method),
+                    SimpleName(method),
+                    descriptor,
+                    SimpleName(namedMethod),
+                    isNamedDescriptor: false);
+            }
         }
 
         return mapping.Complete();
@@ -113,7 +134,7 @@ internal sealed partial class Mapping
         string[] lines = [.. Lines(text)];
 
         if (lines is not [{ } header, ..] || !header.StartsWith(value: "tiny\t2\t0\tofficial\tintermediary", StringComparison.Ordinal))
-            throw new InvalidDataException($"{source} isn't a Tiny v2 file from official to intermediary names.");
+            throw new InvalidDataException(message: $"{source} isn't a Tiny v2 file from official to intermediary names.");
 
         foreach (string line in lines.Skip(count: 1))
         {
@@ -122,6 +143,7 @@ internal sealed partial class Mapping
             if (parts is ["c", { } obfuscated, { } named])
             {
                 owner = obfuscated;
+
                 mapping.AddClass(obfuscated, named);
             }
             else if (owner is not null && parts is ["", "m", { } descriptor, { } method, { } namedMethod])
@@ -149,6 +171,7 @@ internal sealed partial class Mapping
             if (!line.StartsWith(value: '\t') && parts is [{ } obfuscated, { } named])
             {
                 owner = obfuscated;
+
                 mapping.AddClass(obfuscated, named);
             }
             else if (owner is not null && parts is [{ } method, { } descriptor, { } namedMethod])
@@ -160,20 +183,20 @@ internal sealed partial class Mapping
         return mapping.Complete();
     }
 
+    /// <summary>Puts the names of their classes into a descriptor of obfuscated ones.</summary>
+    /// <param name="descriptor">The obfuscated descriptor.</param>
+    /// <returns>The descriptor by the names of its classes.</returns>
+    internal string Named(string descriptor)
+    {
+        return Map(descriptor, NamedClass);
+    }
+
     /// <summary>Gets the name of an obfuscated class, or null when the mapping doesn't have it.</summary>
     /// <param name="obfuscated">The obfuscated name.</param>
     /// <returns>The name.</returns>
     internal string? NamedClass(string obfuscated)
     {
         return IsIdentity ? obfuscated : _namedClasses.GetValueOrDefault(obfuscated);
-    }
-
-    /// <summary>Puts the names of their classes into a descriptor of obfuscated ones.</summary>
-    /// <param name="descriptor">The obfuscated descriptor.</param>
-    /// <returns>The descriptor by the names of its classes.</returns>
-    internal string NamedDescriptor(string descriptor)
-    {
-        return MapDescriptor(descriptor, NamedClass);
     }
 
     /// <summary>Gets the name of an obfuscated method, or null when the mapping doesn't have it.</summary>
@@ -209,12 +232,7 @@ internal sealed partial class Mapping
     [GeneratedRegex(pattern: "L(?<name>[^;]+);")]
     private static partial Regex DescriptorClass();
 
-    private static string Group(Match match, string name)
-    {
-        return match.Groups[name].Value;
-    }
-
-    private static string JavaType(string type)
+    private static string DescriptorOf(string type)
     {
         int dimensions = 0;
 
@@ -241,6 +259,11 @@ internal sealed partial class Mapping
         return new string(c: '[', dimensions) + element;
     }
 
+    private static string Group(Match match, string name)
+    {
+        return match.Groups[name].Value;
+    }
+
     private static string Key(string owner, string name, string descriptor)
     {
         return owner + "." + name + descriptor;
@@ -248,7 +271,9 @@ internal sealed partial class Mapping
 
     private static IEnumerable<string> Lines(string text)
     {
-        return text.Split(separator: '\n').Select(static line => line.TrimEnd(trimChar: '\r')).Where(static line => line.Length > 0);
+        return text.Split(separator: '\n')
+            .Select(static line => line.TrimEnd(trimChar: '\r'))
+            .Where(static line => line.Length > 0);
     }
 
     private static string Owner(string member)
@@ -271,10 +296,10 @@ internal sealed partial class Mapping
     {
         // Mojang's client and server files name the same classes, which the two jars must obfuscate alike.
         if (_namedClasses.TryGetValue(obfuscated, out string? existing) && existing != named)
-            throw new InvalidDataException($"{Source} names {obfuscated} both {existing} and {named}.");
+            throw new InvalidDataException(message: $"{Source} names {obfuscated} both {existing} and {named}.");
 
         if (_obfuscatedClasses.TryGetValue(named, out string? other) && other != obfuscated)
-            throw new InvalidDataException($"{Source} obfuscates {named} both as {other} and as {obfuscated}.");
+            throw new InvalidDataException(message: $"{Source} obfuscates {named} both as {other} and as {obfuscated}.");
 
         _namedClasses[obfuscated] = named;
         _obfuscatedClasses[named] = obfuscated;
@@ -291,8 +316,8 @@ internal sealed partial class Mapping
         foreach (PendingMethod method in _pending)
         {
             string namedOwner = NamedClass(method.Owner) ?? method.Owner;
-            string obfuscatedDescriptor = method.IsNamedDescriptor ? MapDescriptor(method.Descriptor, ObfuscatedClass) : method.Descriptor;
-            string namedDescriptor = method.IsNamedDescriptor ? method.Descriptor : NamedDescriptor(method.Descriptor);
+            string obfuscatedDescriptor = method.IsNamedDescriptor ? Map(method.Descriptor, ObfuscatedClass) : method.Descriptor;
+            string namedDescriptor = method.IsNamedDescriptor ? method.Descriptor : Named(method.Descriptor);
 
             _namedMethods[Key(method.Owner, method.Name, obfuscatedDescriptor)] = method.Named;
             _obfuscatedMethods[Key(namedOwner, method.Named, namedDescriptor)] = new MethodName(method.Name, obfuscatedDescriptor);

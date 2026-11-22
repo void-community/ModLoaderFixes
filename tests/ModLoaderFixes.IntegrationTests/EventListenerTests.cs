@@ -11,10 +11,16 @@ namespace ModLoaderFixes.IntegrationTests;
 public sealed class EventListenerTests
 {
     private const string ComputeListenerList = "net/minecraftforge/eventbus/api/EventListenerHelper.computeListenerList";
-
     private const string MainClass = "net.minecraftforge.eventbus.api.Startup";
 
-    /// <summary>The fixtures, with the call the agent redirects in each: EventBus 0.9.3 to 0.10.1's synchronized map, and 0.10.2 to 0.10.4's read-write lock.</summary>
+    /// <summary>
+    /// Gets the fixtures of the two shapes of EventBus's listener lists, with the call the agent redirects in each: EventBus 0.9.3 to 0.10.1's synchronized map,
+    /// and 0.10.2 to 0.10.4's read-write lock.
+    /// </summary>
+    /// <value>
+    /// One row for each shape, the synchronized map's first: the pattern of the fixture's Java sources, then the owner and name of the call that the agent's
+    /// log reports as redirected in <c>EventListenerHelper.getListenerListInternal</c>.
+    /// </value>
     public static TheoryData<string, string> Shapes { get; } = new()
     {
         { "Fixtures/EventBus0101/**/*.java", "java/util/Map.computeIfAbsent" },
@@ -30,17 +36,20 @@ public sealed class EventListenerTests
     {
         Jdk jdk = new(major: 8);
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources, cancellationToken: cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "DEADLOCK between the mod-loading worker and the client thread", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "DEADLOCK between the mod-loading worker and the client thread",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched, redirected);
+        AssertStartsWithOneListenerList(patched, redirected);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture whose fix needs a class in EventBus's own loader as the library for <c>-agentpath</c> does.</summary>
@@ -49,22 +58,22 @@ public sealed class EventListenerTests
     {
         Jdk jdk = new(major: 8);
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources: "Fixtures/EventBus0103/**/*.java", cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched, ComputeListenerList);
+        AssertStartsWithOneListenerList(patched, ComputeListenerList);
     }
 
-    private static void AssertPatched(JavaRun patched, string redirected)
+    private static void AssertStartsWithOneListenerList(JavaRun patched, string redirected)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            "ModLoaderFixes: patched net/minecraftforge/eventbus/api/EventListenerHelper (getListenerListInternal(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;: 1 invocation of " + redirected + " redirected",
+
+        Assert.Contains("ModLoaderFixes: patched net/minecraftforge/eventbus/api/EventListenerHelper (getListenerListInternal(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;: 1 invocation of " + redirected + " redirected",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         Assert.Contains(expectedSubstring: "STARTED with one TickEvent listener list", patched.Output, StringComparison.Ordinal);
     }
 

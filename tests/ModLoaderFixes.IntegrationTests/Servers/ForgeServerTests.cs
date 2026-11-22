@@ -15,20 +15,18 @@ public sealed class ForgeServerTests
     // itzg's latest release for Java 8, which ForgeServer asks Docker Hub for once in each run.
     private const string Image = "itzg/minecraft-server:stable-java8";
 
-    /// <summary>The Forge 1.12 builds that drop players at login, the newest stable ones itzg picks, with the protocol version of their Minecraft.</summary>
-    public static TheoryData<string, string, int> Forge112Builds { get; } = new()
-    {
-        { "1.12", "14.21.1.2387", 335 },
-        { "1.12.1", "14.22.1.2478", 338 },
-        { "1.12.2", "14.23.5.2859", 340 },
-    };
+    /// <summary>Gets the Forge 1.12 builds that drop players at login, the newest stable ones itzg picks.</summary>
+    /// <value>
+    /// One row for each build: its Minecraft version, the Forge build, and the protocol version of that Minecraft, which the players that log in speak.
+    /// </value>
+    public static TheoryData<string, string, int> Forge112Builds { get; } = new() { { "1.12", "14.21.1.2387", 335 }, { "1.12.1", "14.22.1.2478", 338 }, { "1.12.2", "14.23.5.2859", 340 } };
 
-    /// <summary>The Forge 1.7 builds whose network tick drops connections it sees before they have a channel, with the protocol version of their Minecraft.</summary>
-    public static TheoryData<string, string, int> Forge17Builds { get; } = new()
-    {
-        { "1.7.2", "10.12.2.1161", 4 },
-        { "1.7.10", "10.13.4.1614", 5 },
-    };
+    /// <summary>Gets the Forge 1.7 builds whose network tick drops connections it sees before they have a channel.</summary>
+    /// <value>
+    /// One row for each build: its Minecraft version, the Forge build, and the protocol version of that Minecraft, which the players that log in and the
+    /// players that are kicked speak.
+    /// </value>
+    public static TheoryData<string, string, int> Forge17Builds { get; } = new() { { "1.7.2", "10.12.2.1161", 4 }, { "1.7.10", "10.13.4.1614", 5 } };
 
     /// <summary>With the jar loaded, a Forge 1.12 server lets every player of a burst of logins reach the play state; without it, such a burst drops many of them.</summary>
     /// <param name="version">The Minecraft version.</param>
@@ -60,7 +58,9 @@ public sealed class ForgeServerTests
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token);
 
-        ForgeServer.AssertLogged(logs, expected: "ModLoaderFixes: patched net/minecraftforge/fml/common/network/handshake/NetworkDispatcher");
+        ForgeServer.AssertLogged(logs,
+            expected: "ModLoaderFixes: patched net/minecraftforge/fml/common/network/handshake/NetworkDispatcher");
+
         ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
         ForgeServer.AssertNotLogged(logs, unexpected: "Can't serialize unregistered packet");
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);
@@ -74,14 +74,16 @@ public sealed class ForgeServerTests
     [Fact]
     public async Task Forge172ServerStartsWithAgentPath()
     {
-        await AssertForge172StartsAsync(option: "-agentpath:", new FileInfo(PublishedAgent.Find(name: "ModLoaderFixes", ForgeServer.Runtime).FilePath));
+        await AssertForge172StartsAsync(option: "-agentpath:",
+            new FileInfo(PublishedAgent.Find(name: "ModLoaderFixes", ForgeServer.Runtime).FilePath));
     }
 
     /// <summary>The same server becomes ready with the jar loaded by <c>-javaagent</c>.</summary>
     [Fact]
     public async Task Forge172ServerStartsWithJavaAgentJar()
     {
-        await AssertForge172StartsAsync(option: "-javaagent:", new FileInfo(PublishedAgent.FindJar(name: "ModLoaderFixes").FilePath));
+        await AssertForge172StartsAsync(option: "-javaagent:",
+            new FileInfo(PublishedAgent.FindJar(name: "ModLoaderFixes").FilePath));
     }
 
     /// <summary>
@@ -119,18 +121,18 @@ public sealed class ForgeServerTests
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token);
 
-        ForgeServer.AssertLogged(
-            logs,
-            "ModLoaderFixes: patched net/minecraft/network/NetworkSystem (func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_150724_d redirected; "
-            + "func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_74428_b redirected)"
-        );
+        ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched net/minecraft/network/NetworkSystem (func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_150724_d redirected; "
+            + "func_151269_c()V: 1 invocation of net/minecraft/network/NetworkManager.func_74428_b redirected)");
+
         ForgeServer.AssertLogged(logs, ForgeServer.FlushPatched);
         ForgeServer.AssertLogged(logs, ForgeServer.ClosePatched);
+
         // The players that are kicked join a new world right after 200 others left it, so the chunks around its spawn point are loaded again while they are
         // saved for the first time. Now and then a read then finds nothing, for which Forge's load returned null, and the server stopped as its world ticked.
         ForgeServer.AssertLogged(logs, ForgeServer.ChunkLoadPatched);
         ForgeServer.AssertNotLogged(logs, unexpected: "Exception ticking world");
         ForgeServer.AssertNotLogged(logs, unexpected: "Failed to handle packet");
+
         // FML 1.7 scans the jar for mods with ASM 4, which reads class files up to Java 7, so the jar's launcher must be one.
         ForgeServer.AssertNotLogged(logs, unexpected: "probably a corrupt zip");
         Assert.True(logins.ExitCode is 0, logins.Stdout + logins.Stderr);

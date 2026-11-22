@@ -15,37 +15,40 @@ public sealed class WindowWatchdogPatchTests
     private const string WindowSetup = "initWindow";
     private const string WindowSetupDescriptor = "(Ljava/lang/String;)V";
 
-    private static readonly JavaMethod Schedule = JavaMethod.Interface(
-        owner: "java/util/concurrent/ScheduledExecutorService",
+    private static readonly JavaMethod Schedule = JavaMethod.Interface(owner: "java/util/concurrent/ScheduledExecutorService",
         name: "schedule",
-        descriptor: "(Ljava/lang/Runnable;JLjava/util/concurrent/TimeUnit;)Ljava/util/concurrent/ScheduledFuture;"
-    );
+        descriptor: "(Ljava/lang/Runnable;JLjava/util/concurrent/TimeUnit;)Ljava/util/concurrent/ScheduledFuture;");
 
     /// <summary>A window that waits 30 seconds already, as FancyModLoader's from 4.0.37 does, is left alone with a reason.</summary>
     [Fact]
     public void PatchLeavesAWindowThatWaitsThirtySeconds()
     {
-        ClassPatchResult result = Apply(className: "net/neoforged/fml/earlydisplay/DisplayWindow", watchdog: 30);
+        ClassPatchResult skipped = Apply(className: "net/neoforged/fml/earlydisplay/DisplayWindow", watchdog: 30);
 
-        Assert.False(result.Changed);
-        Assert.NotNull(result.SkippedReason);
+        Assert.False(skipped.Changed);
+        Assert.NotNull(skipped.SkippedReason);
     }
 
     /// <summary>
     /// The watchdog waits 30 seconds under Forge's package and NeoForge's, while the render tick's delay before it and the 10 milliseconds of the minimum frame time,
     /// which another method loads, stay as they are.
     /// </summary>
+    /// <param name="className">The internal name of <c>DisplayWindow</c>, in the package of Forge's early display or of NeoForge's.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the window under <paramref name="className"/>, whose watchdog waits 10 seconds, unchanged, so there is no patched class to read the
+    /// constants of; the message is the patch's own account of what it did.
+    /// </exception>
     [Theory]
     [InlineData("net/minecraftforge/fml/earlydisplay/DisplayWindow")]
     [InlineData("net/neoforged/fml/earlydisplay/DisplayWindow")]
     public void PatchWaitsThirtySecondsForTheWindow(string className)
     {
-        ClassPatchResult result = Apply(className, watchdog: 10);
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = Apply(className, watchdog: 10);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.ReplacedConstants);
-        Assert.Equal([50L, 30L], Longs(patched, WindowSetup, WindowSetupDescriptor));
-        Assert.Equal([10L], Longs(patched, FrameTime, descriptor: "()J"));
+        Assert.Equal(expected: 1, applied.ReplacedConstants);
+        Assert.Equal(expected: [50L, 30L], Longs(patched, WindowSetup, WindowSetupDescriptor));
+        Assert.Equal(expected: [10L], Longs(patched, FrameTime, descriptor: "()J"));
     }
 
     private static ClassPatchResult Apply(string className, long watchdog)
@@ -70,11 +73,9 @@ public sealed class WindowWatchdogPatchTests
         }
 
         return new ClassFileWriter(className)
-            .AddMethod(
-                WindowSetup,
+            .AddMethod(WindowSetup,
                 WindowSetupDescriptor,
-                code => ScheduleIn(ScheduleIn(code.AConstNull().AStore(slot: 2), delay: 50, unit: "MILLISECONDS"), watchdog, unit: "SECONDS").Return()
-            )
+                code => ScheduleIn(ScheduleIn(code.AConstNull().AStore(slot: 2), delay: 50, unit: "MILLISECONDS"), watchdog, unit: "SECONDS").Return())
             .AddMethod(FrameTime, descriptor: "()J", static code => code.LConst(value: 10).LReturn(), accessFlags: 0x0008)
             .ToArray();
     }
@@ -85,6 +86,8 @@ public sealed class WindowWatchdogPatchTests
         JavaClassFile model = JavaClassFile.Read(classFile);
         IReadOnlyList<Instruction> code = model.FindMethod(name, descriptor)?.Code?.Instructions ?? [];
 
-        return [.. code.Select(instruction => instruction.ConstantIndex is { } index ? model.ConstantPool[index] : null).OfType<LongEntry>().Select(static entry => entry.Value)];
+        return [.. code.Select(instruction => instruction.ConstantIndex is { } index ? model.ConstantPool[index] : null)
+            .OfType<LongEntry>()
+            .Select(static entry => entry.Value)];
     }
 }

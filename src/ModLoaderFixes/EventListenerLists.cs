@@ -18,15 +18,27 @@ internal static class EventListenerLists
     private const string Method = "getListenerListInternal";
     private const string MethodDescriptor = "(Ljava/lang/Class;Z)Lnet/minecraftforge/eventbus/ListenerList;";
 
-    private static readonly JavaMethod ComputeIfAbsent = MapCall(name: "computeIfAbsent", descriptor: "(Ljava/lang/Object;Ljava/util/function/Function;)Ljava/lang/Object;");
-    private static readonly JavaMethod ComputeListenerList = JavaMethod.Static(HelperClass, name: "computeListenerList", MethodDescriptor);
-    private static readonly JavaMethod Put = MapCall(name: "put", descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
-    private static readonly JavaMethod PutIfAbsent = MapCall(name: "putIfAbsent", descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
-    private static readonly JavaMethod WriteLock = JavaMethod.Interface(owner: "java/util/concurrent/locks/ReadWriteLock", name: "writeLock", descriptor: "()Ljava/util/concurrent/locks/Lock;");
+    // The map's computeIfAbsent, which EventBus 0.9.3 to 0.10.1 builds a missing listener list in.
+    private static readonly JavaMethod ComputeIfAbsent = MapCall(name: "computeIfAbsent",
+        descriptor: "(Ljava/lang/Object;Ljava/util/function/Function;)Ljava/lang/Object;");
+
+    // What EventBus 0.10.2 to 0.10.4 builds the list with and puts it in with, under the write lock; 0.10.5 puts it in with putIfAbsent.
+    private static readonly JavaMethod ComputeListenerList = JavaMethod.Static(HelperClass,
+        name: "computeListenerList",
+        MethodDescriptor);
+
+    private static readonly JavaMethod Put = MapCall(name: "put",
+        descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+
+    private static readonly JavaMethod PutIfAbsent = MapCall(name: "putIfAbsent",
+        descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+
+    private static readonly JavaMethod WriteLock = JavaMethod.Interface(owner: "java/util/concurrent/locks/ReadWriteLock",
+        name: "writeLock",
+        descriptor: "()Ljava/util/concurrent/locks/Lock;");
 
     /// <summary>Gets the patches of <c>EventListenerHelper</c>: for EventBus 0.9.3 to 0.10.1, and for 0.10.2 to 0.10.4.</summary>
-    internal static IReadOnlyList<ClassPatch> Patches { get; } =
-    [
+    internal static IReadOnlyList<ClassPatch> Patches { get; } = [
         ClassPatch.For(HelperClass)
             .Method(Method, MethodDescriptor)
             .When(static body => body.Calls(ComputeIfAbsent))

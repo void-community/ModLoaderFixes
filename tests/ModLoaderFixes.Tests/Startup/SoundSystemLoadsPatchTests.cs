@@ -18,23 +18,40 @@ public sealed class SoundSystemLoadsPatchTests
     [Fact]
     public void PatchLeavesAnotherClassUnderAManagersName()
     {
-        ClassPatchResult result = Apply(CreateManager(className: "btj", load: "i", reload: "a", unload: "b", startsLoader: false));
+        ClassPatchResult skipped = Apply(CreateManager(className: "btj",
+            load: "i",
+            reload: "a",
+            unload: "b",
+            startsLoader: false));
 
-        Assert.False(result.Changed);
+        Assert.False(skipped.Changed);
     }
 
     /// <summary>The load starts its loader through the helper, and the reload hands its manager to the helper's wait before it runs.</summary>
+    /// <param name="className">The manager's internal name: Forge's <c>SoundManager</c>, or the obfuscated name that a vanilla release gives it.</param>
+    /// <param name="load">The name that the manager's load of the sound system has there, the method that starts the loader thread.</param>
+    /// <param name="reload">The name of its reload of the sound system, which unloads and then loads; the helper's wait has to come before it.</param>
+    /// <param name="unload">
+    /// The name of its unload; the reload's call of it is what tells the patch the reload from a method of the same name in another release's class.
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// No patch that matches <paramref name="className"/> changed the manager, so there is no patched class to look into; the message is the account of the
+    /// last patch that matched.
+    /// </exception>
     [Theory]
     [InlineData("net/minecraft/client/audio/SoundManager", "func_148608_i", "func_148596_a", "func_148613_b")]
     [InlineData("btj", "i", "a", "b")]
     [InlineData("dgr", "h", "a", "b")]
     public void PatchWaitsForTheLoaderBeforeTheReload(string className, string load, string reload, string unload)
     {
-        ClassPatchResult result = Apply(CreateManager(className, load, reload, unload, startsLoader: true));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = Apply(CreateManager(className, load, reload, unload, startsLoader: true));
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
-        Assert.Equal(expected: 1, result.AdvisedMethods);
+        // The patch redirected one call, the start of the loader, and put its advice before one method, the reload.
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
+        Assert.Equal(expected: 1, applied.AdvisedMethods);
+
+        // The load hands its thread to the helper and no longer starts it itself, and the reload waits for the loader through the helper.
         ClassFileAssert.Calls(patched, load, Helper, name: "start", descriptor: "(Ljava/lang/Thread;)V");
         ClassFileAssert.DoesNotCall(patched, load, ThreadClass, name: "start", descriptor: "()V");
         ClassFileAssert.Calls(patched, reload, Helper, name: "awaitLoader", descriptor: "(Ljava/lang/Object;)V");
@@ -42,7 +59,9 @@ public sealed class SoundSystemLoadsPatchTests
 
     private static ClassPatchResult Apply(byte[] classFile)
     {
-        ClassPatchResult[] results = [.. SoundSystemLoads.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)).Select(patch => patch.Apply(classFile))];
+        ClassPatchResult[] results = [.. SoundSystemLoads.Patches
+            .Where(patch => patch.Matches(classFile, hierarchy: null))
+            .Select(patch => patch.Apply(classFile))];
 
         Assert.NotEmpty(results);
 
@@ -54,19 +73,16 @@ public sealed class SoundSystemLoadsPatchTests
     {
         JavaMethod start = JavaMethod.Virtual(ThreadClass, name: "start", descriptor: "()V");
 
-        return new ClassFileWriter(className)
-            .AddMethod(load, descriptor: "()V", code => (startsLoader ? code.AConstNull().Invoke(start) : code).Return(), accessFlags: 0x0022)
+        return new ClassFileWriter(className).AddMethod(load, descriptor: "()V", code => (startsLoader ? code.AConstNull().Invoke(start) : code).Return(), accessFlags: 0x0022)
             .AddMethod(unload, descriptor: "()V", static code => code.Return(), accessFlags: 0x0001)
-            .AddMethod(
-                reload,
+            .AddMethod(reload,
                 descriptor: "()V",
                 code => code.ALoad(slot: 0)
                     .Invoke(JavaMethod.Virtual(className, unload, descriptor: "()V"))
                     .ALoad(slot: 0)
                     .Invoke(JavaMethod.Virtual(className, load, descriptor: "()V"))
                     .Return(),
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
     }
 }

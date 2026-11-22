@@ -20,13 +20,17 @@ public sealed class GenerationServerTests
     private const string Image = "itzg/minecraft-server:stable-java8";
     private const string Packs = "/packs/";
     private const string Position = "-25 63 74";
-    private const UnixFileModes Readable = UnixFileModes.UserRead | UnixFileModes.UserWrite | UnixFileModes.UserExecute | UnixFileModes.GroupRead | UnixFileModes.GroupExecute | UnixFileModes.OtherRead | UnixFileModes.OtherExecute;
     private const string Seed = "78";
 
+    private const UnixFileModes Readable = UnixFileModes.UserRead | UnixFileModes.UserWrite | UnixFileModes.UserExecute | UnixFileModes.GroupRead | UnixFileModes.GroupExecute | UnixFileModes.OtherRead | UnixFileModes.OtherExecute;
+
     /// <summary>
-    /// The servers that name the generation region differently, each with its loader's version and the name it gives the region: vanilla's obfuscated one, MCP's
-    /// under Forge, and CraftBukkit's under Paper.
+    /// Gets the servers that name the generation region differently: vanilla, with its obfuscated name, Forge, with MCP's, and Paper, with CraftBukkit's.
     /// </summary>
+    /// <value>
+    /// One row for each server: itzg's TYPE, the loader's version, which is Forge's build and empty for vanilla and Paper, and the internal name that the
+    /// server gives the region's class, by which the agent logs that it patched it.
+    /// </value>
     public static TheoryData<string, string, string> Servers { get; } = new()
     {
         { "VANILLA", string.Empty, "aam" },
@@ -68,16 +72,21 @@ public sealed class GenerationServerTests
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
 
         // Paper keeps fewer chunks around the spawn point loaded than the others, so the chunk is loaded for all of them, which takes the server a few ticks.
-        ExecResult loaded = await server.ExecAsync(["rcon-cli", "forceload add -25 74"], timeout.Token);
+        ExecResult loaded = await server.ExecAsync(command: ["rcon-cli", "forceload add -25 74"], timeout.Token);
         ExecResult block = await AskAsync(server, "execute if block " + Position + " minecraft:spawner", timeout.Token);
         ExecResult entity = await AskAsync(server, "data get block " + Position + " id", timeout.Token);
 
         logs = await ForgeServer.ReadLogsAsync(server, timeout.Token);
 
+        // The agent patched the region under the name this server gives it, and the server took the command that loads the chest's chunk.
         ForgeServer.AssertLogged(logs, "ModLoaderFixes: patched " + region + ForgeServer.GenerationPatched);
         Assert.True(loaded.ExitCode is 0, loaded.Stdout + loaded.Stderr);
+
+        // The block where the chest stood is a spawner, and its block entity is no longer the chest's but the spawner's, whose id is mob_spawner.
         Assert.Contains(expectedSubstring: "Test passed", block.Stdout, StringComparison.Ordinal);
         Assert.Contains(expectedSubstring: "\"minecraft:mob_spawner\"", entity.Stdout, StringComparison.Ordinal);
+
+        // Paper read no block with another block's block entity, which it logs that Bukkit will attempt to fix, and no chunk failed to generate.
         ForgeServer.AssertNotLogged(logs, unexpected: "Bukkit will attempt to fix this");
         ForgeServer.AssertNotLogged(logs, unexpected: "Exception generating new chunk");
     }
@@ -85,12 +94,16 @@ public sealed class GenerationServerTests
     // Asks the server's remote console, again while it answers that the chunk isn't loaded yet.
     private static async Task<ExecResult> AskAsync(IContainer server, string command, CancellationToken cancellationToken)
     {
-        ExecResult answer = await server.ExecAsync(["rcon-cli", command], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        ExecResult answer = await server.ExecAsync(command: ["rcon-cli", command], cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         for (int attempt = 0; attempt < 30 && answer.Stdout.Contains(value: "not loaded", StringComparison.Ordinal); attempt++)
         {
-            await Task.Delay(TimeSpan.FromSeconds(seconds: 1), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-            answer = await server.ExecAsync(["rcon-cli", command], cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            await Task.Delay(TimeSpan.FromSeconds(seconds: 1), cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            answer = await server.ExecAsync(command: ["rcon-cli", command], cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
 
         return answer;
@@ -103,7 +116,8 @@ public sealed class GenerationServerTests
 
         using (ZipArchive archive = new(bytes, ZipArchiveMode.Create, leaveOpen: true))
         {
-            foreach (string file in Directory.EnumerateFiles(directory, searchPattern: "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+            foreach (string file in Directory.EnumerateFiles(directory, searchPattern: "*", SearchOption.AllDirectories)
+                .Order(StringComparer.Ordinal))
             {
                 string name = Path.GetRelativePath(directory, file).Replace(Path.DirectorySeparatorChar, newChar: '/');
 

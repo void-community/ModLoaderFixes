@@ -18,21 +18,39 @@ public sealed class ZipFileChannelsPatchTests
     [Fact]
     public void PatchOnlyMatchesTheZipFileSystems()
     {
-        Assert.False(ZipFileChannels.Patch.Matches(CreateFileSystem(className: "cpw/mods/niofs/union/UnionFileSystem"), hierarchy: null));
+        Assert.False(ZipFileChannels.Patch
+            .Matches(CreateFileSystem(className: "cpw/mods/niofs/union/UnionFileSystem"), hierarchy: null));
     }
 
     /// <summary>The constructor opens its channel through the helper.</summary>
+    /// <param name="className">
+    /// The internal name of the JDK's zip file system: in <c>jdk/nio/zipfs</c>, where Java has it from 9, or in Java 8's <c>com/sun/nio/zipfs</c>.
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the file system under <paramref name="className"/> unchanged, so there is no patched constructor to look into; the message is the patch's
+    /// own account of what it did.
+    /// </exception>
     [Theory]
     [InlineData("jdk/nio/zipfs/ZipFileSystem")]
     [InlineData("com/sun/nio/zipfs/ZipFileSystem")]
     public void PatchOpensTheChannelThroughTheHelper(string className)
     {
-        ClassPatchResult result = ZipFileChannels.Patch.Apply(CreateFileSystem(className));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = ZipFileChannels.Patch.Apply(CreateFileSystem(className));
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
-        ClassFileAssert.Calls(patched, method: "<init>", owner: "modloaderfixes/ZipChannels", NewByteChannel, NewByteChannelDescriptor);
-        ClassFileAssert.DoesNotCall(patched, method: "<init>", owner: "java/nio/file/Files", NewByteChannel, NewByteChannelDescriptor);
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
+
+        ClassFileAssert.Calls(patched,
+            method: "<init>",
+            owner: "modloaderfixes/ZipChannels",
+            NewByteChannel,
+            NewByteChannelDescriptor);
+
+        ClassFileAssert.DoesNotCall(patched,
+            method: "<init>",
+            owner: "java/nio/file/Files",
+            NewByteChannel,
+            NewByteChannelDescriptor);
     }
 
     // A constructor that opens its channel with Files.newByteChannel from a null path and no options, and stores nothing, as ZipFileSystem's opens its own.
@@ -41,8 +59,7 @@ public sealed class ZipFileChannelsPatchTests
         JavaMethod open = JavaMethod.Static(owner: "java/nio/file/Files", NewByteChannel, NewByteChannelDescriptor);
 
         return new ClassFileWriter(className)
-            .AddMethod(
-                name: "<init>",
+            .AddMethod(name: "<init>",
                 descriptor: "()V",
                 code => code.ALoad(slot: 0)
                     .InvokeSpecial(owner: "java/lang/Object", name: "<init>", descriptor: "()V")
@@ -52,8 +69,7 @@ public sealed class ZipFileChannelsPatchTests
                     .Invoke(open)
                     .Pop()
                     .Return(),
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
     }
 }

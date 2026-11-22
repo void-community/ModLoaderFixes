@@ -11,9 +11,13 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 public sealed class ModLoaderConfigurationServerTests
 {
     /// <summary>
-    /// Forge for 1.19.4, which loads the config once, and Forge and NeoForge builds that load it twice, the ones seen crashing among them, with the itzg image that
-    /// runs them: its latest release for their Java, which ForgeServer asks Docker Hub for once in each run.
+    /// Gets the builds whose servers load FML's config through the agent's helper: Forge for 1.19.4, which loads the config once, and Forge and NeoForge builds
+    /// that load it twice, the ones seen crashing among them.
     /// </summary>
+    /// <value>
+    /// One row for each build: the itzg image that runs it, itzg's TYPE, the Minecraft version, and the Forge or NeoForge build. The image is itzg's latest
+    /// release for the build's Java, which ForgeServer asks Docker Hub for once in each run.
+    /// </value>
     public static TheoryData<string, string, string, string> Builds { get; } = new()
     {
         { "itzg/minecraft-server:stable-java17", "FORGE", "1.19.4", "45.3.0" },
@@ -47,13 +51,13 @@ public sealed class ModLoaderConfigurationServerTests
             .Build();
 
         string logs = await ForgeServer.StartAsync(server, timeout.Token);
+
         string package = type == "NEOFORGE" ? "net/neoforged" : "net/minecraftforge";
 
         ForgeServer.AssertLogged(logs, ForgeServer.ReadyLine);
+
         // The agent logs the redirect and the members the patch adds on one line.
-        ForgeServer.AssertLogged(
-            logs,
-            $"ModLoaderFixes: patched {package}/fml/loading/FMLConfig (load()V: 1 invocation of {package}/fml/loading/FMLConfig.loadFrom redirected; modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)"
-        );
+        ForgeServer.AssertLogged(logs,
+            expected: $"ModLoaderFixes: patched {package}/fml/loading/FMLConfig (load()V: 1 invocation of {package}/fml/loading/FMLConfig.loadFrom redirected; modloaderfixes$configData()Ljava/lang/Object;: getter of field configData added; modloaderfixes$loadFrom(Ljava/nio/file/Path;)V: invoker of loadFrom(Ljava/nio/file/Path;)V added)");
     }
 }

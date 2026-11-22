@@ -13,11 +13,9 @@ internal sealed class MappedClass
     /// <param name="name">The class's name under Forge.</param>
     /// <param name="methods">The requested methods' names and descriptors under Forge.</param>
     /// <param name="vanilla">For each set of vanilla releases that name them alike, the releases, the class's obfuscated name and its methods', in the same order.</param>
-    internal MappedClass(
-        string name,
+    internal MappedClass(string name,
         IReadOnlyList<(string Name, string Descriptor)> methods,
-        IReadOnlyList<(string Versions, string Name, IReadOnlyList<(string Name, string Descriptor)> Methods)> vanilla
-    )
+        IReadOnlyList<(string Versions, string Name, IReadOnlyList<(string Name, string Descriptor)> Methods)> vanilla)
     {
         Forge = new ClassNames(name, versions: null, methods, methods);
         Vanilla = [.. vanilla.Select(naming => new ClassNames(naming.Name, naming.Versions, methods, naming.Methods))];

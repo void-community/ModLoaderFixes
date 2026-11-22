@@ -11,10 +11,12 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 public sealed class ZipChannelServerTests
 {
     /// <summary>
-    /// Forge 1.20.1's last build on SecureJarHandler 2.1.6, which leaves the zip file system's channel as the JDK opened it, and the first on 2.1.9, which makes it
-    /// uninterruptible itself by casting it to the JDK's FileChannelImpl, as NeoForge does through FML's own SecureJarHandler up to 1.21.8. Each runs on itzg's
-    /// latest release for its Java, which ForgeServer asks Docker Hub for once in each run.
+    /// Gets the servers that <see cref="ServerOpensItsJarsThroughTheAgentsChannel"/> starts: Forge 1.20.1's last build on SecureJarHandler 2.1.6, which leaves
+    /// the zip file system's channel as the JDK opened it, and the first on 2.1.9, which makes it uninterruptible itself by casting it to the JDK's
+    /// FileChannelImpl, as NeoForge does through FML's own SecureJarHandler up to 1.21.8.
     /// </summary>
+    /// <value>One row for each server: the itzg image that runs it, itzg's TYPE, the Minecraft version and the Forge or NeoForge build.</value>
+    /// <remarks>Each server runs on itzg's latest release for its Java, which ForgeServer asks Docker Hub for once in each run.</remarks>
     public static TheoryData<string, string, string, string> Builds { get; } = new()
     {
         { "itzg/minecraft-server:stable-java17", "FORGE", "1.20.1", "47.0.1" },

@@ -14,6 +14,10 @@ public sealed class ObjectHolderTests
     /// Without the agent the HashSet loses handlers, breaks with the ClassCastException Forge clients crash with, or loops forever; with it every handler is
     /// kept. Forge's registry runs on Java 8 to 17, so the fixture is compiled for each.
     /// </summary>
+    /// <param name="jdk">
+    /// The JDK of Java 8 or 17, which compiles the fixture for its own release and runs it without the agent and then with the library.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8, 17)]
     public async Task AgentKeepsEveryHandlerThatThreadsAddAtOnce(Jdk jdk)
@@ -21,8 +25,8 @@ public sealed class ObjectHolderTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -33,10 +37,12 @@ public sealed class ObjectHolderTests
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsEveryHandler(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
+    /// <param name="jdk">The JDK of Java 8, which compiles the fixture and runs it with the jar.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarKeepsEveryHandlerThatThreadsAddAtOnce(Jdk jdk)
@@ -44,24 +50,26 @@ public sealed class ObjectHolderTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, cancellationToken: cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertKeepsEveryHandler(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertKeepsEveryHandler(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)",
+
+        Assert.Contains(expectedSubstring: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
+
         // Every handler is there, and the map the initializer creates next is still a HashMap.
-        Assert.Contains(expectedSubstring: "HANDLERS 400000 in KeySetView, NAMED HashMap", patched.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedSubstring: "HANDLERS 400000 in KeySetView, NAMED HashMap",
+            patched.Output,
+            StringComparison.Ordinal);
     }
 
     // The patched initializer goes through the full verifier.

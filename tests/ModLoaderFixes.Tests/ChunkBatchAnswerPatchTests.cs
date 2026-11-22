@@ -9,11 +9,16 @@ namespace ModLoaderFixes.Tests;
 /// <summary>Redirecting Minecraft's answer to a chunk batch to the helper that sends it from the client thread.</summary>
 public sealed class ChunkBatchAnswerPatchTests
 {
+    // The packet listener and its handler of a finished chunk batch, the only method in which the patch redirects the answer.
     private const string ClassName = "net/minecraft/client/multiplayer/ClientPacketListener";
     private const string HandleChunkBatchFinished = "handleChunkBatchFinished";
     private const string HandlerDescriptor = "(Lnet/minecraft/network/protocol/game/ClientboundChunkBatchFinishedPacket;)V";
+
+    // The helper that the answer goes to, whose method takes the listener ahead of the packet.
     private const string Helper = "modloaderfixes/ClientPackets";
     private const string HelperDescriptor = "(Lnet/minecraft/client/multiplayer/ClientPacketListener;Lnet/minecraft/network/protocol/Packet;)V";
+
+    // The listener's own send, which a handler answers through before the patch; the helper's method keeps its name.
     private const string Send = "send";
     private const string SendDescriptor = "(Lnet/minecraft/network/protocol/Packet;)V";
 
@@ -21,20 +26,27 @@ public sealed class ChunkBatchAnswerPatchTests
     [Fact]
     public void PatchLeavesListenersWithoutTheHandler()
     {
-        ClassPatchResult result = PatcherAgent.ChunkBatchAnswer.Apply(CreateClassFile((Name: "handlePing", Descriptor: "(Ljava/lang/Object;)V")));
+        ClassPatchResult skipped = PatcherAgent.ChunkBatchAnswer
+            .Apply(CreateClassFile((Name: "handlePing", Descriptor: "(Ljava/lang/Object;)V")));
 
-        Assert.False(result.Changed);
-        Assert.Contains(HandleChunkBatchFinished, result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains(HandleChunkBatchFinished, skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary>The answer in <c>handleChunkBatchFinished</c> goes to the helper, with the listener and the packet as its arguments, and the one in another handler stays.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left the listener unchanged although it has the handler, so there are no patched bytes in which to look for the answer; the message is the patch's
+    /// own line about the class.
+    /// </exception>
     [Fact]
     public void PatchRedirectsTheAnswerInHandleChunkBatchFinished()
     {
-        ClassPatchResult result = PatcherAgent.ChunkBatchAnswer.Apply(CreateClassFile((HandleChunkBatchFinished, HandlerDescriptor), (Name: "handlePing", Descriptor: "(Ljava/lang/Object;)V")));
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = PatcherAgent.ChunkBatchAnswer
+            .Apply(CreateClassFile((HandleChunkBatchFinished, HandlerDescriptor), (Name: "handlePing", Descriptor: "(Ljava/lang/Object;)V")));
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
+
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
         ClassFileAssert.Calls(patched, HandleChunkBatchFinished, Helper, Send, HelperDescriptor);
         ClassFileAssert.DoesNotCall(patched, HandleChunkBatchFinished, ClassName, Send, SendDescriptor);
         ClassFileAssert.Calls(patched, method: "handlePing", ClassName, Send, SendDescriptor);

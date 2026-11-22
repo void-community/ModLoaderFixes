@@ -25,7 +25,6 @@ public sealed class LocalServerTests
 
     // The reload of 1.18.2, SimpleReloadInstance, by the name that release gives it; it waits for its data packs forever when its listener set loses a removal.
     private const string ReloadLocked = "ModLoaderFixes: patched agf (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)";
-
     private const string TweakersSorted = "ModLoaderFixes: patched cpw/mods/fml/relauncher/CoreModManager";
 
     /// <summary>
@@ -35,21 +34,21 @@ public sealed class LocalServerTests
     [Fact]
     public async Task Forge1202ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Forge1202, [ConfigurationLoaded, PaletteRead]);
+        await AssertStartsAsync(LocalServer.Forge1202, patched: [ConfigurationLoaded, PaletteRead]);
     }
 
     /// <summary>Forge 1.7.2 sorts its tweakers without crashing and becomes ready.</summary>
     [Fact]
     public async Task Forge172ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Forge172, [TweakersSorted]);
+        await AssertStartsAsync(LocalServer.Forge172, patched: [TweakersSorted]);
     }
 
     /// <summary>Vanilla 1.18.2 becomes ready with its reload's listener set locked and with its chunks' blocks read through the patched container.</summary>
     [Fact]
     public async Task Vanilla1182ServerStartsOnThisPlatformWithTheLibraryAndWithTheJar()
     {
-        await AssertStartsAsync(LocalServer.Vanilla1182, [ReloadLocked, PaletteReadOf1182]);
+        await AssertStartsAsync(LocalServer.Vanilla1182, patched: [ReloadLocked, PaletteReadOf1182]);
     }
 
     private static async Task AssertStartsAsync(LocalServer server, string[] patched)
@@ -64,7 +63,8 @@ public sealed class LocalServerTests
 
         try
         {
-            LocalServerLaunch launch = await server.InstallAsync(directory, jdk, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+            LocalServerLaunch launch = await server.InstallAsync(directory, jdk, cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
             await AssertStartsWithAsync(PublishedAgent.Find(name: "ModLoaderFixes"), jdk, launch, patched, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             await AssertStartsWithAsync(PublishedAgent.FindJar(name: "ModLoaderFixes"), jdk, launch, patched, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
@@ -87,25 +87,26 @@ public sealed class LocalServerTests
             Timeout = TimeSpan.FromMinutes(minutes: 10),
         };
 
-        JavaProcess server = await jdk.StartAsync(launch.MainClass, launch.ClassPath, agent, options, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        JavaProcess server = await jdk.StartAsync(launch.MainClass, launch.ClassPath, agent, options, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         await using ConfiguredAsyncDisposable disposal = server.ConfigureAwait(continueOnCapturedContext: false);
 
-        string started = await server.WaitForOutputAsync(ForgeServer.ReadyLine, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        string started = await server.WaitForOutputAsync(ForgeServer.ReadyLine, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         Assert.Contains(ForgeServer.ReadyLine, started, StringComparison.Ordinal);
 
         await server.WriteLineAsync(line: "stop", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         JavaRun run = await server.WaitForExitAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
         string loaded = agent.IsJar ? "the jar" : "the library";
 
         foreach (string line in patched)
         {
-            Assert.True(
-                run.Output.Contains(line, StringComparison.Ordinal),
-                $"With {loaded} the server didn't log \"{line}\". It logged:{Environment.NewLine}{run.Output}"
-            );
+            Assert.True(run.Output.Contains(line, StringComparison.Ordinal),
+                userMessage: $"With {loaded} the server didn't log \"{line}\". It logged:{Environment.NewLine}{run.Output}");
         }
 
         ForgeServer.AssertNotLogged(run.Output, unexpected: "ConcurrentModificationException");

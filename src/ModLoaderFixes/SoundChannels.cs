@@ -14,26 +14,28 @@ namespace ModLoaderFixes;
 /// </summary>
 internal static class SoundChannels
 {
-    private const string Description = "channels released on the sound thread";
-    private const string Executor = "Ljava/util/concurrent/Executor;";
     // Java 21's class file version, which Minecraft 1.20.5 and later compile for.
     private const int Java21 = 65;
-
-    private const string MovedBody = "modloaderfixes$clear";
-
     private const int Static = 0x0008;
 
-    private static readonly JavaMethod ForEach = JavaMethod.Interface(owner: "java/util/Set", name: "forEach", descriptor: "(Ljava/util/function/Consumer;)V");
+    private const string Description = "channels released on the sound thread";
+    private const string Executor = "Ljava/util/concurrent/Executor;";
+    private const string MovedBody = "modloaderfixes$clear";
+
+    private static readonly JavaMethod ForEach = JavaMethod.Interface(owner: "java/util/Set",
+        name: "forEach",
+        descriptor: "(Ljava/util/function/Consumer;)V");
+
     private static readonly JavaMethod Clear = JavaMethod.Interface(owner: "java/util/Set", name: "clear", descriptor: "()V");
     private static readonly JavaMethod Run = JavaMethod.Interface(owner: "java/lang/Runnable", name: "run", descriptor: "()V");
 
-    private static readonly JavaMethod RunAsync = JavaMethod.Static(
-        owner: "java/util/concurrent/CompletableFuture",
+    private static readonly JavaMethod RunAsync = JavaMethod.Static(owner: "java/util/concurrent/CompletableFuture",
         name: "runAsync",
-        descriptor: "(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"
-    );
+        descriptor: "(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;");
 
-    private static readonly JavaMethod Join = JavaMethod.Virtual(owner: "java/util/concurrent/CompletableFuture", name: "join", descriptor: "()Ljava/lang/Object;");
+    private static readonly JavaMethod Join = JavaMethod.Virtual(owner: "java/util/concurrent/CompletableFuture",
+        name: "join",
+        descriptor: "()Ljava/lang/Object;");
 
     /// <summary>
     /// Gets the patches of <c>ChannelAccess</c>: Forge's, by MCP's name <c>ChannelManager</c> up to 1.16.5 and by Mojang's from 1.17, and vanilla's under each
@@ -51,8 +53,13 @@ internal static class SoundChannels
     private static int Defer(ClassFileEditor editor)
     {
         JavaClassFile model = editor.Model;
-        ClassMember[] clears = [.. model.Methods.Where(method => method is { Descriptor: "()V", Code: { } code } && (method.AccessFlags & Static) == 0 && Releases(model, code))];
-        ClassMember[] executors = [.. model.Fields.Where(static field => field is { Descriptor: Executor } && (field.AccessFlags & Static) == 0)];
+
+        ClassMember[] clears = [.. model.Methods
+            .Where(method => method is { Descriptor: "()V", Code: { } code } && (method.AccessFlags & Static) == 0 && Releases(model, code))];
+
+        ClassMember[] executors = [.. model.Fields
+            .Where(static field => field is { Descriptor: Executor } && (field.AccessFlags & Static) == 0)];
+
         bool isPatched = model.FindMethod(MovedBody, descriptor: "()V") is not null;
 
         if (clears is not [{ } clear] || executors is not [{ } executor] || isPatched || model.MajorVersion >= Java21)
@@ -60,8 +67,7 @@ internal static class SoundChannels
 
         JavaMethod moved = JavaMethod.Virtual(model.Name, MovedBody, descriptor: "()V");
 
-        editor.ReplaceMethodBody(
-            clear.Name,
+        editor.ReplaceMethodBody(clear.Name,
             clear.Descriptor,
             MovedBody,
             code => code.ALoad(slot: 0)
@@ -71,14 +77,14 @@ internal static class SoundChannels
                 .Invoke(RunAsync)
                 .Invoke(Join)
                 .Pop()
-                .Return()
-        );
+                .Return());
 
         return 1;
     }
 
     private static bool Releases(JavaClassFile model, CodeAttribute code)
     {
-        return code.Instructions.Any(instruction => model.Invokes(instruction, ForEach)) && code.Instructions.Any(instruction => model.Invokes(instruction, Clear));
+        return code.Instructions.Any(instruction => model.Invokes(instruction, ForEach))
+            && code.Instructions.Any(instruction => model.Invokes(instruction, Clear));
     }
 }

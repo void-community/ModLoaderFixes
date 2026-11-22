@@ -11,8 +11,7 @@ namespace ModLoaderFixes.IntegrationTests.Rendering;
 public sealed class EntityRenderCameraTests
 {
     private const string MainClass = "net.minecraft.client.renderer.entity.EntityRendererManager";
-    private const string Patched =
-        "ModLoaderFixes: patched net/minecraft/client/renderer/entity/EntityRendererManager (entities drawn only with a camera (1 change))";
+    private const string Patched = "ModLoaderFixes: patched net/minecraft/client/renderer/entity/EntityRendererManager (entities drawn only with a camera (1 change))";
     private const string Sources = "Fixtures/EntityRenderCamera/**/*.java";
 
     /// <summary>
@@ -20,6 +19,7 @@ public sealed class EntityRenderCameraTests
     /// and the next, whose entity pass prepares the dispatcher, draws the item. Minecraft 1.14 runs on Java 8.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentDrawsThePickedUpItemOnlyOnceTheDispatcherHasACamera(Jdk jdk)
@@ -27,21 +27,25 @@ public sealed class EntityRenderCameraTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.Contains(expectedSubstring: "first frame: java.lang.NullPointerException; next frame: drawn", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "first frame: java.lang.NullPointerException; next frame: drawn",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertDrawsOnlyWithACamera(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarDrawsThePickedUpItemOnlyOnceTheDispatcherHasACamera(Jdk jdk)
@@ -49,15 +53,15 @@ public sealed class EntityRenderCameraTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertDrawsOnlyWithACamera(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertDrawsOnlyWithACamera(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);

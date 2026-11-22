@@ -26,27 +26,30 @@ public sealed class PaperBlockEntityStatesPatchTests
     public void PatchLeavesAStateWithoutTheCastingConstructor()
     {
         byte[] classFile = new ClassFileWriter(name: "org/bukkit/craftbukkit/v1_17_R1/block/CraftBlockEntityState", majorVersion: 60)
-            .AddMethod(
-                name: "<init>",
+            .AddMethod(name: "<init>",
                 descriptor: "(Lorg/bukkit/World;Lnet/minecraft/world/level/block/entity/TileEntity;)V",
                 static code => code.Return(),
-                accessFlags: 0x0001
-            )
+                accessFlags: 0x0001)
             .ToArray();
 
-        Assert.All(
-            PaperBlockEntityStates.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)),
-            patch => Assert.False(patch.Apply(classFile).Changed)
-        );
+        Assert.All(PaperBlockEntityStates.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)),
+            patch => Assert.False(patch.Apply(classFile).Changed));
     }
 
     /// <summary>The cast in another method of the state, as in the constructor that takes a block entity, stays Java's.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// Paper 1.14's patch left the state unchanged although its constructor casts, so there is no patched class in which the other method's cast could have
+    /// stayed.
+    /// </exception>
     [Fact]
     public void PatchLeavesTheCastOfOtherMethods()
     {
         const string state = "org/bukkit/craftbukkit/v1_14_R1/block/CraftBlockEntityState";
 
-        byte[] patched = PaperBlockEntityStates.Paper14.Apply(Create(state, entity: "net/minecraft/server/v1_14_R1/TileEntity")).Bytes ?? throw new InvalidOperationException();
+        byte[] patched = PaperBlockEntityStates.Paper14
+            .Apply(Create(state, entity: "net/minecraft/server/v1_14_R1/TileEntity"))
+            .Bytes
+            ?? throw new InvalidOperationException();
 
         ClassFileAssert.Calls(patched, method: "load", owner: "java/lang/Class", name: "cast", Cast);
     }
@@ -55,25 +58,27 @@ public sealed class PaperBlockEntityStatesPatchTests
     /// <param name="state">The state's name.</param>
     /// <param name="entity">The name of the block entity it holds.</param>
     /// <param name="helper">The helper its constructor casts through.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The one patch that matches <paramref name="state"/> left it unchanged, so there is no patched constructor to look into; the message is the patch's own
+    /// account of what it did.
+    /// </exception>
     [Theory]
-    [InlineData(
-        "org/bukkit/craftbukkit/v1_14_R1/block/CraftBlockEntityState",
+    [InlineData("org/bukkit/craftbukkit/v1_14_R1/block/CraftBlockEntityState",
         "net/minecraft/server/v1_14_R1/TileEntity",
-        "modloaderfixes/PaperBlockEntities"
-    )]
-    [InlineData(
-        "org/bukkit/craftbukkit/v1_17_R1/block/CraftBlockEntityState",
+        "modloaderfixes/PaperBlockEntities")]
+    [InlineData("org/bukkit/craftbukkit/v1_17_R1/block/CraftBlockEntityState",
         "net/minecraft/world/level/block/entity/TileEntity",
-        "modloaderfixes/Paper17BlockEntities"
-    )]
+        "modloaderfixes/Paper17BlockEntities")]
     public void PatchRedirectsTheCastOfTheConstructor(string state, string entity, string helper)
     {
         byte[] classFile = Create(state, entity);
 
-        ClassPatchResult result = Assert.Single(PaperBlockEntityStates.Patches, patch => patch.Matches(classFile, hierarchy: null)).Apply(classFile);
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        ClassPatchResult applied = Assert.Single(PaperBlockEntityStates.Patches, patch => patch.Matches(classFile, hierarchy: null))
+            .Apply(classFile);
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
+
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
         ClassFileAssert.Calls(patched, method: "<init>", helper, name: "cast", HelperDescriptor);
         ClassFileAssert.DoesNotCall(patched, method: "<init>", owner: "java/lang/Class", name: "cast", Cast);
     }
@@ -85,10 +90,8 @@ public sealed class PaperBlockEntityStatesPatchTests
         string entityDescriptor = "L" + entity + ";";
         JavaMethod cast = JavaMethod.Virtual(owner: "java/lang/Class", name: "cast", Cast);
 
-        return new ClassFileWriter(state, majorVersion: 52)
-            .AddField(name: "tileEntity", entityDescriptor)
-            .AddMethod(
-                name: "<init>",
+        return new ClassFileWriter(state, majorVersion: 52).AddField(name: "tileEntity", entityDescriptor)
+            .AddMethod(name: "<init>",
                 Constructor,
                 code => code.ALoad(slot: 0)
                     .InvokeSpecial(owner: "java/lang/Object", name: "<init>", descriptor: "()V")
@@ -99,14 +102,15 @@ public sealed class PaperBlockEntityStatesPatchTests
                     .CheckCast(entity)
                     .PutField(state, name: "tileEntity", entityDescriptor)
                     .Return(),
-                accessFlags: 0x0001
-            )
-            .AddMethod(
-                name: "load",
+                accessFlags: 0x0001)
+            .AddMethod(name: "load",
                 descriptor: "(Ljava/lang/Class;Ljava/lang/Object;)V",
-                code => code.ALoad(slot: 1).ALoad(slot: 2).Invoke(cast).Pop().Return(),
-                accessFlags: 0x0001
-            )
+                code => code.ALoad(slot: 1)
+                    .ALoad(slot: 2)
+                    .Invoke(cast)
+                    .Pop()
+                    .Return(),
+                accessFlags: 0x0001)
             .ToArray();
     }
 }

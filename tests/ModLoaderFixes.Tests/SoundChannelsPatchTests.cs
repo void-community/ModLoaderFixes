@@ -12,10 +12,14 @@ public sealed class SoundChannelsPatchTests
     private const string Executor = "Ljava/util/concurrent/Executor;";
     private const string MovedBody = "modloaderfixes$clear";
 
-    private static readonly JavaMethod ForEach = JavaMethod.Interface(owner: "java/util/Set", name: "forEach", descriptor: "(Ljava/util/function/Consumer;)V");
+    private static readonly JavaMethod ForEach = JavaMethod.Interface(owner: "java/util/Set",
+        name: "forEach",
+        descriptor: "(Ljava/util/function/Consumer;)V");
+
     private static readonly JavaMethod Clear = JavaMethod.Interface(owner: "java/util/Set", name: "clear", descriptor: "()V");
 
     /// <summary>Gets <c>ChannelAccess</c> under Forge's names up to 1.16.5 and from 1.17, and under the names of vanilla 1.16.3, with the name of its <c>clear</c>.</summary>
+    /// <value>One row per naming, in the order above: the internal name of the class, then the name that the naming gives the class's <c>clear</c> method.</value>
     public static TheoryData<string, string> Classes { get; } = new()
     {
         { "net/minecraft/client/audio/ChannelManager", "func_217936_b" },
@@ -24,6 +28,10 @@ public sealed class SoundChannelsPatchTests
     };
 
     /// <summary>A class that the patch has moved <c>clear</c> of already is left as it is.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The first application left the unpatched <c>ChannelAccess</c> unchanged, so there are no patched bytes to apply the patch to again; the message is the patch's
+    /// own line on why.
+    /// </exception>
     [Fact]
     public void PatchLeavesAPatchedClassAlone()
     {
@@ -37,7 +45,9 @@ public sealed class SoundChannelsPatchTests
     [Fact]
     public void PatchLeavesClassesCompiledForJava21Alone()
     {
-        Assert.False(Apply(CreateChannelAccess(className: "net/minecraft/client/sounds/ChannelAccess", clear: "clear", majorVersion: 65)).Changed);
+        Assert.False(Apply(CreateChannelAccess(className: "net/minecraft/client/sounds/ChannelAccess",
+            clear: "clear",
+            majorVersion: 65)).Changed);
     }
 
     /// <summary>
@@ -47,8 +57,7 @@ public sealed class SoundChannelsPatchTests
     [Fact]
     public void PatchLeavesOtherClassesOfTheSameNameAlone()
     {
-        byte[] classFile = new ClassFileWriter(name: "enf", superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52)
-            .AddField(name: "a", Executor, accessFlags: 0x0012)
+        byte[] classFile = new ClassFileWriter(name: "enf", superName: "java/lang/Object", accessFlags: 0x0021, majorVersion: 52).AddField(name: "a", Executor, accessFlags: 0x0012)
             .AddMethod(name: "b", descriptor: "()V", static code => code.Return(), accessFlags: 0x0001)
             .ToArray();
 
@@ -58,45 +67,51 @@ public sealed class SoundChannelsPatchTests
     /// <summary>Once patched, <c>clear</c> runs its old code, moved to a method of its own, on the executor and waits for it.</summary>
     /// <param name="className">The class's name.</param>
     /// <param name="clear">The name of its <c>clear</c>.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch of <paramref name="className"/> left a <c>ChannelAccess</c> compiled for Java 8 unchanged, so it has no bytes to read <paramref name="clear"/> from;
+    /// the message is the patch's own line on why.
+    /// </exception>
     [Theory]
     [MemberData(nameof(Classes))]
     public void PatchReleasesTheChannelsOnTheExecutor(string className, string clear)
     {
-        ClassPatchResult result = Apply(CreateChannelAccess(className, clear, majorVersion: 52));
-        JavaClassFile patched = JavaClassFile.Read(result.Bytes ?? throw new InvalidOperationException(result.ToString()));
+        ClassPatchResult applied = Apply(CreateChannelAccess(className, clear, majorVersion: 52));
+        JavaClassFile patched = JavaClassFile.Read(applied.Bytes ?? throw new InvalidOperationException(applied.ToString()));
 
-        Assert.Equal(
-            [
-                Opcodes.ALoad0,
-                Opcodes.InvokeDynamic,
-                Opcodes.ALoad0,
-                Opcodes.GetField,
-                Opcodes.InvokeStatic,
-                Opcodes.InvokeVirtual,
-                Opcodes.Pop,
-                Opcodes.Return,
-            ],
-            OpcodesOf(patched, clear)
-        );
-        Assert.Equal(OpcodesOf(JavaClassFile.Read(CreateChannelAccess(className, clear, majorVersion: 52)), clear), OpcodesOf(patched, MovedBody));
+        Assert.Equal(expected:
+        [
+            Opcodes.ALoad0,
+            Opcodes.InvokeDynamic,
+            Opcodes.ALoad0,
+            Opcodes.GetField,
+            Opcodes.InvokeStatic,
+            Opcodes.InvokeVirtual,
+            Opcodes.Pop,
+            Opcodes.Return,
+        ],
+            OpcodesOf(patched, clear));
+
+        Assert.Equal(OpcodesOf(JavaClassFile.Read(CreateChannelAccess(className, clear, majorVersion: 52)), clear),
+            OpcodesOf(patched, MovedBody));
     }
 
     private static ClassPatchResult Apply(byte[] classFile)
     {
         string name = JavaClassFile.Read(classFile).Name;
 
-        return SoundChannels.Patches.Where(patch => patch.Matches(classFile, hierarchy: null)).Select(patch => patch.Apply(classFile)).Single(result => result.ClassName == name);
+        return SoundChannels.Patches
+            .Where(patch => patch.Matches(classFile, hierarchy: null))
+            .Select(patch => patch.Apply(classFile))
+            .Single(result => result.ClassName == name);
     }
 
     // ChannelAccess as Minecraft compiles it, with aconst_null in place of the invokedynamic of ChannelHandle::release, and with the private method of
     // scheduleTick's lambda, which takes no parameters either but walks the set with an iterator.
     private static byte[] CreateChannelAccess(string className, string clear, int majorVersion)
     {
-        return new ClassFileWriter(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion)
-            .AddField(name: "a", Channels, accessFlags: 0x0012)
+        return new ClassFileWriter(className, superName: "java/lang/Object", accessFlags: 0x0021, majorVersion).AddField(name: "a", Channels, accessFlags: 0x0012)
             .AddField(name: "c", Executor, accessFlags: 0x0012)
-            .AddMethod(
-                clear,
+            .AddMethod(clear,
                 descriptor: "()V",
                 code => code.ALoad(slot: 0)
                     .GetField(className, name: "a", Channels)
@@ -106,24 +121,22 @@ public sealed class SoundChannelsPatchTests
                     .GetField(className, name: "a", Channels)
                     .Invoke(Clear)
                     .Return(),
-                accessFlags: 0x0001
-            )
-            .AddMethod(
-                name: "c",
+                accessFlags: 0x0001)
+            .AddMethod(name: "c",
                 descriptor: "()V",
                 code => code.ALoad(slot: 0)
                     .GetField(className, name: "a", Channels)
                     .Invoke(JavaMethod.Interface(owner: "java/util/Set", name: "iterator", descriptor: "()Ljava/util/Iterator;"))
                     .Pop()
                     .Return(),
-                accessFlags: 0x1002
-            )
+                accessFlags: 0x1002)
             .ToArray();
     }
 
     private static List<byte> OpcodesOf(JavaClassFile model, string method)
     {
-        CodeAttribute code = model.FindMethod(method, descriptor: "()V")?.Code ?? throw new InvalidOperationException(model.Name + " has no " + method + "()V.");
+        CodeAttribute code = model.FindMethod(method, descriptor: "()V")?.Code
+            ?? throw new InvalidOperationException(model.Name + " has no " + method + "()V.");
 
         return [.. code.Instructions.Select(static instruction => instruction.Opcode)];
     }

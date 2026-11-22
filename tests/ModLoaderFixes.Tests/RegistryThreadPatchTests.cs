@@ -18,54 +18,83 @@ public sealed class RegistryThreadPatchTests
     [Fact]
     public void InjectionPatchLeavesAnInjectionThatForgeAlreadyScheduled()
     {
-        ClassPatchResult result = PatcherAgent.RegistryInjection.Apply(
-            CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$4", PatcherAgent.InjectSnapshot, Lambda)
-        );
+        ClassPatchResult skipped = PatcherAgent.RegistryInjection
+            .Apply(CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$4", PatcherAgent.InjectSnapshot, Lambda));
 
-        Assert.False(result.Changed);
-        Assert.Contains("no invocation of " + PatcherAgent.InjectSnapshot.Owner, result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+
+        Assert.Contains("no invocation of " + PatcherAgent.InjectSnapshot.Owner,
+            skipped.SkippedReason,
+            StringComparison.Ordinal);
     }
 
     /// <summary>The injection in WAITINGSERVERCOMPLETE's <c>accept</c> now goes to the helper, which returns its result.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left a WAITINGSERVERCOMPLETE whose <c>accept</c> calls the injection itself unchanged, so it has no bytes to check; the message is the patch's own
+    /// line on why.
+    /// </exception>
     [Fact]
     public void InjectionPatchRedirectsTheInjectionInAccept()
     {
-        ClassPatchResult result = PatcherAgent.RegistryInjection.Apply(
-            CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$4", PatcherAgent.InjectSnapshot, Accept)
-        );
+        ClassPatchResult applied = PatcherAgent.RegistryInjection
+            .Apply(CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$4", PatcherAgent.InjectSnapshot, Accept));
 
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
-        ClassFileAssert.Calls(patched, Accept, ClientThread, PatcherAgent.InjectSnapshot.Name, PatcherAgent.InjectSnapshot.Descriptor);
-        ClassFileAssert.DoesNotCall(patched, Accept, PatcherAgent.InjectSnapshot.Owner, PatcherAgent.InjectSnapshot.Name, PatcherAgent.InjectSnapshot.Descriptor);
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
+
+        ClassFileAssert.Calls(patched,
+            Accept,
+            ClientThread,
+            PatcherAgent.InjectSnapshot.Name,
+            PatcherAgent.InjectSnapshot.Descriptor);
+
+        ClassFileAssert.DoesNotCall(patched,
+            Accept,
+            PatcherAgent.InjectSnapshot.Owner,
+            PatcherAgent.InjectSnapshot.Name,
+            PatcherAgent.InjectSnapshot.Descriptor);
     }
 
     /// <summary>Forge for Minecraft 1.12.2 already runs the revert from a lambda on the client thread, so a DONE that only calls it there is left alone.</summary>
     [Fact]
     public void RevertPatchLeavesARevertThatForgeAlreadyScheduled()
     {
-        ClassPatchResult result = PatcherAgent.RegistryRevert.Apply(
-            CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$7", PatcherAgent.RevertToFrozen, Lambda)
-        );
+        ClassPatchResult skipped = PatcherAgent.RegistryRevert
+            .Apply(CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$7", PatcherAgent.RevertToFrozen, Lambda));
 
-        Assert.False(result.Changed);
-        Assert.Contains("no invocation of " + PatcherAgent.RevertToFrozen.Owner, result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+
+        Assert.Contains("no invocation of " + PatcherAgent.RevertToFrozen.Owner,
+            skipped.SkippedReason,
+            StringComparison.Ordinal);
     }
 
     /// <summary>The revert in DONE's <c>accept</c> now goes to the helper.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left a DONE whose <c>accept</c> calls the revert itself unchanged, so it has no bytes to check; the message is the patch's own line on why.
+    /// </exception>
     [Fact]
     public void RevertPatchRedirectsTheRevertInAccept()
     {
-        ClassPatchResult result = PatcherAgent.RegistryRevert.Apply(
-            CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$7", PatcherAgent.RevertToFrozen, Accept)
-        );
+        ClassPatchResult applied = PatcherAgent.RegistryRevert
+            .Apply(CreateClassFile(className: "net/minecraftforge/fml/common/network/handshake/FMLHandshakeClientState$7", PatcherAgent.RevertToFrozen, Accept));
 
-        byte[] patched = result.Bytes ?? throw new InvalidOperationException(result.ToString());
+        byte[] patched = applied.Bytes ?? throw new InvalidOperationException(applied.ToString());
 
-        Assert.Equal(expected: 1, result.RedirectedInvocations);
-        ClassFileAssert.Calls(patched, Accept, ClientThread, PatcherAgent.RevertToFrozen.Name, PatcherAgent.RevertToFrozen.Descriptor);
-        ClassFileAssert.DoesNotCall(patched, Accept, PatcherAgent.RevertToFrozen.Owner, PatcherAgent.RevertToFrozen.Name, PatcherAgent.RevertToFrozen.Descriptor);
+        Assert.Equal(expected: 1, applied.RedirectedInvocations);
+
+        ClassFileAssert.Calls(patched,
+            Accept,
+            ClientThread,
+            PatcherAgent.RevertToFrozen.Name,
+            PatcherAgent.RevertToFrozen.Descriptor);
+
+        ClassFileAssert.DoesNotCall(patched,
+            Accept,
+            PatcherAgent.RevertToFrozen.Owner,
+            PatcherAgent.RevertToFrozen.Name,
+            PatcherAgent.RevertToFrozen.Descriptor);
     }
 
     // A class file with an empty accept and a method that calls the given GameData method with null and false arguments and returns what it returns.
@@ -78,16 +107,15 @@ public sealed class RegistryThreadPatchTests
         if (caller != Accept)
             writer = writer.AddMethod(Accept, descriptor: "()V", static code => code.Return());
 
-        return writer.AddMethod(
-                caller,
+        return writer
+            .AddMethod(caller,
                 returnsValue ? "()Ljava/lang/Object;" : "()V",
                 code =>
                 {
                     CodeBuilder called = (takesArguments ? code.AConstNull().IConst(value: 0).IConst(value: 0) : code).Invoke(call);
 
                     return returnsValue ? called.AReturn() : called.Return();
-                }
-            )
+                })
             .ToArray();
     }
 }

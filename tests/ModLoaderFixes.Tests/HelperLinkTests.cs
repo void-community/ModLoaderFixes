@@ -14,7 +14,8 @@ public sealed class HelperLinkTests
     private const string Forge = "https://maven.minecraftforge.net";
     private const string NeoForged = "https://maven.neoforged.net/releases";
 
-    /// <summary>EventBus 0.10.2 to 0.10.4, whose EventListenerHelper the helper reaches through the methods the patch adds.</summary>
+    /// <summary>Gets EventBus 0.10.2 to 0.10.4, the releases whose EventListenerHelper the helper reaches through the methods the patch adds.</summary>
+    /// <value>One row per release: the Maven coordinates of the EventBus artifact in Forge's repository, and the SHA-256 that the artifact is pinned to.</value>
     public static TheoryData<string, string> EventBuses { get; } = new()
     {
         { "net.minecraftforge:eventbus:0.10.2", "e313a118c8b1042a2d8e931f5e627696f22b842f174e8fe4422f1bec5aa8f9b2" },
@@ -22,23 +23,38 @@ public sealed class HelperLinkTests
         { "net.minecraftforge:eventbus:0.10.4", "59f8a341f2016a0c607406028a306a25358dcd0928f5141bfe351b6dcd2e8391" },
     };
 
-    /// <summary>Forge for Minecraft 1.7.2 and 1.7.10, whose FMLClientHandler the play client helper reaches through the getter the patch adds.</summary>
+    /// <summary>Gets Forge for Minecraft 1.7.2 and 1.7.10, whose FMLClientHandler the play client helper reaches through the getter the patch adds.</summary>
+    /// <value>One row per Minecraft version: the Maven coordinates of Forge's universal jar for it, and the SHA-256 that the jar is pinned to.</value>
     public static TheoryData<string, string> Forges { get; } = new()
     {
-        { "net.minecraftforge:forge:1.7.2-10.12.2.1161-mc172:universal", "17628bcf403e312f8de275633528c171795fd0b5469ba9e496baf401a2cd1b7e" },
-        { "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10:universal", "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529" },
+        {
+            "net.minecraftforge:forge:1.7.2-10.12.2.1161-mc172:universal",
+            "17628bcf403e312f8de275633528c171795fd0b5469ba9e496baf401a2cd1b7e"
+        },
+        {
+            "net.minecraftforge:forge:1.7.10-10.13.4.1614-1.7.10:universal",
+            "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529"
+        },
     };
 
-    /// <summary>Forge's FML and NeoForge's, with configData of each type NeoForge's FML has given it.</summary>
+    /// <summary>Gets Forge's FML and NeoForge's in pairs, with configData of each type NeoForge's FML has given it.</summary>
+    /// <value>
+    /// One row per pair: the Maven coordinates of Forge's FML loader and the SHA-256 it is pinned to, then the coordinates of NeoForge's FML loader and its own
+    /// SHA-256.
+    /// </value>
     public static TheoryData<string, string, string, string> Loaders { get; } = new()
     {
         {
-            "net.minecraftforge:fmlloader:1.20.1-47.4.28", "9c26db7ee5ae50e0d3d493fe2f07dd4a10d61c1e678203af97986e45c269f414",
-            "net.neoforged.fancymodloader:loader:2.0.17", "fdb7c4ffd3b03ce5dba32d453a5335630416b4c820ce54eada5cba96e36be625"
+            "net.minecraftforge:fmlloader:1.20.1-47.4.28",
+            "9c26db7ee5ae50e0d3d493fe2f07dd4a10d61c1e678203af97986e45c269f414",
+            "net.neoforged.fancymodloader:loader:2.0.17",
+            "fdb7c4ffd3b03ce5dba32d453a5335630416b4c820ce54eada5cba96e36be625"
         },
         {
-            "net.minecraftforge:fmlloader:1.19.4-45.3.0", "1a5469a8646c0b83561fedd828a7605ede8812d329434042489571883e8f89a5",
-            "net.neoforged.fancymodloader:loader:4.0.39", "2c5b1386bba0e77c769e95d53eb2edb00773ef3bded5196a44277ade8f112534"
+            "net.minecraftforge:fmlloader:1.19.4-45.3.0",
+            "1a5469a8646c0b83561fedd828a7605ede8812d329434042489571883e8f89a5",
+            "net.neoforged.fancymodloader:loader:4.0.39",
+            "2c5b1386bba0e77c769e95d53eb2edb00773ef3bded5196a44277ade8f112534"
         },
     };
 
@@ -57,25 +73,35 @@ public sealed class HelperLinkTests
     public async Task ChannelCloseHelperLinks(string version, string sha1, string sha256)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string server = await RealJarTests.VanillaServer(version, sha1, sha256).GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.ChannelCloses, [server], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8),
+            JavaClasses.Modloaderfixes.ChannelCloses,
+            classPath: [server],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 
     /// <summary>The FML config helper, which serves Forge and NeoForge, links against both loaders that the patches changed.</summary>
     /// <param name="forgeCoordinates">Forge's FML loader.</param>
-    /// <param name="forgeSha256">Its pinned checksum.</param>
+    /// <param name="forgeSha256">The pinned checksum of Forge's loader.</param>
     /// <param name="neoForgeCoordinates">NeoForge's FML loader.</param>
-    /// <param name="neoForgeSha256">Its pinned checksum.</param>
+    /// <param name="neoForgeSha256">The pinned checksum of NeoForge's loader.</param>
     [Theory]
     [MemberData(nameof(Loaders))]
     public async Task ConfigurationHelperLinks(string forgeCoordinates, string forgeSha256, string neoForgeCoordinates, string neoForgeSha256)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string forge = await new MavenArtifact(Forge, forgeCoordinates, forgeSha256).GetPathAsync(cancellationToken);
         string neoForge = await new MavenArtifact(NeoForged, neoForgeCoordinates, neoForgeSha256).GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.ModLoaderConfigs, [forge, neoForge], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8),
+            JavaClasses.Modloaderfixes.ModLoaderConfigs,
+            classPath: [forge, neoForge],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 
     /// <summary>The EventBus helper links against a real EventBus that the patches changed.</summary>
@@ -86,9 +112,14 @@ public sealed class HelperLinkTests
     public async Task EventBusHelperLinks(string coordinates, string sha256)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string eventBus = await new MavenArtifact(Forge, coordinates, sha256).GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.EventListeners, [eventBus], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8),
+            JavaClasses.Modloaderfixes.EventListeners,
+            classPath: [eventBus],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 
     /// <summary>NeoForge 1.20.2's list of handshake indexes links against the fastutil that Minecraft 1.20.2 to 1.20.4 ship, whose IntArrayList it extends.</summary>
@@ -97,13 +128,15 @@ public sealed class HelperLinkTests
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
 
-        string fastutil = await new MavenArtifact(
-            repository: "https://libraries.minecraft.net",
+        string fastutil = await new MavenArtifact(repository: "https://libraries.minecraft.net",
             coordinates: "it.unimi.dsi:fastutil:8.5.12",
-            sha256: "b5543ee08d062d551cf0a5c9bc0fb70588b0382079029ba48941fa9c9be8a5d4"
-        ).GetPathAsync(cancellationToken);
+            sha256: "b5543ee08d062d551cf0a5c9bc0fb70588b0382079029ba48941fa9c9be8a5d4").GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 17), JavaClasses.Modloaderfixes.HandshakeIndexes, [fastutil], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 17),
+            JavaClasses.Modloaderfixes.HandshakeIndexes,
+            classPath: [fastutil],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 
     /// <summary>The helper that adds vanilla's new connections links against the Netty that vanilla 1.7.2 and 1.7.10 servers bundle, the oldest and newest.</summary>
@@ -116,9 +149,14 @@ public sealed class HelperLinkTests
     public async Task NewConnectionHelperLinks(string version, string sha1, string sha256)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string server = await RealJarTests.VanillaServer(version, sha1, sha256).GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.NewConnections, [server], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8),
+            JavaClasses.Modloaderfixes.NewConnections,
+            classPath: [server],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 
     /// <summary>The play client helper links against a real Forge 1.7 that the patches changed.</summary>
@@ -129,8 +167,13 @@ public sealed class HelperLinkTests
     public async Task PlayClientHelperLinks(string coordinates, string sha256)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string forge = await new MavenArtifact(Forge, coordinates, sha256).GetPathAsync(cancellationToken);
 
-        await ClassFileAssert.LinksAsync(new Jdk(major: 8), JavaClasses.Modloaderfixes.PlayClients, [forge], PatcherAgent.Patches, cancellationToken);
+        await ClassFileAssert.LinksAsync(new Jdk(major: 8),
+            JavaClasses.Modloaderfixes.PlayClients,
+            classPath: [forge],
+            PatcherAgent.Patches,
+            cancellationToken);
     }
 }

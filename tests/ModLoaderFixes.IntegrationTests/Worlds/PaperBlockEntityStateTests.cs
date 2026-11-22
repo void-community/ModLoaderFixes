@@ -22,12 +22,10 @@ public sealed class PaperBlockEntityStateTests
     [JdkData(8, 17)]
     public async Task AgentReadsTheStateOfASpawnerWithAChestsBlockEntityOnPaper114(Jdk jdk)
     {
-        JavaRun patched = await AssertRepairedAsync(
-            jdk,
+        JavaRun patched = await AssertRepairedAsync(jdk,
             revision: "v1_14_R1",
             sources: "Fixtures/PaperBlockState/**/*.java",
-            entity: "net.minecraft.server.v1_14_R1.TileEntityChest"
-        );
+            entity: "net.minecraft.server.v1_14_R1.TileEntityChest");
 
         // Paper 1.14 lacks CraftBukkit's own repair, so only the helper's line is in the log.
         Assert.DoesNotContain(expectedSubstring: "Bukkit will attempt to fix this", patched.Output, StringComparison.Ordinal);
@@ -42,18 +40,17 @@ public sealed class PaperBlockEntityStateTests
     [JdkData(17)]
     public async Task AgentReadsTheStateOfASpawnerWithAChestsBlockEntityOnPaper117(Jdk jdk)
     {
-        JavaRun patched = await AssertRepairedAsync(
-            jdk,
+        JavaRun patched = await AssertRepairedAsync(jdk,
             revision: "v1_17_R1",
             sources: "Fixtures/PaperBlockState17/**/*.java",
-            entity: "net.minecraft.world.level.block.entity.TileEntityChest"
-        );
+            entity: "net.minecraft.world.level.block.entity.TileEntityChest");
 
         Assert.Contains(expectedSubstring: "Bukkit will attempt to fix this", patched.Output, StringComparison.Ordinal);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture of Paper 1.14 as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarReadsTheStateOfASpawnerWithAChestsBlockEntity(Jdk jdk)
@@ -61,25 +58,34 @@ public sealed class PaperBlockEntityStateTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(sources: "Fixtures/PaperBlockState/**/*.java", jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass(revision: "v1_14_R1"), classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched, revision: "v1_14_R1");
+        AssertReadsTheSpawnersState(patched, revision: "v1_14_R1");
     }
 
-    private static void AssertPatched(JavaRun patched, string revision)
+    private static void AssertReadsTheSpawnersState(JavaRun patched, string revision)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
-        Assert.Contains(
-            "ModLoaderFixes: patched org/bukkit/craftbukkit/" + revision + "/block/CraftBlockEntityState (<init>(Lorg/bukkit/block/Block;Ljava/lang/Class;)V: 1 invocation of java/lang/Class.cast redirected)",
+
+        Assert.Contains("ModLoaderFixes: patched org/bukkit/craftbukkit/" + revision + "/block/CraftBlockEntityState (<init>(Lorg/bukkit/block/Block;Ljava/lang/Class;)V: 1 invocation of java/lang/Class.cast redirected)",
             patched.Output,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(expectedSubstring: "READ the spawner's state from its own block entity", patched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "READ the chest's state; REFUSED the read off the server thread", patched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "Block at 8, 10, 8 is Block{minecraft:spawner} but has ", patched.Output, StringComparison.Ordinal);
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "READ the spawner's state from its own block entity",
+            patched.Output,
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "READ the chest's state; REFUSED the read off the server thread",
+            patched.Output,
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "Block at 8, 10, 8 is Block{minecraft:spawner} but has ",
+            patched.Output,
+            StringComparison.Ordinal);
+
         Assert.Contains(Replaced, patched.Output, StringComparison.Ordinal);
     }
 
@@ -88,18 +94,22 @@ public sealed class PaperBlockEntityStateTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        string classPath = await jdk.CompileAsync(sources, jdk.Major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
-        JavaRun unpatched = await jdk.RunAsync(MainClass(revision), classPath, options: Verified(), cancellationToken: cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        string classPath = await jdk.CompileAsync(sources, jdk.Major, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        JavaRun unpatched = await jdk.RunAsync(MainClass(revision), classPath, options: Verified(), cancellationToken: cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
         Assert.Contains("CRASHED on the spawner: Cannot cast " + entity, unpatched.Output, StringComparison.Ordinal);
         Assert.DoesNotContain(Replaced, unpatched.Output, StringComparison.Ordinal);
 
-        JavaRun patched = await jdk.RunAsync(MainClass(revision), classPath, agent, Verified(), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        JavaRun patched = await jdk.RunAsync(MainClass(revision), classPath, agent, Verified(), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
-        AssertPatched(patched, revision);
+        AssertReadsTheSpawnersState(patched, revision);
 
         return patched;
     }

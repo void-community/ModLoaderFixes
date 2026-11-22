@@ -13,8 +13,7 @@ public sealed class ChannelCloseTests
 {
     private const string Linux = "The fixture shows what Linux does to a connection that is closed with a packet unread; other systems end it differently.";
     private const string MainClass = "net.minecraft.network.NetworkManager";
-    private const string Patched =
-        "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
+    private const string Patched = "ModLoaderFixes: patched net/minecraft/network/NetworkManager (func_150718_a(Lnet/minecraft/util/IChatComponent;)V: 1 invocation of io/netty/channel/Channel.close redirected)";
     private const string Sources = "Fixtures/ChannelClose/**/*.java";
 
     /// <summary>
@@ -22,6 +21,7 @@ public sealed class ChannelCloseTests
     /// reset; with the agent the fixture ends the same way.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17, 21)]
     public async Task AgentLeavesAConnectionThatJavaClosesGracefullyAsItIs(Jdk jdk)
@@ -31,10 +31,9 @@ public sealed class ChannelCloseTests
         Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
 
         const string graceful = "Nagle on: reason received 20 of 20, reset 0 times; Nagle off: reason received 20 of 20, reset 0 times";
-
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
@@ -55,6 +54,7 @@ public sealed class ChannelCloseTests
     /// Minecraft from 1.8.1 sets it, has sent the reason by then and is closed as before, with the reset after the reason.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentSendsTheKicksReasonBeforeItClosesTheConnection(Jdk jdk)
@@ -64,22 +64,29 @@ public sealed class ChannelCloseTests
         Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
 
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun unpatched = await jdk.RunAsync(MainClass, classPath, options: Verified(), cancellationToken: cancellationToken);
 
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
-        Assert.DoesNotContain(expectedSubstring: "Nagle on: reason received 20 of 20", unpatched.Output, StringComparison.Ordinal);
-        Assert.Contains(expectedSubstring: "Nagle off: reason received 20 of 20, reset 20 times", unpatched.Output, StringComparison.Ordinal);
+
+        Assert.DoesNotContain(expectedSubstring: "Nagle on: reason received 20 of 20",
+            unpatched.Output,
+            StringComparison.Ordinal);
+
+        Assert.Contains(expectedSubstring: "Nagle off: reason received 20 of 20, reset 20 times",
+            unpatched.Output,
+            StringComparison.Ordinal);
 
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, agent, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertEveryPlayerGetsTheReason(patched);
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes the fixture as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task JavaAgentJarSendsTheKicksReasonBeforeItClosesTheConnection(Jdk jdk)
@@ -89,23 +96,22 @@ public sealed class ChannelCloseTests
         Assert.SkipUnless(OperatingSystem.IsLinux(), Linux);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Sources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(MainClass, classPath, jar, Verified(), cancellationToken);
 
-        AssertPatched(patched);
+        AssertEveryPlayerGetsTheReason(patched);
     }
 
-    private static void AssertPatched(JavaRun patched)
+    private static void AssertEveryPlayerGetsTheReason(JavaRun patched)
     {
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "Nagle on: reason received 20 of 20, reset 0 times; Nagle off: reason received 20 of 20, reset 20 times",
+
+        Assert.Contains(expectedSubstring: "Nagle on: reason received 20 of 20, reset 0 times; Nagle off: reason received 20 of 20, reset 20 times",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 
     // The patched connection and the helper go through the full verifier.

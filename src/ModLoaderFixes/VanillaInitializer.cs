@@ -27,8 +27,13 @@ internal static class VanillaInitializer
         .. MappedClasses.MemoryInitializer.Vanilla.Select(static naming => naming.Name),
     ];
 
-    private static readonly JavaMethod AddLast = JavaMethod.Interface(owner: "io/netty/channel/ChannelPipeline", name: "addLast", AddLastDescriptor);
-    private static readonly JavaMethod ListAdd = JavaMethod.Interface(owner: "java/util/List", name: "add", descriptor: "(Ljava/lang/Object;)Z");
+    private static readonly JavaMethod AddLast = JavaMethod.Interface(owner: "io/netty/channel/ChannelPipeline",
+        name: "addLast",
+        AddLastDescriptor);
+
+    private static readonly JavaMethod ListAdd = JavaMethod.Interface(owner: "java/util/List",
+        name: "add",
+        descriptor: "(Ljava/lang/Object;)Z");
 
     /// <summary>
     /// Redirects the initializer's one <c>List.add</c>, and the <c>addLast</c> that puts the connection in the pipeline under its name, when the method has the shape
@@ -58,7 +63,10 @@ internal static class VanillaInitializer
 
         return addLast is not { } connectionAddLast
             ? 0
-            : Redirect(editor, additions[0], ListAdd, name: "add") + Redirect(editor, connectionAddLast, AddLast, name: "addLast");
+            : Redirect(editor, additions[0], ListAdd, name: "add") + Redirect(editor,
+                connectionAddLast,
+                AddLast,
+                name: "addLast");
     }
 
     /// <summary>Gets whether a class has the name of one of the initializers in some vanilla release.</summary>
@@ -72,12 +80,7 @@ internal static class VanillaInitializer
     // Minecraft 1.7 constructs its connection with a boolean that says whether it is a client's; 1.8 passes the packet direction instead, and its tick needs no fix.
     private static bool ConstructsConnection(JavaClassFile model, IReadOnlyList<Instruction> code)
     {
-        return code.Any(
-            instruction =>
-            instruction.Opcode == Opcodes.InvokeSpecial
-            && instruction.ConstantIndex is { } index
-            && model.GetMemberReference(index) is { Name: "<init>", Descriptor: "(Z)V" }
-        );
+        return code.Any(instruction => instruction.Opcode == Opcodes.InvokeSpecial && instruction.ConstantIndex is { } index && model.GetMemberReference(index) is { Name: "<init>", Descriptor: "(Z)V" });
     }
 
     private static int IndexOfName(JavaClassFile model, IReadOnlyList<Instruction> code)
@@ -95,7 +98,10 @@ internal static class VanillaInitializer
     {
         bool loadsConstant = instruction.Opcode is Opcodes.Ldc or Opcodes.LdcW;
 
-        return loadsConstant && instruction.ConstantIndex is { } constant && model.ConstantPool[constant] is StringEntry text && model.GetUtf8(text.StringIndex) == ConnectionName;
+        return loadsConstant
+            && instruction.ConstantIndex is { } constant
+            && model.ConstantPool[constant] is StringEntry text
+            && model.GetUtf8(text.StringIndex) == ConnectionName;
     }
 
     // invokeinterface takes five bytes and invokestatic three, so the call becomes invokestatic of the helper, with the receiver as its first argument, and two nops.
@@ -106,7 +112,7 @@ internal static class VanillaInitializer
         byte[] replacement = editor.AssembleCode(code => code.Invoke(to).Nop().Nop());
 
         return !editor.ReplaceCode(MethodName, MethodDescriptor, site.Offset, original, replacement)
-            ? throw new InvalidOperationException($"{MethodName} doesn't call {from} at offset {site.Offset}.")
+            ? throw new InvalidOperationException(message: $"{MethodName} doesn't call {from} at offset {site.Offset}.")
             : 1;
     }
 }

@@ -16,18 +16,31 @@ public sealed class HandshakeRepliesPatchTests
     private const string Combine = "biConsumerFor";
     private const string IndexFirst = "indexFirst";
 
-    /// <summary>
-    /// Gets each class that has declared <c>indexFirst</c>, with the type of the consumer that its combiner takes, the combiner's name and the type it returns:
-    /// Forge's <c>biConsumerFor</c> a BiConsumer, NeoForge's <c>consumerFor</c> from 1.20.2 a MessageConsumer.
-    /// </summary>
+    /// <summary>Gets each class that has declared <c>indexFirst</c>, with the combiner that it builds the halves of a reply's handler with.</summary>
+    /// <value>
+    /// One row per class: its name, the type of the consumer that its combiner takes, the combiner's name and the type the combiner returns. Forge's
+    /// <c>biConsumerFor</c> returns a BiConsumer, and NeoForge's <c>consumerFor</c> from 1.20.2 a MessageConsumer.
+    /// </value>
     public static TheoryData<string, string, string, string> Builders { get; } = new()
     {
         { "net/minecraftforge/fml/network/NetworkInitialization", "net/minecraftforge/fml/util/ThreeConsumer", Combine, BiConsumer },
         { "net/minecraftforge/fml/network/FMLHandshakeHandler", "net/minecraftforge/fml/util/ThreeConsumer", Combine, BiConsumer },
-        { "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler", "net/minecraftforge/fmllegacy/util/ThreeConsumer", Combine, BiConsumer },
-        { "net/minecraftforge/network/HandshakeHandler", "net/minecraftforge/network/HandshakeHandler$HandshakeConsumer", Combine, BiConsumer },
         {
-            "net/neoforged/neoforge/network/HandshakeHandler", "net/neoforged/neoforge/network/HandshakeHandler$HandshakeConsumer", "consumerFor",
+            "net/minecraftforge/fmllegacy/network/FMLHandshakeHandler",
+            "net/minecraftforge/fmllegacy/util/ThreeConsumer",
+            Combine,
+            BiConsumer
+        },
+        {
+            "net/minecraftforge/network/HandshakeHandler",
+            "net/minecraftforge/network/HandshakeHandler$HandshakeConsumer",
+            Combine,
+            BiConsumer
+        },
+        {
+            "net/neoforged/neoforge/network/HandshakeHandler",
+            "net/neoforged/neoforge/network/HandshakeHandler$HandshakeConsumer",
+            "consumerFor",
             "net/neoforged/neoforge/network/simple/MessageFunctions$MessageConsumer"
         },
     };
@@ -37,11 +50,17 @@ public sealed class HandshakeRepliesPatchTests
     /// <param name="consumer">The type of the consumer that the combiner takes.</param>
     /// <param name="combiner">The combiner's name.</param>
     /// <param name="result">The type the combiner returns, whose <c>andThen</c> composes the halves.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The patch left <paramref name="className"/> unchanged although its <c>indexFirst</c> composes the removal of the index first, and the message is the patch's
+    /// own line about the class; or the patched class has no <c>indexFirst</c> with code to compare with the reordered one.
+    /// </exception>
     [Theory]
     [MemberData(nameof(Builders))]
     public void PatchHandlesTheReplyBeforeItsIndex(string className, string consumer, string combiner, string result)
     {
-        ClassPatchResult patchResult = HandshakeReplies.Patch.Apply(CreateBuilder(className, consumer, reordered: false, combiner, result));
+        ClassPatchResult patchResult = HandshakeReplies.Patch
+            .Apply(CreateBuilder(className, consumer, reordered: false, combiner, result));
+
         byte[] patched = patchResult.Bytes ?? throw new InvalidOperationException(patchResult.ToString());
 
         Assert.Equal(Opcodes(CreateBuilder(className, consumer, reordered: true, combiner, result)), Opcodes(patched));
@@ -52,24 +71,20 @@ public sealed class HandshakeRepliesPatchTests
     [Fact]
     public void PatchLeavesBuildersThatHandleTheReplyFirst()
     {
-        ClassPatchResult result = HandshakeReplies.Patch.Apply(
-            CreateBuilder(
-                className: "net/minecraftforge/network/HandshakeHandler",
+        ClassPatchResult skipped = HandshakeReplies.Patch
+            .Apply(CreateBuilder(className: "net/minecraftforge/network/HandshakeHandler",
                 consumer: "net/minecraftforge/network/HandshakeHandler$HandshakeConsumer",
-                reordered: true
-            )
-        );
+                reordered: true));
 
-        Assert.False(result.Changed);
-        Assert.Contains(expectedSubstring: "nothing to change", result.SkippedReason, StringComparison.Ordinal);
+        Assert.False(skipped.Changed);
+        Assert.Contains(expectedSubstring: "nothing to change", skipped.SkippedReason, StringComparison.Ordinal);
     }
 
     /// <summary><c>NetworkInitialization</c> from 1.14 calls the handler's <c>indexFirst</c> instead of declaring one, so it is left alone.</summary>
     [Fact]
     public void PatchLeavesClassesWithoutIndexFirst()
     {
-        byte[] classFile = new ClassFileWriter(name: "net/minecraftforge/fml/network/NetworkInitialization")
-            .AddMethod(name: "getHandshakeChannel", descriptor: "()V", static code => code.Return(), accessFlags: 0x0008)
+        byte[] classFile = new ClassFileWriter(name: "net/minecraftforge/fml/network/NetworkInitialization").AddMethod(name: "getHandshakeChannel", descriptor: "()V", static code => code.Return(), accessFlags: 0x0008)
             .ToArray();
 
         Assert.False(HandshakeReplies.Patch.Apply(classFile).Changed);
@@ -79,7 +94,9 @@ public sealed class HandshakeRepliesPatchTests
     [Fact]
     public void PatchOnlyMatchesTheBuilders()
     {
-        byte[] classFile = CreateBuilder(className: "net/minecraftforge/network/simple/SimpleChannel", consumer: "java/lang/Object", reordered: false);
+        byte[] classFile = CreateBuilder(className: "net/minecraftforge/network/simple/SimpleChannel",
+            consumer: "java/lang/Object",
+            reordered: false);
 
         Assert.False(HandshakeReplies.Patch.Matches(classFile, hierarchy: null));
     }
@@ -96,19 +113,28 @@ public sealed class HandshakeRepliesPatchTests
             CodeBuilder first = code.AConstNull().Invoke(combine).AStore(slot: 1);
 
             return reordered
-                ? first.ALoad(slot: 0).Invoke(combine).ALoad(slot: 1).Invoke(andThen).AReturn()
-                : first.ALoad(slot: 1).ALoad(slot: 0).Invoke(combine).Invoke(andThen).AReturn();
+                ? first.ALoad(slot: 0)
+                    .Invoke(combine)
+                    .ALoad(slot: 1)
+                    .Invoke(andThen)
+                    .AReturn()
+                : first.ALoad(slot: 1)
+                    .ALoad(slot: 0)
+                    .Invoke(combine)
+                    .Invoke(andThen)
+                    .AReturn();
         }
 
-        return new ClassFileWriter(className)
-            .AddMethod(IndexFirst, "(L" + consumer + ";)L" + result + ";", Compose, accessFlags: 0x0009)
+        return new ClassFileWriter(className).AddMethod(IndexFirst, "(L" + consumer + ";)L" + result + ";", Compose, accessFlags: 0x0009)
             .ToArray();
     }
 
     private static List<byte> Opcodes(byte[] classFile)
     {
         JavaClassFile model = JavaClassFile.Read(classFile);
-        CodeAttribute code = model.FindMethod(IndexFirst)?.Code ?? throw new InvalidOperationException(message: "The class has no indexFirst.");
+
+        CodeAttribute code = model.FindMethod(IndexFirst)?.Code
+            ?? throw new InvalidOperationException(message: "The class has no indexFirst.");
 
         return [.. code.Instructions.Select(static instruction => instruction.Opcode)];
     }

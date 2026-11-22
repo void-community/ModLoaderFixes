@@ -16,10 +16,11 @@ namespace ModLoaderFixes;
 internal static class PlayClientWait
 {
     private const string Dispatcher = "cpw/mods/fml/common/network/handshake/NetworkDispatcher";
-
     private const string FmlClientHandler = "cpw/mods/fml/client/FMLClientHandler";
 
-    private static readonly JavaMethod WaitForPlayClient = JavaMethod.Virtual(owner: "cpw/mods/fml/common/FMLCommonHandler", name: "waitForPlayClient", descriptor: "()V");
+    private static readonly JavaMethod WaitForPlayClient = JavaMethod.Virtual(owner: "cpw/mods/fml/common/FMLCommonHandler",
+        name: "waitForPlayClient",
+        descriptor: "()V");
 
     /// <summary>
     /// Gets the patch of <c>FMLClientHandler</c>: <c>waitForPlayClient</c>'s wait on its latch goes to <c>modloaderfixes.PlayClients</c>, which waits up to the
@@ -30,10 +31,8 @@ internal static class PlayClientWait
     internal static ClassPatch Patch { get; } = ClassPatch.For(FmlClientHandler)
         .AddFieldGetter(field: "playClientBlock", name: "modloaderfixes$playClientBlock")
         .Method(name: "waitForPlayClient", descriptor: "()V")
-        .RedirectInvocation(
-            JavaMethod.Virtual(owner: "java/util/concurrent/CountDownLatch", name: "await", descriptor: "(JLjava/util/concurrent/TimeUnit;)Z"),
-            toOwner: "modloaderfixes/PlayClients"
-        );
+        .RedirectInvocation(JavaMethod.Virtual(owner: "java/util/concurrent/CountDownLatch", name: "await", descriptor: "(JLjava/util/concurrent/TimeUnit;)Z"),
+            toOwner: "modloaderfixes/PlayClients");
 
     /// <summary>
     /// Gets the patch of <c>NetworkDispatcher</c>, from Forge 1.7.2-10.12.0.1000, whose <c>clientListenForServerHandshake</c> waits for the play client: after it

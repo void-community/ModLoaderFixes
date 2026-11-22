@@ -16,33 +16,54 @@ namespace ModLoaderFixes.Worlds;
 /// </summary>
 internal static class GenerationBlockEntities
 {
+    // The access flags of the method the patch adds.
+    private const int PrivateStaticSynthetic = 0x100A;
+
+    // The method the patch adds, which sets the block and removes the entity of the block it replaced.
     private const string Added = "modloaderfixes$setBlockState";
+
+    // The block state's getBlock by the name Forge runs it under, with its descriptor.
     private const string Block = "func_177230_c";
     private const string BlockDescriptor = "()Lnet/minecraft/block/Block;";
+
+    // What the log says the patch did.
     private const string Description = "block entity of another block removed where generation replaces the block";
+
+    // A block position as a descriptor names it.
     private const string Position = "Lnet/minecraft/util/math/BlockPos;";
-    private const int PrivateStaticSynthetic = 0x100A;
+
+    // The chunk's removeTileEntity, with its descriptor, and its setBlockState, by the names Forge runs them under.
     private const string Remove = "func_177425_e";
     private const string RemoveDescriptor = "(" + Position + ")V";
     private const string Set = "func_177436_a";
+
+    // The block state as a descriptor names it, in 1.13 and from 1.14.
     private const string State13 = "Lnet/minecraft/block/state/IBlockState;";
     private const string State14 = "Lnet/minecraft/block/BlockState;";
 
-    private static readonly JavaMethod Accept = JavaMethod.Interface(owner: "java/util/function/BiConsumer", name: "accept", descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)V");
+    private static readonly JavaMethod Accept = JavaMethod.Interface(owner: "java/util/function/BiConsumer",
+        name: "accept",
+        descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)V");
 
-    private static readonly JavaMethod Apply = JavaMethod.Interface(owner: "java/util/function/Function", name: "apply", descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
+    private static readonly JavaMethod Apply = JavaMethod.Interface(owner: "java/util/function/Function",
+        name: "apply",
+        descriptor: "(Ljava/lang/Object;)Ljava/lang/Object;");
 
     // The block state's getBlock under Forge's names and each vanilla release's. 1.16 declares it in the state's superclass and still calls it on the state.
-    private static readonly JavaMethod[] Blocks =
-    [
-        .. new[] { MappedClasses.BlockState13, MappedClasses.BlockState14, MappedClasses.BlockState16 }.SelectMany(Namings).Select(static names => names.Virtual(Block, BlockDescriptor)),
+    private static readonly JavaMethod[] Blocks = [
+        .. new[] { MappedClasses.BlockState13, MappedClasses.BlockState14, MappedClasses.BlockState16 }.SelectMany(Namings)
+            .Select(static names => names.Virtual(Block, BlockDescriptor)),
     ];
 
     // The chunk's setBlockState and removeTileEntity under Forge's names and under each vanilla release's; a region calls the pair of its own release.
     private static readonly ChunkCalls[] Chunks =
     [
-        .. Namings(MappedClasses.GenerationChunk13).Select(static names => new ChunkCalls(names.Interface(Set, SetDescriptor(State13)), names.Interface(Remove, RemoveDescriptor))),
-        .. Namings(MappedClasses.GenerationChunk14).Select(static names => new ChunkCalls(names.Interface(Set, SetDescriptor(State14)), names.Interface(Remove, RemoveDescriptor))),
+        .. Namings(MappedClasses.GenerationChunk13).Select(static names => new ChunkCalls(names.Interface(Set,
+                SetDescriptor(State13)),
+            names.Interface(Remove, RemoveDescriptor))),
+        .. Namings(MappedClasses.GenerationChunk14).Select(static names => new ChunkCalls(names.Interface(Set,
+                SetDescriptor(State14)),
+            names.Interface(Remove, RemoveDescriptor))),
     ];
 
     // The region's setBlockState, which takes a state of another name in 1.13 and a second number from 1.16.
@@ -53,33 +74,26 @@ internal static class GenerationBlockEntities
         new(MappedClasses.GenerationRegion16, Setter: "func_241211_a_", "(" + Position + State14 + "II)Z"),
     ];
 
-    private static readonly JavaMethod RemoveEntityOfOtherBlock = JavaMethod.Static(
-        owner: "modloaderfixes/GenerationBlocks",
+    private static readonly JavaMethod RemoveEntityOfOtherBlock = JavaMethod.Static(owner: "modloaderfixes/GenerationBlocks",
         name: "removeEntityOfOtherBlock",
-        descriptor: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/util/function/Function;Ljava/lang/Object;Ljava/lang/Object;Ljava/util/function/BiConsumer;)V"
-    );
+        descriptor: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/util/function/Function;Ljava/lang/Object;Ljava/lang/Object;Ljava/util/function/BiConsumer;)V");
 
     /// <summary>
     /// Gets the patch of Forge's region, by MCP's name <c>WorldGenRegion</c>, whose setter has one of three signatures from 1.13.2 to 1.16.5, and so one patch
     /// looks for each.
     /// </summary>
     internal static ClassPatch Forge { get; } = ClassPatch.For(MappedClasses.GenerationRegion13.Forge.Name)
-        .Edit(
-            Description,
-            static context => RemoveStale(
-                context.Editor,
-                [.. Regions.Select(static region => region.Mapped.Forge.Virtual(region.Setter, region.Descriptor))],
+        .Edit(Description,
+            static context => RemoveStale(context.Editor,
+                setters: [.. Regions.Select(static region => region.Mapped.Forge.Virtual(region.Setter, region.Descriptor))],
                 Chunks,
-                Blocks
-            )
-        );
+                Blocks));
 
     /// <summary>
     /// Gets the patches of Paper's region, <c>RegionLimitedWorldAccess</c> in a package of each revision from 1.13 to 1.16.5, by the names that CraftBukkit and
     /// Paper give its setter and the chunk's methods there.
     /// </summary>
-    internal static IReadOnlyList<ClassPatch> Paper { get; } =
-    [
+    internal static IReadOnlyList<ClassPatch> Paper { get; } = [
         .. new[] { "v1_13_R1", "v1_13_R2", "v1_14_R1", "v1_15_R1", "v1_16_R1", "v1_16_R2", "v1_16_R3" }.Select(static revision => PaperPatch("net/minecraft/server/" + revision + "/")),
     ];
 
@@ -87,7 +101,9 @@ internal static class GenerationBlockEntities
     internal static IReadOnlyList<ClassPatch> Patches { get; } =
     [
         Forge,
-        .. Regions.SelectMany(static region => region.Mapped.Vanilla.Select(names => VanillaPatch(names, names.Virtual(region.Setter, region.Descriptor)))),
+        .. Regions.SelectMany(static region => region.Mapped
+            .Vanilla
+            .Select(names => VanillaPatch(names, names.Virtual(region.Setter, region.Descriptor)))),
         .. Paper,
     ];
 
@@ -105,20 +121,31 @@ internal static class GenerationBlockEntities
     // to 1.15.2 and a, with a second number, from 1.16.
     private static ClassPatch PaperPatch(string package)
     {
+        // The chunk and the region by Spigot's names in that package.
         string chunk = package + "IChunkAccess";
         string region = package + "RegionLimitedWorldAccess";
+
+        // A position and a state as descriptors name them, and the descriptors of the chunk's remove and set that take them.
         string position = "L" + package + "BlockPosition;";
         string state = "L" + package + "IBlockData;";
         string remove = "(" + position + ")V";
         string set = "(" + position + state + "Z)" + state;
-        JavaMethod[] setters = [JavaMethod.Virtual(region, name: "setTypeAndData", "(" + position + state + "I)Z"), JavaMethod.Virtual(region, name: "a", "(" + position + state + "II)Z")];
+
+        // The region's setter under each of its names, and the state's getBlock.
+        JavaMethod[] setters =
+        [
+            JavaMethod.Virtual(region, name: "setTypeAndData", "(" + position + state + "I)Z"),
+            JavaMethod.Virtual(region, name: "a", "(" + position + state + "II)Z"),
+        ];
+
         JavaMethod[] blocks = [JavaMethod.Virtual(package + "IBlockData", name: "getBlock", "()L" + package + "Block;")];
 
         ChunkCalls[] chunks =
         [
             new(JavaMethod.Interface(chunk, name: "a", set), JavaMethod.Interface(chunk, name: "d", remove)),
             new(JavaMethod.Interface(chunk, name: "setType", set), JavaMethod.Interface(chunk, name: "d", remove)),
-            new(JavaMethod.Interface(chunk, name: "setType", set), JavaMethod.Interface(chunk, name: "removeTileEntity", remove)),
+            new(JavaMethod.Interface(chunk, name: "setType", set),
+                JavaMethod.Interface(chunk, name: "removeTileEntity", remove)),
         ];
 
         return ClassPatch.For(region).Edit(Description, context => RemoveStale(context.Editor, setters, chunks, blocks));
@@ -150,8 +177,7 @@ internal static class GenerationBlockEntities
             if (model.FindMethod(Added, added) is not null)
                 return 0;
 
-            editor.AddMethod(
-                PrivateStaticSynthetic,
+            editor.AddMethod(PrivateStaticSynthetic,
                 Added,
                 added,
                 builder => builder.ALoad(slot: 0)
@@ -168,10 +194,15 @@ internal static class GenerationBlockEntities
                     .Lambda(Accept, chunk.Remove)
                     .Invoke(RemoveEntityOfOtherBlock)
                     .ALoad(slot: 4)
-                    .AReturn()
-            );
+                    .AReturn());
 
-            return editor.ReplaceInvocation(chunk.Set, model.Name, Added, added, setter.Name, setter.Descriptor, ownerIsInterface: false);
+            return editor.ReplaceInvocation(chunk.Set,
+                model.Name,
+                Added,
+                added,
+                setter.Name,
+                setter.Descriptor,
+                ownerIsInterface: false);
         }
 
         return 0;
@@ -197,7 +228,7 @@ internal static class GenerationBlockEntities
 
     private static ClassPatch VanillaPatch(ClassNames names, JavaMethod setter)
     {
-        return names.Patch().Edit(Description, context => RemoveStale(context.Editor, [setter], Chunks, Blocks));
+        return names.Patch().Edit(Description, context => RemoveStale(context.Editor, setters: [setter], Chunks, Blocks));
     }
 
     // A chunk's setBlockState and removeTileEntity under one naming.

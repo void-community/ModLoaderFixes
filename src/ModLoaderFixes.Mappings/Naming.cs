@@ -6,5 +6,6 @@ namespace ModLoaderFixes.Mappings;
 internal sealed record Naming(string Name, IReadOnlyList<MethodName> Methods)
 {
     /// <summary>Gets the naming as text, which two namings share when they are the same.</summary>
-    internal string Key => Name + " " + string.Join(separator: ' ', Methods.Select(static method => method.Name + method.Descriptor));
+    internal string Key => Name + " " + string.Join(separator: ' ',
+        Methods.Select(static method => method.Name + method.Descriptor));
 }

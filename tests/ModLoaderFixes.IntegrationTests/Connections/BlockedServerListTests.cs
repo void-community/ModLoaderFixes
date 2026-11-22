@@ -11,14 +11,17 @@ namespace ModLoaderFixes.IntegrationTests.Connections;
 /// </summary>
 public sealed class BlockedServerListTests
 {
+    // How the fixture names the cause of the exception that ended the connecting thread.
     private const string Cause = " from java.io.UncheckedIOException: java.net.SocketException: Connection reset";
+
+    // patchy 1.3.9's fixture: its main class, what the agent logs when it patches it, and its sources.
     private const string Patchy1 = "net.minecraft.client.multiplayer.GuiConnecting";
-    private const string Patchy1Patched =
-        "ModLoaderFixes: patched com/mojang/patchy/BlockedServers (<clinit>()V: 1 invocation of java/io/BufferedReader.lines redirected)";
+    private const string Patchy1Patched = "ModLoaderFixes: patched com/mojang/patchy/BlockedServers (<clinit>()V: 1 invocation of java/io/BufferedReader.lines redirected)";
     private const string Patchy1Sources = "Fixtures/BlockList1/**/*.java";
+
+    // patchy 2's fixture: its main class, what the agent logs when it patches it, and its sources.
     private const string Patchy2 = "net.minecraft.client.gui.screens.ConnectScreen";
-    private const string Patchy2Patched =
-        "ModLoaderFixes: patched com/mojang/patchy/MojangBlockListSupplier (createBlockList()Ljava/util/function/Predicate;: 1 invocation of java/io/BufferedReader.lines redirected)";
+    private const string Patchy2Patched = "ModLoaderFixes: patched com/mojang/patchy/MojangBlockListSupplier (createBlockList()Ljava/util/function/Predicate;: 1 invocation of java/io/BufferedReader.lines redirected)";
     private const string Patchy2Sources = "Fixtures/BlockList2/**/*.java";
 
     /// <summary>
@@ -26,21 +29,20 @@ public sealed class BlockedServerListTests
     /// connection finds the class unusable; with it the list is left empty, as when it can't be fetched, and both connect. Minecraft 1.12 to 1.16.5 run on Java 8.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(8)]
     public async Task AgentConnectsWhenPatchy1CantReadTheList(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
 
-        await AssertFixedAsync(
-            jdk,
+        await AssertFixedAsync(jdk,
             Patchy1Sources,
             Patchy1,
             "first connection: connector died: java.lang.ExceptionInInitializerError" + Cause
                 + "; second connection: connector died: java.lang.NoClassDefFoundError: Could not initialize class com.mojang.patchy.BlockedServers",
             Patchy1Patched,
-            patchedResult: "first connection: connected, not blocked; second connection: connected, not blocked"
-        );
+            patchedResult: "first connection: connected, not blocked; second connection: connected, not blocked");
     }
 
     /// <summary>
@@ -48,25 +50,25 @@ public sealed class BlockedServerListTests
     /// resolver unusable; with it the supplier gives no list, as when it can't fetch one, and both connect. Minecraft 1.17 runs on Java 16 and 1.20.5 on Java 21.
     /// </summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17, 21)]
     public async Task AgentConnectsWhenPatchy2CantReadTheList(Jdk jdk)
     {
         ArgumentNullException.ThrowIfNull(jdk);
 
-        await AssertFixedAsync(
-            jdk,
+        await AssertFixedAsync(jdk,
             Patchy2Sources,
             Patchy2,
             "first connection: connector died: java.lang.ExceptionInInitializerError" + Cause
                 + "; second connection: connector died: java.lang.NoClassDefFoundError: Could not initialize class net.minecraft.client.multiplayer.resolver.ServerNameResolver",
             Patchy2Patched,
-            patchedResult: "first connection: connected, with no list; second connection: connected, with no list"
-        );
+            patchedResult: "first connection: connected, with no list; second connection: connected, with no list");
     }
 
     /// <summary>The jar for <c>-javaagent</c> fixes patchy 2's read as the library for <c>-agentpath</c> does.</summary>
     /// <param name="jdk">The JDK that compiles and runs the fixture.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="jdk"/> is <see langword="null"/>.</exception>
     [Theory]
     [JdkData(17)]
     public async Task JavaAgentJarConnectsWhenPatchy2CantReadTheList(Jdk jdk)
@@ -74,26 +76,26 @@ public sealed class BlockedServerListTests
         ArgumentNullException.ThrowIfNull(jdk);
 
         PublishedAgent jar = PublishedAgent.FindJar(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
         string classPath = await jdk.CompileAsync(Patchy2Sources, jdk.Major, cancellationToken);
         JavaRun patched = await jdk.RunAsync(Patchy2, classPath, jar, Verified(), cancellationToken);
 
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(Patchy2Patched, patched.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            expectedSubstring: "first connection: connected, with no list; second connection: connected, with no list",
+
+        Assert.Contains(expectedSubstring: "first connection: connected, with no list; second connection: connected, with no list",
             patched.Output,
-            StringComparison.Ordinal
-        );
+            StringComparison.Ordinal);
     }
 
     private static async Task AssertFixedAsync(Jdk jdk, string sources, string mainClass, string unpatchedResult, string patchedLine, string patchedResult)
     {
         PublishedAgent agent = PublishedAgent.Find(name: "ModLoaderFixes");
-
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        string classPath = await jdk.CompileAsync(sources, jdk.Major, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+
+        string classPath = await jdk.CompileAsync(sources, jdk.Major, cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         JavaRun unpatched = await jdk.RunAsync(mainClass, classPath, options: Verified(), cancellationToken: cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
@@ -101,7 +103,8 @@ public sealed class BlockedServerListTests
         Assert.NotEqual(expected: 0, unpatched.ExitCode);
         Assert.Contains(unpatchedResult, unpatched.Output, StringComparison.Ordinal);
 
-        JavaRun patched = await jdk.RunAsync(mainClass, classPath, agent, Verified(), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        JavaRun patched = await jdk.RunAsync(mainClass, classPath, agent, Verified(), cancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         Assert.True(patched.ExitCode is 0, patched.Output);
         Assert.Contains(patchedLine, patched.Output, StringComparison.Ordinal);

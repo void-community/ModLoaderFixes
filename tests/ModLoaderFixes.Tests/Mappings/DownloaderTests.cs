@@ -41,7 +41,13 @@ public sealed class DownloaderTests
     [Fact]
     public async Task DownloadAsksAgainWhenTheServerIsBusy()
     {
-        HttpStatusCode[] busy = [HttpStatusCode.RequestTimeout, HttpStatusCode.TooManyRequests, HttpStatusCode.InternalServerError, HttpStatusCode.ServiceUnavailable];
+        HttpStatusCode[] busy =
+        [
+            HttpStatusCode.RequestTimeout,
+            HttpStatusCode.TooManyRequests,
+            HttpStatusCode.InternalServerError,
+            HttpStatusCode.ServiceUnavailable,
+        ];
 
         foreach (HttpStatusCode status in busy)
             Assert.Equal(expected: 2, await RequestsUntilServedAsync(status));
@@ -85,15 +91,20 @@ public sealed class DownloaderTests
         Dictionary<string, byte[]> files = new(StringComparer.Ordinal)
         {
             [key: "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"] = Encoding.UTF8.GetBytes(manifest),
-            [forge + "mcp/maven-metadata.xml"] = Encoding.UTF8.GetBytes(s: "<metadata><versioning><versions><version>1.0</version></versions></versioning></metadata>"),
-            [forge + "mcp_config/maven-metadata.xml"] = Encoding.UTF8.GetBytes(s: "<metadata><versioning><versions /></versioning></metadata>"),
+            [forge + "mcp/maven-metadata.xml"] = Encoding.UTF8
+                .GetBytes(s: "<metadata><versioning><versions><version>1.0</version></versions></versioning></metadata>"),
+            [forge + "mcp_config/maven-metadata.xml"] = Encoding.UTF8
+                .GetBytes(s: "<metadata><versioning><versions /></versioning></metadata>"),
             [key: "https://meta.ornithemc.net/v3/versions/gen2/intermediary"] = Encoding.UTF8.GetBytes(s: "[]"),
             [forge + "mcp/1.0/mcp-1.0-srg.zip"] = Zip(entry: "joined.srg", text: "CL: a net/Manager\n"),
         };
 
-        using ScriptedHandler handler = new(
-            (address, time) => time == 1 ? throw Reset() : new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(files[address]) }
-        );
+        using ScriptedHandler handler = new((address, time) => time == 1
+            ? throw Reset()
+            : new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(files[address])
+            });
 
         using HttpClient client = new(handler);
 
@@ -102,7 +113,11 @@ public sealed class DownloaderTests
         try
         {
             CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-            MappingSources sources = await MappingSources.CreateAsync(new Downloader(client, TimeSpan.Zero), cache.FullName, cancellationToken);
+
+            MappingSources sources = await MappingSources.CreateAsync(new Downloader(client, TimeSpan.Zero),
+                cache.FullName,
+                cancellationToken);
+
             Mapping mapping = await sources.GetAsync(Namespace.Srg, version: "1.0", cancellationToken);
 
             Assert.Equal(expected: "a", mapping.ObfuscatedClass(named: "net/Manager"));
@@ -118,19 +133,26 @@ public sealed class DownloaderTests
     // A response whose content gives a byte and then fails, as a connection does that is reset while a file is read.
     private static HttpResponseMessage Broken()
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new BrokenStream()) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new BrokenStream())
+        };
     }
 
     private static async Task<byte[]> DownloadAsync(ScriptedHandler handler)
     {
         using HttpClient client = new(handler, disposeHandler: false);
 
-        return await new Downloader(client, TimeSpan.Zero).GetAsync(Address, TestContext.Current.CancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        return await new Downloader(client, TimeSpan.Zero).GetAsync(Address, TestContext.Current.CancellationToken)
+            .ConfigureAwait(continueOnCapturedContext: false);
     }
 
     private static HttpResponseMessage Ok(string content)
     {
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(content) };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content)
+        };
     }
 
     // How often a file is asked for when the server first answers with the given status and then serves it.
@@ -148,7 +170,8 @@ public sealed class DownloaderTests
     // What HttpClient throws when the server resets the connection.
     private static HttpRequestException Reset()
     {
-        return new HttpRequestException(message: "An error occurred while sending the request.", new IOException(message: "Connection reset by peer."));
+        return new HttpRequestException(message: "An error occurred while sending the request.",
+            new IOException(message: "Connection reset by peer."));
     }
 
     private static byte[] Zip(string entry, string text)
@@ -171,11 +194,8 @@ public sealed class DownloaderTests
         private bool _started;
 
         public override bool CanRead => true;
-
         public override bool CanSeek => false;
-
         public override bool CanWrite => false;
-
         public override long Length => throw new NotSupportedException();
 
         public override long Position

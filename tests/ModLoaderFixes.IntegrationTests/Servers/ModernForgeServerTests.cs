@@ -11,17 +11,24 @@ namespace ModLoaderFixes.IntegrationTests.Servers;
 public sealed class ModernForgeServerTests
 {
     private const string ConfigurationWatchPatched = "ModLoaderFixes: patched net/minecraftforge/fml/loading/FMLConfig (loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autosave removed; loadFrom(Ljava/nio/file/Path;)V: 1 invocation of com/electronwill/nightconfig/core/file/GenericBuilder.autoreload removed)";
-
     private const string ListenerChildrenPatched = "ModLoaderFixes: patched net/minecraftforge/eventbus/ListenerList$ListenerListInst (";
     private const string ReloadPatched = " (<init>: 1 invocation of com/google/common/collect/Sets.newHashSet redirected)";
+
     // The handshake's builder of reply handlers is NetworkInitialization in 1.13.2 and the handler from 1.14, so the line is matched without the class.
     private const string RepliesPatched = " (indexed replies handled before they are marked answered (1 change))";
 
     /// <summary>
-    /// One build of each Forge branch whose handshake handler keeps <c>sentMessages</c> in an ArrayList, the ones seen dropping players among them, with the itzg image
-    /// that runs it, the protocol version of its Minecraft and FML's network version. Forge from 1.17 runs on the Java 17 image, whose Ubuntu 20.04 has glibc 2.31, so
-    /// these also load the agent on an older glibc than the runner that published it. Each image is itzg's latest release for its Java, which ForgeServer asks Docker Hub for once in each run.
+    /// Gets the servers that <see cref="ServerKeepsPlayersThatLogInThroughFmlsHandshake"/> starts: one build of each Forge branch whose handshake handler keeps
+    /// <c>sentMessages</c> in an ArrayList, the ones seen dropping players among them.
     /// </summary>
+    /// <value>
+    /// One row for each server: the itzg image that runs it, itzg's TYPE, the Minecraft version, the Forge or NeoForge build, the protocol version of that
+    /// Minecraft and FML's network version.
+    /// </value>
+    /// <remarks>
+    /// Forge from 1.17 runs on the Java 17 image, whose Ubuntu 20.04 has glibc 2.31, so these also load the agent on an older glibc than the runner that
+    /// published it. Each image is itzg's latest release for its Java, which ForgeServer asks Docker Hub for once in each run.
+    /// </remarks>
     public static TheoryData<string, string, string, string, int, string> Builds { get; } = new()
     {
         { "itzg/minecraft-server:stable-java8", "FORGE", "1.13.2", "25.0.223", 404, "FML2" },
@@ -47,6 +54,7 @@ public sealed class ModernForgeServerTests
     /// <param name="loaderVersion">The Forge or NeoForge build.</param>
     /// <param name="protocol">The protocol version of that Minecraft.</param>
     /// <param name="fmlVersion">FML's network version.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="version"/> is <see langword="null"/>.</exception>
     [Theory]
     [MemberData(nameof(Builds))]
     public async Task ServerKeepsPlayersThatLogInThroughFmlsHandshake(string image, string type, string version, string loaderVersion, int protocol, string fmlVersion)
@@ -77,14 +85,12 @@ public sealed class ModernForgeServerTests
         // NeoForge from 1.20.2 has a handler of its own, which keeps the indexes in a fastutil IntArrayList, and the object holders under its own package.
         bool isNeoForgesOwn = type == "NEOFORGE" && version != "1.20.1";
 
-        ForgeServer.AssertLogged(
-            logs,
-            isNeoForgesOwn
-                ? "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (<init>: 1 new it/unimi/dsi/fastutil/ints/IntArrayList replaced by new modloaderfixes/HandshakeIndexes stored in sentMessages)"
-                : "HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)"
-        );
+        ForgeServer.AssertLogged(logs,
+            isNeoForgesOwn ? "ModLoaderFixes: patched net/neoforged/neoforge/network/HandshakeHandler (<init>: 1 new it/unimi/dsi/fastutil/ints/IntArrayList replaced by new modloaderfixes/HandshakeIndexes stored in sentMessages)" : "HandshakeHandler (<init>: 1 new java/util/ArrayList replaced by new java/util/concurrent/CopyOnWriteArrayList stored in sentMessages)");
+
         ForgeServer.AssertNotLogged(logs, unexpected: "ConcurrentModificationException");
         ForgeServer.AssertNotLogged(logs, unexpected: "Badly compressed packet");
+
         // Each client's last acknowledgement is handled before its index is removed, so the server thread can't finish the handshake while the network thread
         // still needs the handler.
         ForgeServer.AssertLogged(logs, RepliesPatched);
@@ -92,10 +98,8 @@ public sealed class ModernForgeServerTests
         // Mod loading fills ObjectHolderRegistry's handlers on these servers too, from the same worker threads as on clients.
         if (!isNeoForgesOwn)
         {
-            ForgeServer.AssertLogged(
-                logs,
-                expected: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)"
-            );
+            ForgeServer.AssertLogged(logs,
+                expected: "ModLoaderFixes: patched net/minecraftforge/registries/ObjectHolderRegistry (<clinit>()V: 1 new java/util/HashSet() replaced by java/util/concurrent/ConcurrentHashMap.newKeySet() stored in objectHolders)");
         }
 
         // Forge before 1.20 builds its fml.toml with autosave and autoreload, which each server here corrects on its first start; Forge 1.20.1 and NeoForge don't.

@@ -15,6 +15,7 @@ namespace ModLoaderFixes.IntegrationTests.Platforms;
 public sealed partial class GlibcFloorTests
 {
     private const byte Class32 = 1;
+
     // The fifth byte of an ELF file tells its class, 1 for a 32-bit one.
     private const int ClassOffset = 4;
 
@@ -26,20 +27,19 @@ public sealed partial class GlibcFloorTests
     [Fact]
     public void PublishedAgentAsksForNoNewerGlibcThanItsPlatformsFloor()
     {
-        Assert.SkipUnless(
-            OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable(variable: "CI") is "true",
-            reason: "Only CI links the agent against an old glibc, and only a Linux agent names one."
-        );
+        Assert.SkipUnless(OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable(variable: "CI") is "true",
+            reason: "Only CI links the agent against an old glibc, and only a Linux agent names one.");
 
         string agent = PublishedAgent.Find(name: "ModLoaderFixes").FilePath;
         byte[] bytes = File.ReadAllBytes(agent);
+
         // An ELF library names the libraries it needs and each glibc version it asks for in its string table, as libc.so.6 and GLIBC_2.17.
         string text = Encoding.Latin1.GetString(bytes);
         Version? newest = GlibcVersion().Matches(text).Max(static match => Version.Parse(match.Groups[groupnum: 1].Value));
 
         if (text.Contains(value: "libc.musl-", StringComparison.Ordinal))
         {
-            Assert.True(newest is null, $"{agent} is linked against musl and asks for glibc {newest}.");
+            Assert.True(newest is null, userMessage: $"{agent} is linked against musl and asks for glibc {newest}.");
             Assert.DoesNotContain(expectedSubstring: "libc.so.6", text, StringComparison.Ordinal);
 
             return;
@@ -48,7 +48,7 @@ public sealed partial class GlibcFloorTests
         Version floor = bytes[ClassOffset] == Class32 ? new Version(major: 2, minor: 34) : new Version(major: 2, minor: 17);
 
         Assert.NotNull(newest);
-        Assert.True(newest <= floor, $"{agent} asks for glibc {newest}, newer than {floor}.");
+        Assert.True(newest <= floor, userMessage: $"{agent} asks for glibc {newest}, newer than {floor}.");
     }
 
     [GeneratedRegex(pattern: @"GLIBC_(\d+(?:\.\d+)+)")]
