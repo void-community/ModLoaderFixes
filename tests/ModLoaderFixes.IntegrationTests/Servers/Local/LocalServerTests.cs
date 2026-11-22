@@ -97,7 +97,7 @@ public sealed class LocalServerTests
 
         Assert.Contains(ForgeServer.ReadyLine, started, StringComparison.Ordinal);
 
-        await server.WriteLineAsync(line: "stop", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        await server.WriteAsync(line: "stop", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
         JavaRun run = await server.WaitForExitAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
